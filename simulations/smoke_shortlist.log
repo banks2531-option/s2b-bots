@@ -1,0 +1,84 @@
+
+=== smoke_s1a (spy_condor_weekly) 2025-06-01..2025-06-30 kwargs={} budget_remaining=6000 ===
+  .. 2025-06-02 (1/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-03 (2/20) bal=10000 trades=0 fresh_api=3
+  .. 2025-06-04 (3/20) bal=10000 trades=0 fresh_api=3
+  .. 2025-06-05 (4/20) bal=10000 trades=0 fresh_api=3
+  .. 2025-06-06 (5/20) bal=10000 trades=0 fresh_api=3
+  .. 2025-06-09 (6/20) bal=10186 trades=1 fresh_api=3
+  .. 2025-06-10 (7/20) bal=10186 trades=1 fresh_api=5
+  .. 2025-06-11 (8/20) bal=10186 trades=1 fresh_api=5
+  .. 2025-06-12 (9/20) bal=10186 trades=1 fresh_api=5
+  .. 2025-06-13 (10/20) bal=10186 trades=1 fresh_api=5
+  .. 2025-06-16 (11/20) bal=10364 trades=2 fresh_api=5
+12:10:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-06-17 (12/20) bal=10364 trades=2 fresh_api=7
+  .. 2025-06-18 (13/20) bal=10364 trades=2 fresh_api=7
+  .. 2025-06-20 (14/20) bal=10364 trades=2 fresh_api=7
+  .. 2025-06-23 (15/20) bal=10415 trades=3 fresh_api=7
+  .. 2025-06-24 (16/20) bal=10415 trades=3 fresh_api=10
+  .. 2025-06-25 (17/20) bal=10415 trades=3 fresh_api=10
+  .. 2025-06-26 (18/20) bal=10415 trades=3 fresh_api=10
+  .. 2025-06-27 (19/20) bal=10415 trades=3 fresh_api=10
+  .. 2025-06-30 (20/20) bal=9671 trades=4 fresh_api=10
+12:11:10 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:11:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:11:35 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:11:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:11:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+--- smoke_s1a: n=5 WR=0.6 PF=0.477 P&L=-455.0 maxDD=744.1 fresh_api=13 (cum 13/6000)
+
+=== smoke_s1b (spy_condor_monthly) 2025-06-01..2025-06-30 kwargs={} budget_remaining=5987 ===
+  .. 2025-06-02 (1/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-03 (2/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-04 (3/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-05 (4/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-06 (5/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-09 (6/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-10 (7/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-11 (8/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-12 (9/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-13 (10/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-16 (11/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-17 (12/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-18 (13/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-20 (14/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-23 (15/20) bal=10000 trades=0 fresh_api=0
+12:12:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:12:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:12:39 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:12:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-06-24 (16/20) bal=10000 trades=0 fresh_api=4
+  .. 2025-06-25 (17/20) bal=10000 trades=0 fresh_api=4
+  .. 2025-06-26 (18/20) bal=10000 trades=0 fresh_api=4
+  .. 2025-06-27 (19/20) bal=10000 trades=0 fresh_api=4
+  .. 2025-06-30 (20/20) bal=10000 trades=0 fresh_api=4
+--- smoke_s1b: n=0 WR=0.0 PF=0.0 P&L=0 maxDD=0.0 fresh_api=4 (cum 17/6000)
+
+=== smoke_s3 (spy_bfly_monthly) 2025-06-01..2025-06-30 kwargs={} budget_remaining=5983 ===
+  .. 2025-06-02 (1/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-03 (2/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-04 (3/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-05 (4/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-06 (5/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-09 (6/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-10 (7/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-11 (8/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-12 (9/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-13 (10/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-16 (11/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-17 (12/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-18 (13/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-20 (14/20) bal=10000 trades=0 fresh_api=0
+  .. 2025-06-23 (15/20) bal=10000 trades=0 fresh_api=0
+12:13:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:13:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:13:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:13:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:13:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-06-24 (16/20) bal=10000 trades=0 fresh_api=4
+  .. 2025-06-25 (17/20) bal=10000 trades=0 fresh_api=4
+  .. 2025-06-26 (18/20) bal=10000 trades=0 fresh_api=4
+  .. 2025-06-27 (19/20) bal=10000 trades=0 fresh_api=4
+  .. 2025-06-30 (20/20) bal=10000 trades=0 fresh_api=4
+--- smoke_s3: n=0 WR=0.0 PF=0.0 P&L=0 maxDD=0.0 fresh_api=4 (cum 21/6000)

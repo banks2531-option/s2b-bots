@@ -1,0 +1,54 @@
+{
+  "cfg": {
+    "start": "2025-08-29",
+    "end": "2026-02-27",
+    "stop_mult": 1.0,
+    "tp_pct": 0.5,
+    "delta_cap": 0.3,
+    "use_regime_gate": true,
+    "use_iv_filter": true
+  },
+  "summary": {
+    "n_trades": 26,
+    "wins": 14,
+    "losses": 12,
+    "win_rate": 0.5384615384615384,
+    "avg_win": 153.90000000000006,
+    "avg_loss": -280.11666666666684,
+    "profit_factor": 0.6409829237817575,
+    "total_pnl": -1206.8000000000004,
+    "end_balance": 8793.200000000012,
+    "max_drawdown": 2167.79999999999,
+    "monthly": {
+      "2025-09": 912.3000000000008,
+      "2025-10": -1991.9000000000008,
+      "2025-11": 239.99999999999997,
+      "2026-01": 121.7999999999999,
+      "2026-02": -489.0000000000001
+    },
+    "by_regime": {
+      "CHOP|bullish": [
+        9,
+        900.9000000000007
+      ],
+      "DOWN|bearish": [
+        2,
+        -102.50000000000003
+      ],
+      "UP|bullish": [
+        15,
+        -2005.200000000001
+      ]
+    },
+    "rejects": {
+      "ivr_below_35": 1845,
+      "universe": 33345,
+      "regime_bcs_gate": 5297,
+      "credit_lt_25pct": 1962,
+      "no_pricing": 1970,
+      "cooldown": 410,
+      "regime_bps_in_down": 844,
+      "credit_wiped": 8
+    }
+  }
+}

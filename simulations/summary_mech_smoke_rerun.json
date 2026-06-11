@@ -1,0 +1,66 @@
+{
+  "spy_putwrite_weekly": {
+    "n_trades": 5,
+    "wins": 4,
+    "losses": 1,
+    "win_rate": 0.8,
+    "avg_win": 45.95,
+    "avg_loss": -6.3,
+    "profit_factor": 29.175,
+    "total_pnl": 177.5,
+    "end_balance": 10177.5,
+    "max_drawdown": 6.3,
+    "by_exit_reason": {
+      "time_exit_1dte": [
+        1,
+        -6.3
+      ],
+      "tp": [
+        4,
+        183.8
+      ]
+    },
+    "rejects": {},
+    "coverage": {
+      "day_keys_requested": 46,
+      "overlay": 36,
+      "archive": 10,
+      "fresh_api_calls": 0,
+      "pct_archive": 21.7,
+      "pct_overlay": 78.3,
+      "pct_fresh": 0.0
+    }
+  },
+  "qqq_0dte_ic_1100": {
+    "n_trades": 20,
+    "wins": 7,
+    "losses": 13,
+    "win_rate": 0.35,
+    "avg_win": 19.26,
+    "avg_loss": -59.14,
+    "profit_factor": 0.175,
+    "total_pnl": -634.0,
+    "end_balance": 9366.0,
+    "max_drawdown": 651.8,
+    "by_exit_reason": {
+      "eod_flatten": [
+        18,
+        -423.8
+      ],
+      "eod_flatten_lastbar": [
+        2,
+        -210.2
+      ]
+    },
+    "rejects": {},
+    "coverage": {
+      "day_keys_requested": 80,
+      "overlay": 70,
+      "archive": 10,
+      "fresh_api_calls": 0,
+      "pct_archive": 12.5,
+      "pct_overlay": 87.5,
+      "pct_fresh": 0.0
+    }
+  }
+}

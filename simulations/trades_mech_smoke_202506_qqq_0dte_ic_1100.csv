@@ -1,0 +1,21 @@
+strategy,symbol,structure,entry_date,entry_time_et,expiration,dte,legs,deltas,spot,sigma,credit,debit,qty,slip_leg,n_aligned_bars,exit_date,exit_time_et,exit_cost,exit_reason,pnl
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-02,11:00,2025-06-02,0,SP517 / LP512 / SC523 / LC528,put_short=-0.125 call_short=0.109,519.87,0.2028,0.52,,1,0.05,76,2025-06-02,15:50,0.35,eod_flatten,14.4
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-03,11:00,2025-06-03,0,SP524 / LP519 / SC529 / LC534,put_short=-0.190 call_short=0.167,526.36,0.2157,0.28,,1,0.05,57,2025-06-03,15:40,0.22,eod_flatten_lastbar,3.4
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-04,11:00,2025-06-04,0,SP526 / LP521 / SC532 / LC537,put_short=-0.128 call_short=0.114,528.88,0.2029,0.21,,1,0.05,49,2025-06-04,15:55,0.2,eod_flatten,-1.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-05,11:00,2025-06-05,0,SP529 / LP524 / SC534 / LC539,put_short=-0.179 call_short=0.144,531.29,0.1986,0.85,,1,0.05,73,2025-06-05,15:55,3.92,eod_flatten,-309.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-06,11:00,2025-06-06,0,SP528 / LP523 / SC534 / LC539,put_short=-0.173 call_short=0.109,530.57,0.2174,0.22,,1,0.05,56,2025-06-06,15:50,0.21,eod_flatten,-1.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-09,11:00,2025-06-09,0,SP529 / LP524 / SC534 / LC539,put_short=-0.169 call_short=0.120,531.22,0.1846,0.34,,1,0.05,60,2025-06-09,15:50,0.21,eod_flatten,10.4
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-10,11:00,2025-06-10,0,SP529 / LP524 / SC534 / LC539,put_short=-0.129 call_short=0.149,531.58,0.1812,0.32,,1,0.05,72,2025-06-10,15:50,0.41,eod_flatten,-11.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-11,11:05,2025-06-11,0,SP534 / LP529 / SC539 / LC544,put_short=-0.135 call_short=0.151,536.56,0.1826,0.55,,1,0.05,51,2025-06-11,15:45,2.66,eod_flatten_lastbar,-213.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-12,11:00,2025-06-12,0,SP531 / LP526 / SC536 / LC541,put_short=-0.110 call_short=0.132,533.59,0.1674,0.52,,1,0.05,61,2025-06-12,15:50,0.22,eod_flatten,27.4
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-13,11:00,2025-06-13,0,SP527 / LP522 / SC532 / LC537,put_short=-0.191 call_short=0.132,529.17,0.1984,0.7,,1,0.05,76,2025-06-13,15:50,0.98,eod_flatten,-30.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-16,11:00,2025-06-16,0,SP532 / LP527 / SC537 / LC542,put_short=-0.163 call_short=0.162,534.47,0.1992,0.26,,1,0.05,58,2025-06-16,15:55,0.2,eod_flatten,3.4
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-17,11:00,2025-06-17,0,SP529 / LP524 / SC535 / LC540,put_short=-0.107 call_short=0.104,531.95,0.1887,0.14,,1,0.05,63,2025-06-17,15:55,0.67,eod_flatten,-55.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-18,11:00,2025-06-18,0,SP529 / LP524 / SC535 / LC540,put_short=-0.135 call_short=0.158,532.11,0.2244,0.76,,1,0.05,77,2025-06-18,15:50,0.68,eod_flatten,5.4
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-20,11:00,2025-06-20,0,SP523 / LP518 / SC529 / LC534,put_short=-0.118 call_short=0.143,526.13,0.2119,0.93,,1,0.05,77,2025-06-20,15:50,0.2,eod_flatten,70.4
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-23,11:00,2025-06-23,0,SP526 / LP521 / SC531 / LC536,put_short=-0.125 call_short=0.193,528.83,0.1963,0.56,,1,0.05,78,2025-06-23,15:50,0.92,eod_flatten,-38.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-24,11:00,2025-06-24,0,SP535 / LP530 / SC540 / LC545,put_short=-0.168 call_short=0.191,537.59,0.2119,0.28,,1,0.05,71,2025-06-24,15:50,0.47,eod_flatten,-21.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-25,11:00,2025-06-25,0,SP539 / LP534 / SC545 / LC550,put_short=-0.126 call_short=0.112,541.88,0.1963,0.24,,1,0.05,47,2025-06-25,15:50,0.24,eod_flatten,-2.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-26,11:00,2025-06-26,0,SP541 / LP536 / SC546 / LC551,put_short=-0.137 call_short=0.193,543.76,0.1962,0.19,,1,0.05,54,2025-06-26,15:50,0.66,eod_flatten,-49.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-27,11:00,2025-06-27,0,SP546 / LP541 / SC551 / LC556,put_short=-0.167 call_short=0.162,548.45,0.1954,0.14,,1,0.05,42,2025-06-27,15:50,0.21,eod_flatten,-9.6
+qqq_0dte_ic_1100,QQQ,iron_condor,2025-06-30,11:00,2025-06-30,0,SP547 / LP542 / SC553 / LC558,put_short=-0.122 call_short=0.125,549.99,0.1974,0.23,,1,0.05,63,2025-06-30,15:50,0.43,eod_flatten,-22.6

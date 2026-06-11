@@ -1,0 +1,33 @@
+{
+  "n_trades": 1,
+  "wins": 0,
+  "losses": 1,
+  "win_rate": 0.0,
+  "avg_win": 0.0,
+  "avg_loss": -1320.6,
+  "profit_factor": 0.0,
+  "total_pnl": -1320.6,
+  "end_balance": 8679.4,
+  "max_drawdown": 0.0,
+  "by_exit_reason": {
+    "expiration_intrinsic": [
+      1,
+      -1320.6
+    ]
+  },
+  "rejects": {},
+  "coverage": {
+    "day_keys_requested": 4,
+    "api_fresh": 3,
+    "overlay": 1,
+    "fresh_api_calls": 3,
+    "pct_archive": 0.0,
+    "pct_overlay": 25.0,
+    "pct_fresh": 75.0
+  },
+  "sim_kwargs": {},
+  "window": [
+    "2025-06-01",
+    "2025-06-30"
+  ]
+}

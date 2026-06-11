@@ -1,0 +1,62 @@
+13:18:17 | VERIFY SPY250321C00580000 2025-03-18: polygon_bars=81 databento_bars=81 bytes=7801
+13:18:17 |   common timestamps: 81 (polygon-only 0, databento-only 0)
+13:18:17 |   close match: exact 62/81, max |diff| = 0.0200
+13:18:17 |   sample t=1742304600000: poly c=0.4 dbn c=0.4 poly v=835 dbn v=835
+13:18:17 |   sample t=1742304900000: poly c=0.34 dbn c=0.34 poly v=674 dbn v=674
+13:18:17 |   sample t=1742305200000: poly c=0.3 dbn c=0.3 poly v=215 dbn v=215
+13:18:17 |   format: keys_ok=True t_5min_aligned=True t_is_epoch_ms=True
+13:19:24 | FETCH start: 945 contract-days, 943 distinct contracts, 52 weekly buckets, overlay=C:\Users\FixUser123\Documents\fable options\simulations\api_cache_overlay_batch.db
+13:21:12 | 2025-W10 [2025-03-03..2025-03-11] syms=18 rows->keys=126 (empty 57) bytes=1144461 cost=1.6386
+13:21:29 | 2025-W11 [2025-03-10..2025-03-18] syms=14 rows->keys=98 (empty 40) bytes=968840 cost=1.4033
+13:21:34 | 2025-W12 [2025-03-17..2025-03-25] syms=24 rows->keys=168 (empty 49) bytes=969207 cost=1.4938
+13:21:40 | 2025-W13 [2025-03-24..2025-04-01] syms=15 rows->keys=105 (empty 45) bytes=735834 cost=1.1397
+13:22:25 | 2025-W14 [2025-03-31..2025-04-08] syms=18 rows->keys=126 (empty 61) bytes=857383 cost=1.2458
+13:22:55 | 2025-W15 [2025-04-07..2025-04-15] syms=15 rows->keys=105 (empty 47) bytes=717813 cost=0.9921
+13:23:01 | 2025-W16 [2025-04-14..2025-04-22] syms=20 rows->keys=120 (empty 33) bytes=1029871 cost=1.4656
+13:23:08 | 2025-W17 [2025-04-21..2025-04-29] syms=18 rows->keys=126 (empty 63) bytes=898064 cost=1.3106
+13:23:17 | 2025-W18 [2025-04-28..2025-05-06] syms=18 rows->keys=126 (empty 54) bytes=673577 cost=1.0492
+13:23:22 | 2025-W19 [2025-05-05..2025-05-13] syms=14 rows->keys=98 (empty 46) bytes=733701 cost=1.0878
+13:24:31 | 2025-W20 [2025-05-12..2025-05-20] syms=19 rows->keys=133 (empty 45) bytes=943904 cost=1.4673
+13:24:54 | 2025-W21 [2025-05-19..2025-05-28] syms=12 rows->keys=84 (empty 37) bytes=595457 cost=0.9231
+13:25:00 | 2025-W22 [2025-05-27..2025-06-03] syms=11 rows->keys=66 (empty 29) bytes=704593 cost=1.0682
+13:26:00 | 2025-W23 [2025-06-02..2025-06-10] syms=17 rows->keys=119 (empty 52) bytes=943425 cost=1.4855
+13:26:10 | 2025-W24 [2025-06-09..2025-06-17] syms=10 rows->keys=69 (empty 36) bytes=562868 cost=0.8980
+13:26:19 | 2025-W25 [2025-06-16..2025-06-24] syms=11 rows->keys=66 (empty 27) bytes=745016 cost=1.1244
+13:26:59 | 2025-W26 [2025-06-23..2025-07-01] syms=14 rows->keys=98 (empty 41) bytes=652649 cost=1.0593
+13:27:10 | 2025-W27 [2025-06-30..2025-07-08] syms=15 rows->keys=90 (empty 39) bytes=659246 cost=1.0517
+13:27:24 | 2025-W28 [2025-07-07..2025-07-15] syms=17 rows->keys=119 (empty 56) bytes=731075 cost=1.1946
+13:28:03 | 2025-W29 [2025-07-14..2025-07-22] syms=25 rows->keys=175 (empty 51) bytes=1207792 cost=1.8910
+13:28:59 | 2025-W30 [2025-07-21..2025-07-29] syms=18 rows->keys=126 (empty 57) bytes=695661 cost=1.1520
+13:29:08 | 2025-W31 [2025-07-28..2025-08-05] syms=19 rows->keys=133 (empty 48) bytes=900055 cost=1.3702
+13:29:29 | 2025-W32 [2025-08-04..2025-08-12] syms=17 rows->keys=119 (empty 54) bytes=891926 cost=1.3597
+13:30:37 | 2025-W33 [2025-08-11..2025-08-19] syms=27 rows->keys=189 (empty 55) bytes=982858 cost=1.5788
+13:30:50 | 2025-W34 [2025-08-18..2025-08-26] syms=21 rows->keys=147 (empty 53) bytes=725340 cost=1.1400
+13:30:58 | 2025-W35 [2025-08-25..2025-09-03] syms=14 rows->keys=98 (empty 49) bytes=617655 cost=0.9831
+13:31:14 | 2025-W36 [2025-09-02..2025-09-09] syms=17 rows->keys=102 (empty 35) bytes=688058 cost=1.0506
+13:31:23 | 2025-W37 [2025-09-08..2025-09-16] syms=21 rows->keys=147 (empty 56) bytes=930515 cost=1.4895
+13:32:21 | 2025-W38 [2025-09-15..2025-09-23] syms=29 rows->keys=203 (empty 52) bytes=948327 cost=1.4853
+13:32:35 | 2025-W39 [2025-09-22..2025-09-30] syms=16 rows->keys=112 (empty 48) bytes=863631 cost=1.3320
+13:32:42 | 2025-W40 [2025-09-29..2025-10-07] syms=20 rows->keys=140 (empty 53) bytes=879609 cost=1.3972
+13:34:36 | FETCH start: 401 contract-days, 399 distinct contracts, 21 weekly buckets, overlay=C:\Users\FixUser123\Documents\fable options\simulations\api_cache_overlay_batch.db
+13:35:34 | 2025-W41 [2025-10-06..2025-10-14] syms=21 rows->keys=147 (empty 58) bytes=1119522 cost=1.7094
+13:36:20 | 2025-W42 [2025-10-13..2025-10-21] syms=24 rows->keys=168 (empty 39) bytes=1051801 cost=1.4925
+13:36:30 | 2025-W43 [2025-10-20..2025-10-28] syms=21 rows->keys=147 (empty 54) bytes=877987 cost=1.3295
+13:36:40 | 2025-W44 [2025-10-27..2025-11-04] syms=19 rows->keys=133 (empty 46) bytes=1090656 cost=1.6226
+13:36:55 | 2025-W45 [2025-11-03..2025-11-11] syms=18 rows->keys=126 (empty 43) bytes=875395 cost=1.2636
+13:37:31 | 2025-W46 [2025-11-10..2025-11-18] syms=20 rows->keys=140 (empty 54) bytes=1120750 cost=1.6244
+13:37:58 | 2025-W47 [2025-11-17..2025-11-25] syms=24 rows->keys=168 (empty 43) bytes=1053571 cost=1.4818
+13:38:06 | 2025-W48 [2025-11-24..2025-12-02] syms=16 rows->keys=96 (empty 29) bytes=534036 cost=0.8203
+13:38:36 | 2025-W49 [2025-12-01..2025-12-09] syms=19 rows->keys=133 (empty 46) bytes=1062901 cost=1.6146
+13:39:05 | 2025-W50 [2025-12-08..2025-12-16] syms=20 rows->keys=140 (empty 49) bytes=848958 cost=1.2883
+13:39:39 | 2025-W51 [2025-12-15..2025-12-23] syms=28 rows->keys=196 (empty 46) bytes=1380518 cost=1.9976
+13:39:47 | 2025-W52 [2025-12-22..2025-12-30] syms=15 rows->keys=90 (empty 32) bytes=414677 cost=0.6923
+13:40:09 | 2026-W01 [2025-12-29..2026-01-06] syms=14 rows->keys=84 (empty 25) bytes=558788 cost=0.8540
+13:40:23 | 2026-W02 [2026-01-05..2026-01-20] syms=18 rows->keys=198 (empty 101) bytes=855561 cost=1.3593
+13:40:50 | 2026-W03 [2026-01-12..2026-01-21] syms=24 rows->keys=168 (empty 47) bytes=1039686 cost=1.5770
+13:41:12 | 2026-W04 [2026-01-20..2026-01-27] syms=17 rows->keys=102 (empty 33) bytes=857973 cost=1.2945
+13:41:39 | 2026-W05 [2026-01-26..2026-02-09] syms=20 rows->keys=220 (empty 125) bytes=1241510 cost=1.8437
+13:42:36 | 2026-W06 [2026-02-02..2026-02-10] syms=15 rows->keys=105 (empty 49) bytes=943866 cost=1.3170
+13:43:42 | 2026-W07 [2026-02-09..2026-02-18] syms=16 rows->keys=112 (empty 56) bytes=834030 cost=1.2329
+13:44:41 | 2026-W08 [2026-02-17..2026-02-24] syms=16 rows->keys=96 (empty 30) bytes=844386 cost=1.2270
+13:45:18 | 2026-W09 [2026-02-23..2026-03-02] syms=14 rows->keys=84 (empty 37) bytes=702057 cost=1.0577
+13:45:18 | FETCH done: requests=21 symbols=399 bytes=19,308,629 keys_written=2853 (empty 1042) cost_usd=28.6999

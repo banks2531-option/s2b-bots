@@ -1,0 +1,1591 @@
+00:19:31 | \U0001f517 Initializing Tradier API client (strikes)...
+00:19:31 |    \u2705 Tradier API connected
+00:19:31 | \U0001f517 Initializing Polygon/Massive API client (5-min bars)...
+00:19:31 |    \u2705 Polygon API connected (test returned 5 bars)
+00:19:31 | \U0001f4c2 Loading flow data from whalestream_flow_2025-03_2026-02.csv...
+00:20:07 |    \u2705 Loaded 1,267,731 alerts across 250 trading days
+00:20:07 |    \U0001f4c5 Date range: 2025-03-03 to 2026-02-27
+00:20:11 |    \u2705 Total after dedup: 655082 alerts across 250 days
+00:20:11 | 
+\U0001f680 STARTING REPLAY v3.4.5 — REAL CALIBRATED SLIPPAGE MODEL
+00:20:11 |    Capital: $25,000
+00:20:11 |    Max positions: 5
+00:20:11 |    Position size: 20%
+00:20:11 |    Conviction: 90%
+00:20:11 |    Credit ratio: 12% min, no max cap
+00:20:11 |    Premium gate: $500K weighted
+00:20:11 |    Take profit: 50% of credit
+00:20:11 |    TP mode: fixed
+00:20:11 |    \u2500\u2500\u2500 v3.4.1 EXECUTION MODEL \u2500\u2500\u2500
+00:20:11 |    Execution: FIXED slippage $0.05/leg
+00:20:11 |    Commissions: $0.65/leg/contract
+00:20:11 |    \u2500\u2500\u2500 PRICING + MONITORING \u2500\u2500\u2500
+00:20:11 |    Pricing source: Polygon/Massive API (5-min bars)
+00:20:11 |    Scan interval: 5 min (rolling window, no future peeking)
+00:20:11 |    TP detection: TIME-ALIGNED 5-min bars (both legs same timestamp)
+00:20:11 |    Entry cutoff: 20:30 UTC (~3:30 PM ET)
+00:20:11 |    Blacklist: {'AMD', 'JPM', 'TSLA', 'MSFT', 'NFLX', 'GOOG', 'BABA'}
+00:20:11 |    \u2500\u2500\u2500 v3.3.1 ROLLING \u2500\u2500\u2500
+00:20:11 |    Rolling: ENABLED (trigger: 2.0x credit, DTE<=3, max 2 rolls)
+00:20:11 |    Credit stop: DISABLED
+00:20:11 |    \u2500\u2500\u2500 v3.4.7 OPTIMIZATIONS \u2500\u2500\u2500
+00:20:11 | 
+============================================================
+00:20:11 | \U0001f4c5 2025-03-03 | Balance: $25,000 | Positions: 0/5
+00:20:11 | ============================================================
+00:20:11 |    \U0001f50d Scanning at 14:35 UTC...
+00:20:11 |    \U0001f40b TLT: bearish 100% conv, $1086K wprem, spot=$91.47 @ 14:35
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.02 - slip=$0.10 = $-0.08)
+00:20:11 |    \U0001f40b GOOGL: bullish 100% conv, $619K wprem, spot=$172.96 @ 14:35
+00:20:11 |       \u2705 OPENED: GOOGL Bull Put 167.5/165.0 x10 @ $1.00 credit (raw=$1.10, slip=$0.10, ratio=40%, DTE=4, bars=357, comm=$13)
+00:20:11 |    \U0001f40b BA: bearish 100% conv, $526K wprem, spot=$177.18 @ 14:35
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.10 - slip=$0.10 = $0.00)
+00:20:11 |    \U0001f40b BA: bearish 100% conv, $1006K wprem, spot=$177.89 @ 14:40
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.10 - slip=$0.10 = $0.00)
+00:20:11 |    \U0001f40b TLT: bearish 100% conv, $891K wprem, spot=$91.47 @ 14:40
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.02 - slip=$0.10 = $-0.08)
+00:20:11 |    \U0001f40b AMZN: bullish 91% conv, $6088K wprem, spot=$211.19 @ 14:45
+00:20:11 |       \u2705 OPENED: AMZN Bull Put 205/200 x10 @ $1.64 credit (raw=$1.74, slip=$0.10, ratio=33%, DTE=4, bars=383, comm=$13)
+00:20:11 |    \U0001f40b BA: bearish 100% conv, $1015K wprem, spot=$176.33 @ 14:45
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.10 - slip=$0.10 = $0.00)
+00:20:11 |    \U0001f40b PFE: bearish 100% conv, $746K wprem, spot=$26.75 @ 14:45
+00:20:11 |       \u274c No Polygon pricing for PFE250307C00028000 / PFE250307C00031000
+00:20:11 |    \U0001f40b TLT: bearish 100% conv, $695K wprem, spot=$91.47 @ 14:45
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.02 - slip=$0.10 = $-0.08)
+00:20:11 |    \U0001f40b NKE: bullish 91% conv, $668K wprem, spot=$80.42 @ 14:45
+00:20:11 |       \u274c No Polygon pricing for NKE250307P00077500 / NKE250307P00075000
+00:20:11 |    \U0001f40b META: bearish 90% conv, $11355K wprem, spot=$670.43 @ 14:50
+00:20:11 |       \u274c Credit ratio 7% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b CRM: bearish 100% conv, $887K wprem, spot=$301.18 @ 14:50
+00:20:11 |       \u274c Credit ratio 2% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b BA: bearish 100% conv, $777K wprem, spot=$176.33 @ 14:50
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.10 - slip=$0.10 = $0.00)
+00:20:11 |    \U0001f40b PFE: bearish 100% conv, $606K wprem, spot=$26.75 @ 14:50
+00:20:11 |       \u274c No Polygon pricing for PFE250307C00028000 / PFE250307C00031000
+00:20:11 |    \U0001f40b ORCL: bullish 100% conv, $712K wprem, spot=$164.70 @ 14:55
+00:20:11 |       \u2705 OPENED: ORCL Bull Put 160.0/157.5 x10 @ $0.69 credit (raw=$0.79, slip=$0.10, ratio=28%, DTE=4, bars=106, comm=$13)
+00:20:11 |    \U0001f40b CRM: bearish 100% conv, $706K wprem, spot=$301.18 @ 14:55
+00:20:11 |       \u274c Credit ratio 2% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b PFE: bearish 100% conv, $637K wprem, spot=$26.88 @ 14:55
+00:20:11 |       \u274c No Polygon pricing for PFE250307C00028000 / PFE250307C00031000
+00:20:11 |    \U0001f40b BA: bearish 100% conv, $540K wprem, spot=$176.33 @ 14:55
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.10 - slip=$0.10 = $0.00)
+00:20:11 |    \U0001f40b META: bearish 90% conv, $7061K wprem, spot=$666.73 @ 15:00
+00:20:11 |       \u274c Credit ratio 7% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b PFE: bearish 100% conv, $598K wprem, spot=$26.86 @ 15:00
+00:20:11 |       \u274c No Polygon pricing for PFE250307C00028000 / PFE250307C00031000
+00:20:11 |    \U0001f40b CRM: bearish 100% conv, $532K wprem, spot=$301.18 @ 15:00
+00:20:11 |       \u274c Credit ratio 2% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b SLV: bearish 93% conv, $1524K wprem, spot=$28.84 @ 15:10
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.04 - slip=$0.10 = $-0.06)
+00:20:11 |    \U0001f40b TLT: bullish 91% conv, $3739K wprem, spot=$92.30 @ 15:15
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.08 - slip=$0.10 = $-0.02)
+00:20:11 |    \U0001f40b SLV: bearish 94% conv, $1231K wprem, spot=$28.84 @ 15:15
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.04 - slip=$0.10 = $-0.06)
+00:20:11 |    \U0001f40b TLT: bullish 92% conv, $3273K wprem, spot=$92.31 @ 15:20
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.08 - slip=$0.10 = $-0.02)
+00:20:11 |    \U0001f40b SLV: bearish 95% conv, $938K wprem, spot=$28.84 @ 15:20
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.04 - slip=$0.10 = $-0.06)
+00:20:11 |    \U0001f40b TLT: bullish 92% conv, $2397K wprem, spot=$92.31 @ 15:25
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.08 - slip=$0.10 = $-0.02)
+00:20:11 |    \U0001f40b TLT: bullish 93% conv, $1620K wprem, spot=$92.31 @ 15:30
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.08 - slip=$0.10 = $-0.02)
+00:20:11 |    \U0001f40b WMT: bearish 100% conv, $507K wprem, spot=$98.68 @ 15:35
+00:20:11 |       \u274c No Polygon pricing for WMT250307C00102500 / WMT250307C00105000
+00:20:11 |    \U0001f40b ABBV: bearish 96% conv, $2374K wprem, spot=$210.97 @ 15:40
+00:20:11 |       \u2705 OPENED: ABBV Bear Call 215/220 x10 @ $0.65 credit (raw=$0.75, slip=$0.10, ratio=13%, DTE=4, bars=60, comm=$13)
+00:20:11 |    \U0001f40b ABNB: bullish 100% conv, $845K wprem, spot=$144.03 @ 15:40
+00:20:11 |       \u274c No Polygon pricing for ABNB250307P00140000 / ABNB250307P00137500
+00:20:11 |    \U0001f40b ABNB: bullish 100% conv, $672K wprem, spot=$144.03 @ 15:45
+00:20:11 |       \u274c No Polygon pricing for ABNB250307P00140000 / ABNB250307P00137500
+00:20:11 |    \U0001f40b IWM: bearish 96% conv, $594K wprem, spot=$214.20 @ 15:50
+00:20:11 |       \u274c Credit ratio 0% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b C: bearish 97% conv, $1678K wprem, spot=$79.77 @ 15:55
+00:20:11 |       \u274c No Polygon pricing for C250307C00082500 / C250307C00085000
+00:20:11 |    \U0001f40b SNOW: bearish 100% conv, $2141K wprem, spot=$179.03 @ 16:00
+00:20:11 |       \u274c Credit ratio 5% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b LLY: bullish 100% conv, $1670K wprem, spot=$922.43 @ 16:00
+00:20:11 |       \u274c Credit ratio 5% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b META: bearish 95% conv, $1386K wprem, spot=$666.83 @ 16:00
+00:20:11 |       \u274c Credit ratio 7% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b C: bearish 100% conv, $1362K wprem, spot=$79.77 @ 16:00
+00:20:11 |       \u274c No Polygon pricing for C250307C00082500 / C250307C00085000
+00:20:11 |    \U0001f40b CVX: bearish 100% conv, $2373K wprem, spot=$158.14 @ 16:05
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.02 - slip=$0.10 = $-0.08)
+00:20:11 |    \U0001f40b SNOW: bearish 100% conv, $1716K wprem, spot=$179.03 @ 16:05
+00:20:11 |       \u274c Credit ratio 5% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b BA: bearish 100% conv, $1454K wprem, spot=$174.79 @ 16:05
+00:20:11 |       \u274c Credit ratio 1% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b LLY: bullish 100% conv, $1380K wprem, spot=$922.43 @ 16:05
+00:20:11 |       \u274c Credit ratio 5% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b META: bearish 96% conv, $1292K wprem, spot=$667.38 @ 16:05
+00:20:11 |       \u274c Credit ratio 7% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b C: bearish 100% conv, $1046K wprem, spot=$79.77 @ 16:05
+00:20:11 |       \u274c No Polygon pricing for C250307C00082500 / C250307C00085000
+00:20:11 |    \U0001f40b PLTR: bearish 100% conv, $561K wprem, spot=$88.00 @ 16:05
+00:20:11 |       \u274c No Polygon pricing for PLTR250307C00090000 / PLTR250307C00092500
+00:20:11 |    \U0001f40b CVX: bearish 100% conv, $1969K wprem, spot=$158.14 @ 16:10
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.02 - slip=$0.10 = $-0.08)
+00:20:11 |    \U0001f40b C: bearish 100% conv, $1527K wprem, spot=$79.51 @ 16:10
+00:20:11 |       \u274c No Polygon pricing for C250307C00082500 / C250307C00085000
+00:20:11 |    \U0001f40b SNOW: bearish 100% conv, $1291K wprem, spot=$179.03 @ 16:10
+00:20:11 |       \u274c Credit ratio 5% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b LLY: bullish 100% conv, $1261K wprem, spot=$925.50 @ 16:10
+00:20:11 |       \u2705 OPENED: LLY Bull Put 900/890 x5 @ $1.21 credit (raw=$1.31, slip=$0.10, ratio=12%, DTE=4, bars=240, comm=$6)
+00:20:11 | 
+============================================================
+00:20:11 | \U0001f4c5 2025-03-04 | Balance: $24,942 | Positions: 5/5
+00:20:11 | ============================================================
+00:20:11 |    \U0001f4b0 GOOGL: TP @ 13:05 ET! +$410 (spread=0.49, exit=0.59)
+00:20:11 |    \U0001f504 \u2705 ORCL: ROLLED 2025-03-07 \u2192 2025-03-14 | Close @ $1.50 | New @ $1.10 | Net: $-0.40 | Strikes: 160.0/157.5 \u2192 157.5/155.0
+00:20:11 |    \U0001f4b0 ABBV: TP @ 13:20 ET! +$330 (spread=0.22, exit=0.32)
+00:20:11 |    \U0001f504 \u2705 LLY: ROLLED 2025-03-07 \u2192 2025-03-14 | Close @ $2.67 | New @ $3.25 | Net: $+0.58 | Strikes: 900/890 \u2192 890/880
+00:20:11 |    \U0001f50d Scanning at 14:35 UTC...
+00:20:11 |    \U0001f40b AVGO: bearish 100% conv, $590K wprem, spot=$186.39 @ 14:35
+00:20:11 |       \u2705 OPENED: AVGO Bear Call 192.5/195.0 x10 @ $0.92 credit (raw=$1.02, slip=$0.10, ratio=37%, DTE=3, bars=304, comm=$13)
+00:20:11 |    \U0001f40b AAPL: bullish 90% conv, $2155K wprem, spot=$238.35 @ 14:40
+00:20:11 |       \u2705 OPENED: AAPL Bull Put 230/225 x10 @ $0.65 credit (raw=$0.75, slip=$0.10, ratio=13%, DTE=3, bars=289, comm=$13)
+00:20:11 | 
+============================================================
+00:20:11 | \U0001f4c5 2025-03-05 | Balance: $25,480 | Positions: 5/5
+00:20:11 | ============================================================
+00:20:11 |    \U0001f4b0 AMZN: TP @ 14:05 ET! +$780 (spread=0.76, exit=0.86)
+00:20:11 |    \U0001f4b0 LLY: TP @ 09:30 ET! +$1,475 (spread=0.20, exit=0.30)
+00:20:11 |    \U0001f50d Scanning at 14:35 UTC...
+00:20:11 |    \U0001f40b IWM: bearish 100% conv, $8918K wprem, spot=$206.09 @ 14:35
+00:20:11 |       \u2705 OPENED: IWM Bear Call 210/215 x10 @ $1.93 credit (raw=$2.03, slip=$0.10, ratio=39%, DTE=9, bars=316, comm=$13)
+00:20:11 |    \U0001f40b META: bearish 91% conv, $1975K wprem, spot=$644.94 @ 14:35
+00:20:11 |       \u2705 OPENED: META Bear Call 660/670 x10 @ $4.56 credit (raw=$4.66, slip=$0.10, ratio=46%, DTE=9, bars=478, comm=$13)
+00:20:11 | 
+============================================================
+00:20:11 | \U0001f4c5 2025-03-06 | Balance: $27,690 | Positions: 5/5
+00:20:11 | ============================================================
+00:20:11 |    \U0001f4b0 AAPL: TP @ 10:35 ET! +$270 (spread=0.28, exit=0.38)
+00:20:11 |    \U0001f4b0 META: TP @ 12:15 ET! +$2,180 (spread=2.28, exit=2.38)
+00:20:11 |    \U0001f50d Scanning at 14:30 UTC...
+00:20:11 |    \U0001f40b SPY: bullish 97% conv, $2106K wprem, spot=$579.71 @ 14:30
+00:20:11 |       \u2705 OPENED: SPY Bull Put 560/550 x7 @ $1.71 credit (raw=$1.81, slip=$0.10, ratio=17%, DTE=8, bars=565, comm=$9)
+00:20:11 |    \U0001f40b TLT: bearish 100% conv, $1362K wprem, spot=$90.48 @ 14:35
+00:20:11 |       \u274c Credit ratio 4% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b SMH: bullish 100% conv, $681K wprem, spot=$220.99 @ 14:35
+00:20:11 |       \u2705 OPENED: SMH Bull Put 215/210 x10 @ $1.58 credit (raw=$1.68, slip=$0.10, ratio=32%, DTE=8, bars=184, comm=$13)
+00:20:11 | 
+============================================================
+00:20:11 | \U0001f4c5 2025-03-07 | Balance: $30,092 | Positions: 5/5
+00:20:11 | ============================================================
+00:20:11 |    \U0001f4b0 AVGO: TP @ 10:05 ET! +$400 (spread=0.42, exit=0.52)
+00:20:11 |    \U0001f4b0 IWM: TP @ 10:35 ET! +$940 (spread=0.89, exit=0.99)
+00:20:11 |    \U0001f50d Scanning at 14:45 UTC...
+00:20:11 |    \U0001f40b XLE: bullish 93% conv, $595K wprem, spot=$87.40 @ 14:45
+00:20:11 |       \u274c No Polygon pricing for XLE250314P00085000 / XLE250314P00082500
+00:20:11 |    \U0001f40b XLE: bullish 99% conv, $2499K wprem, spot=$87.38 @ 14:50
+00:20:11 |       \u274c No Polygon pricing for XLE250314P00085000 / XLE250314P00082500
+00:20:11 |    \U0001f40b COST: bearish 90% conv, $2689K wprem, spot=$975.32 @ 14:55
+00:20:11 |       \u2705 OPENED: COST Bear Call 1000/1010 x7 @ $1.28 credit (raw=$1.38, slip=$0.10, ratio=13%, DTE=7, bars=112, comm=$9)
+00:20:11 |    \U0001f40b XLE: bullish 99% conv, $2001K wprem, spot=$87.38 @ 14:55
+00:20:11 |       \u274c No Polygon pricing for XLE250314P00085000 / XLE250314P00082500
+00:20:11 |    \U0001f40b WMT: bullish 100% conv, $922K wprem, spot=$93.28 @ 14:55
+00:20:11 |       \u274c No Polygon pricing for WMT250314P00090000 / WMT250314P00087500
+00:20:11 |    \U0001f40b XLE: bullish 99% conv, $1517K wprem, spot=$87.38 @ 15:00
+00:20:11 |       \u274c No Polygon pricing for XLE250314P00085000 / XLE250314P00082500
+00:20:11 |    \U0001f40b XLK: bullish 100% conv, $927K wprem, spot=$217.57 @ 15:00
+00:20:11 |       \u274c Credit ratio 12% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b WMT: bullish 100% conv, $826K wprem, spot=$93.23 @ 15:00
+00:20:11 |       \u274c No Polygon pricing for WMT250314P00090000 / WMT250314P00087500
+00:20:11 |    \U0001f40b WMT: bullish 100% conv, $900K wprem, spot=$92.78 @ 15:05
+00:20:11 |       \u274c No Polygon pricing for WMT250314P00090000 / WMT250314P00087500
+00:20:11 |    \U0001f40b XLK: bullish 100% conv, $750K wprem, spot=$217.57 @ 15:05
+00:20:11 |       \u274c Credit ratio 12% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b IWM: bearish 91% conv, $11240K wprem, spot=$205.63 @ 15:10
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.07 - slip=$0.10 = $-0.04)
+00:20:11 |    \U0001f40b WMT: bullish 100% conv, $1430K wprem, spot=$92.74 @ 15:10
+00:20:11 |       \u274c No Polygon pricing for WMT250314P00090000 / WMT250314P00087500
+00:20:11 |    \U0001f40b XLK: bullish 100% conv, $574K wprem, spot=$217.57 @ 15:10
+00:20:11 |       \u274c Credit ratio 12% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b IWM: bearish 92% conv, $8628K wprem, spot=$205.18 @ 15:15
+00:20:11 |       \u274c Credit wiped by slippage (raw=$0.07 - slip=$0.10 = $-0.04)
+00:20:11 |    \U0001f40b PDD: bearish 91% conv, $2902K wprem, spot=$121.90 @ 15:20
+00:20:11 |       \u274c No Polygon pricing for PDD250314C00125000 / PDD250314C00127500
+00:20:11 |    \U0001f40b PDD: bearish 92% conv, $2393K wprem, spot=$121.90 @ 15:25
+00:20:11 |       \u274c No Polygon pricing for PDD250314C00125000 / PDD250314C00127500
+00:20:11 |    \U0001f40b PDD: bearish 92% conv, $1900K wprem, spot=$121.90 @ 15:30
+00:20:11 |       \u274c No Polygon pricing for PDD250314C00125000 / PDD250314C00127500
+00:20:11 |    \U0001f40b LLY: bearish 100% conv, $4731K wprem, spot=$890.44 @ 15:40
+00:20:11 |       \u274c Credit ratio 8% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b LLY: bearish 100% conv, $4049K wprem, spot=$882.03 @ 15:45
+00:20:11 |       \u274c Credit ratio 10% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b XLF: bearish 100% conv, $1270K wprem, spot=$48.53 @ 15:45
+00:20:11 |       \u274c Credit ratio 8% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b EEM: bullish 100% conv, $654K wprem, spot=$44.23 @ 15:45
+00:20:11 |       \u274c No Polygon pricing for EEM250314P00043000 / EEM250314P00040000
+00:20:11 |    \U0001f40b LLY: bearish 100% conv, $3450K wprem, spot=$881.14 @ 15:50
+00:20:11 |       \u274c Credit ratio 10% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b XLF: bearish 100% conv, $1017K wprem, spot=$48.53 @ 15:50
+00:20:11 |       \u274c Credit ratio 8% < 12% (after $0.10 slippage)
+00:20:11 |    \U0001f40b EEM: bullish 100% conv, $532K wprem, spot=$44.23 @ 15:50
+00:20:11 |       \u274c No Polygon pricing for EEM250314P00043000 / EEM250314P00040000
+00:20:11 |    \U0001f40b CRM: bullish 100% conv, $509K wprem, spot=$281.17 @ 15:50
+00:20:11 |       \u2705 OPENED: CRM Bull Put 275/270 x10 @ $1.29 credit (raw=$1.39, slip=$0.10, ratio=26%, DTE=7, bars=119, comm=$13)
+00:20:11 | 
+============================================================
+00:20:11 | \U0001f4c5 2025-03-10 | Balance: $31,384 | Positions: 5/5
+00:20:11 | ============================================================
+00:20:11 |    \U0001f4b0 COST: TP @ 08:45 ET! +$539 (spread=0.41, exit=0.51)
+00:20:11 |    \U0001f50d Scanning at 14:30 UTC...
+00:20:11 |    \U0001f40b GLD: bearish 98% conv, $1215K wprem, spot=$268.09 @ 14:30
+00:20:12 |       \u274c Credit wiped by slippage (raw=$0.07 - slip=$0.10 = $-0.03)
+00:20:12 |    \U0001f40b CVX: bearish 91% conv, $986K wprem, spot=$158.87 @ 14:30
+00:20:13 |       \u274c Credit ratio 9% < 12% (after $0.10 slippage)
+00:20:13 |    \U0001f40b NKE: bullish 100% conv, $1023K wprem, spot=$79.81 @ 14:35
+00:20:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:20:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:20:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:20:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:21:03 |       \u274c No Polygon pricing for NKE250314P00077500 / NKE250314P00075000
+00:21:03 |    \U0001f40b XLE: bullish 94% conv, $548K wprem, spot=$88.20 @ 14:35
+00:21:04 |       \u274c No Polygon pricing for XLE250314P00085000 / XLE250314P00082500
+00:21:04 |    \U0001f40b PDD: bearish 100% conv, $541K wprem, spot=$115.05 @ 14:35
+00:21:04 |       \u274c No Polygon pricing for PDD250314C00117500 / PDD250314C00120000
+00:21:04 |    \U0001f40b WFC: bullish 94% conv, $1437K wprem, spot=$67.86 @ 14:40
+00:21:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:21:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:21:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:21:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:21:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:22:07 |       \u274c No Polygon pricing for WFC250314P00065000 / WFC250314P00062500
+00:22:07 |    \U0001f40b NKE: bullish 100% conv, $850K wprem, spot=$79.81 @ 14:40
+00:22:07 |       \u274c No Polygon pricing for NKE250314P00077500 / NKE250314P00075000
+00:22:07 |    \U0001f40b AVGO: bullish 93% conv, $968K wprem, spot=$183.90 @ 14:45
+00:22:08 |       \u2705 OPENED: AVGO Bull Put 177.5/175.0 x10 @ $0.54 credit (raw=$0.64, slip=$0.10, ratio=22%, DTE=4, bars=231, comm=$13)
+00:22:08 | 
+============================================================
+00:22:08 | \U0001f4c5 2025-03-11 | Balance: $31,901 | Positions: 5/5
+00:22:08 | ============================================================
+00:22:09 |    \U0001f504 \u2705 ORCL: ROLLED 2025-03-14 \u2192 2025-03-21 | Close @ $3.00 | New @ $2.19 | Net: $-0.81 | Strikes: 157.5/155.0 \u2192 157.5/155.0
+00:22:09 |    \U0001f504 \u2705 SPY: ROLLED 2025-03-14 \u2192 2025-03-21 | Close @ $4.40 | New @ $4.20 | Net: $-0.20 | Strikes: 560/550 \u2192 560/550
+00:22:09 |    \U0001f4b0 AVGO: TP @ 08:55 ET! +$230 (spread=0.21, exit=0.31)
+00:22:09 |    \U0001f50d Scanning at 14:30 UTC...
+00:22:09 |    \U0001f40b LLY: bearish 96% conv, $1812K wprem, spot=$824.84 @ 14:30
+00:22:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:22:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:22:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:22:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:22:59 |       \u2705 OPENED: LLY Bear Call 850/860 x7 @ $1.78 credit (raw=$1.88, slip=$0.10, ratio=18%, DTE=3, bars=128, comm=$9)
+00:22:59 | 
+============================================================
+00:22:59 | \U0001f4c5 2025-03-12 | Balance: $31,114 | Positions: 5/5
+00:22:59 | ============================================================
+00:22:59 |    \U0001f4b0 SMH: TP @ 08:35 ET! +$770 (spread=0.71, exit=0.81)
+00:22:59 |    \U0001f4b0 CRM: TP @ 12:50 ET! +$590 (spread=0.60, exit=0.70)
+00:22:59 |    \U0001f4b0 LLY: TP @ 09:50 ET! +$581 (spread=0.85, exit=0.95)
+00:22:59 |    \U0001f50d Scanning at 14:30 UTC...
+00:22:59 |    \U0001f40b COIN: bearish 95% conv, $2287K wprem, spot=$190.16 @ 14:30
+00:23:00 |       \u2705 OPENED: COIN Bear Call 195.0/197.5 x10 @ $0.93 credit (raw=$1.03, slip=$0.10, ratio=37%, DTE=9, bars=410, comm=$13)
+00:23:00 |    \U0001f40b UBER: bullish 100% conv, $1662K wprem, spot=$70.48 @ 14:30
+00:23:01 |       \u2705 OPENED: UBER Bull Put 67.5/65.0 x10 @ $0.34 credit (raw=$0.44, slip=$0.10, ratio=14%, DTE=9, bars=156, comm=$13)
+00:23:01 |    \U0001f40b UVXY: bullish 90% conv, $721K wprem, spot=$27.32 @ 14:30
+00:23:01 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:23:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:23:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:23:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:23:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:24:04 |       \u2705 OPENED: UVXY Bull Put 26/23 x10 @ $1.58 credit (raw=$1.68, slip=$0.10, ratio=53%, DTE=9, bars=241, comm=$13)
+00:24:04 | 
+============================================================
+00:24:04 | \U0001f4c5 2025-03-13 | Balance: $32,981 | Positions: 5/5
+00:24:04 | ============================================================
+00:24:04 |    \U0001f4b0 COIN: TP @ 08:35 ET! +$680 (spread=0.15, exit=0.25)
+00:24:04 |    \U0001f50d Scanning at 14:30 UTC...
+00:24:04 |    \U0001f40b FXI: bullish 100% conv, $862K wprem, spot=$36.52 @ 14:30
+00:24:04 |       \u274c Credit wiped by slippage (raw=$0.03 - slip=$0.10 = $-0.07)
+00:24:04 |    \U0001f40b TLT: bullish 93% conv, $696K wprem, spot=$89.69 @ 14:30
+00:24:04 |       \u274c Credit wiped by slippage (raw=$0.06 - slip=$0.10 = $-0.04)
+00:24:04 |    \U0001f40b BA: bullish 94% conv, $637K wprem, spot=$160.71 @ 14:30
+00:24:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:24:17 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:24:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:24:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:24:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:25:07 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:25:19 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:25:32 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:25:44 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:25:56 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:26:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:26:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:26:33 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:26:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:26:58 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:27:11 |       \u2705 OPENED: BA Bull Put 155.0/152.5 x10 @ $0.60 credit (raw=$0.70, slip=$0.10, ratio=24%, DTE=8, bars=170, comm=$13)
+00:27:11 | 
+============================================================
+00:27:11 | \U0001f4c5 2025-03-14 | Balance: $33,635 | Positions: 5/5
+00:27:11 | ============================================================
+00:27:11 |    \U0001f4b0 SPY: TP @ 10:10 ET! +$1,568 (spread=1.86, exit=1.96)
+00:27:11 |    \U0001f50d Scanning at 14:30 UTC...
+00:27:11 |    \U0001f40b ABNB: bearish 100% conv, $5128K wprem, spot=$122.16 @ 14:30
+00:27:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:27:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:27:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:27:48 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:28:01 |       \u274c No Polygon pricing for ABNB250321C00125000 / ABNB250321C00127500
+00:28:01 |    \U0001f40b COIN: bearish 90% conv, $1393K wprem, spot=$180.17 @ 14:30
+00:28:02 |       \u2705 OPENED: COIN Bear Call 185.0/187.5 x10 @ $1.15 credit (raw=$1.25, slip=$0.10, ratio=46%, DTE=7, bars=393, comm=$13)
+00:28:02 | 
+============================================================
+00:28:02 | \U0001f4c5 2025-03-17 | Balance: $35,181 | Positions: 5/5
+00:28:02 | ============================================================
+00:28:02 |    \U0001f4b0 UBER: TP @ 08:30 ET! +$80 (spread=0.16, exit=0.26)
+00:28:02 |    \U0001f4b0 BA: TP @ 08:30 ET! +$220 (spread=0.28, exit=0.38)
+00:28:02 |    \U0001f50d Scanning at 14:30 UTC...
+00:28:02 |    \U0001f40b GLD: bullish 96% conv, $1167K wprem, spot=$276.34 @ 14:30
+00:28:02 |       \u274c Credit ratio 1% < 12% (after $0.10 slippage)
+00:28:02 |    \U0001f40b AAPL: bearish 97% conv, $880K wprem, spot=$213.05 @ 14:30
+00:28:02 |       \u2705 OPENED: AAPL Bear Call 220/225 x10 @ $0.61 credit (raw=$0.71, slip=$0.10, ratio=12%, DTE=4, bars=387, comm=$13)
+00:28:02 |    \U0001f40b GLD: bullish 97% conv, $1330K wprem, spot=$276.52 @ 14:35
+00:28:02 |       \u274c Credit ratio 1% < 12% (after $0.10 slippage)
+00:28:02 |    \U0001f40b BA: bearish 100% conv, $518K wprem, spot=$160.99 @ 14:35
+00:28:02 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:28:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:28:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:28:39 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:28:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:29:04 |       \u2705 OPENED: BA Bear Call 165.0/167.5 x10 @ $0.61 credit (raw=$0.71, slip=$0.10, ratio=24%, DTE=4, bars=196, comm=$13)
+00:29:04 | 
+============================================================
+00:29:04 | \U0001f4c5 2025-03-18 | Balance: $35,429 | Positions: 5/5
+00:29:04 | ============================================================
+00:29:04 |    \u23f3 No open slots (5/5)
+00:29:04 | 
+============================================================
+00:29:04 | \U0001f4c5 2025-03-19 | Balance: $35,429 | Positions: 5/5
+00:29:04 | ============================================================
+00:29:04 |    \U0001f504 \u2705 BA: ROLLED 2025-03-21 \u2192 2025-03-28 | Close @ $2.36 | New @ $1.81 | Net: $-0.55 | Strikes: 165.0/167.5 \u2192 167.5/170.0
+00:29:04 |    \u23f3 No open slots (5/5)
+00:29:04 | 
+============================================================
+00:29:04 | \U0001f4c5 2025-03-20 | Balance: $34,853 | Positions: 5/5
+00:29:04 | ============================================================
+00:29:04 |    \U0001f4b0 AAPL: TP @ 08:30 ET! +$240 (spread=0.27, exit=0.37)
+00:29:04 |    \U0001f50d Scanning at 14:30 UTC...
+00:29:04 |    \U0001f40b LLY: bearish 100% conv, $3185K wprem, spot=$850.43 @ 14:30
+00:29:04 |       \u274c Credit ratio 12% < 12% (after $0.10 slippage)
+00:29:04 |    \U0001f40b TLT: bearish 91% conv, $1967K wprem, spot=$91.83 @ 14:30
+00:29:04 |       \u274c No Polygon pricing for TLT250328C00095000 / TLT250328C00097500
+00:29:04 |    \U0001f40b PLTR: bullish 95% conv, $1340K wprem, spot=$87.79 @ 14:40
+00:29:05 |       \u274c No Polygon pricing for PLTR250328P00085000 / PLTR250328P00082500
+00:29:05 |    \U0001f40b PLTR: bullish 95% conv, $1093K wprem, spot=$88.11 @ 14:45
+00:29:05 |       \u274c No Polygon pricing for PLTR250328P00085000 / PLTR250328P00082500
+00:29:05 |    \U0001f40b PLTR: bullish 100% conv, $815K wprem, spot=$88.11 @ 14:50
+00:29:05 |       \u274c No Polygon pricing for PLTR250328P00085000 / PLTR250328P00082500
+00:29:05 |    \U0001f40b SLV: bullish 95% conv, $546K wprem, spot=$30.46 @ 15:00
+00:29:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:29:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:29:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:29:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:29:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:30:08 |       \u274c Credit ratio 9% < 12% (after $0.10 slippage)
+00:30:08 |    \U0001f40b AAPL: bearish 91% conv, $1848K wprem, spot=$215.94 @ 15:05
+00:30:08 |       \u2705 OPENED: AAPL Bear Call 220/225 x10 @ $0.84 credit (raw=$0.94, slip=$0.10, ratio=17%, DTE=8, bars=544, comm=$13)
+00:30:08 | 
+============================================================
+00:30:08 | \U0001f4c5 2025-03-21 | Balance: $35,067 | Positions: 5/5
+00:30:08 | ============================================================
+00:30:08 |    \U0001f4cb ORCL: Expired, P&L: $-530
+00:30:08 |    \U0001f4cb UVXY: Expired, P&L: $-1,560
+00:30:08 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:30:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:30:33 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:30:45 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:30:58 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:31:11 |    \U0001f504 \u2705 COIN: ROLLED 2025-03-21 \u2192 2025-03-28 | Close @ $2.85 | New @ $1.20 | Net: $-1.65 | Strikes: 185.0/187.5 \u2192 187.5/190.0
+00:31:11 |    \U0001f4b0 BA: TP @ 10:00 ET! +$1,480 (spread=0.23, exit=0.33)
+00:31:11 |    \U0001f50d Scanning at 14:30 UTC...
+00:31:11 |    \U0001f40b SMH: bearish 92% conv, $1110K wprem, spot=$223.81 @ 14:30
+00:31:11 |       \u2705 OPENED: SMH Bear Call 230/235 x10 @ $0.89 credit (raw=$0.99, slip=$0.10, ratio=18%, DTE=7, bars=146, comm=$13)
+00:31:11 |    \U0001f40b HYG: bearish 100% conv, $557K wprem, spot=$79.14 @ 14:30
+00:31:11 |       \u274c No Polygon pricing for HYG250328C00082500 / HYG250328C00085000
+00:31:11 |    \U0001f40b HYG: bearish 100% conv, $2297K wprem, spot=$79.14 @ 14:35
+00:31:11 |       \u274c No Polygon pricing for HYG250328C00082500 / HYG250328C00085000
+00:31:11 |    \U0001f40b HYG: bearish 100% conv, $1869K wprem, spot=$79.14 @ 14:40
+00:31:11 |       \u274c No Polygon pricing for HYG250328C00082500 / HYG250328C00085000
+00:31:11 |    \U0001f40b HYG: bearish 100% conv, $1454K wprem, spot=$79.14 @ 14:45
+00:31:11 |       \u274c No Polygon pricing for HYG250328C00082500 / HYG250328C00085000
+00:31:11 |    \U0001f40b AMZN: bearish 95% conv, $1400K wprem, spot=$194.02 @ 14:55
+00:31:11 |       \u2705 OPENED: AMZN Bear Call 200.0/202.5 x10 @ $0.53 credit (raw=$0.63, slip=$0.10, ratio=21%, DTE=7, bars=463, comm=$13)
+00:31:11 |    \U0001f40b SLV: bearish 92% conv, $1386K wprem, spot=$29.95 @ 14:55
+00:31:11 |       \u274c Credit ratio 11% < 12% (after $0.10 slippage)
+00:31:11 |    \U0001f40b PDD: bullish 95% conv, $2726K wprem, spot=$125.26 @ 15:00
+00:31:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:31:23 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:31:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:31:48 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:32:01 |       \u274c No Polygon pricing for PDD250328P00122500 / PDD250328P00120000
+00:32:01 |    \U0001f40b PDD: bullish 98% conv, $4827K wprem, spot=$125.51 @ 15:05
+00:32:01 |       \u274c No Polygon pricing for PDD250328P00122500 / PDD250328P00120000
+00:32:01 |    \U0001f40b WMT: bearish 100% conv, $1085K wprem, spot=$86.11 @ 15:05
+00:32:01 |       \u274c No Polygon pricing for WMT250328C00087500 / WMT250328C00090000
+00:32:01 |    \U0001f40b PFE: bearish 100% conv, $733K wprem, spot=$26.20 @ 15:05
+00:32:02 |       \u274c Credit wiped by slippage (raw=$0.05 - slip=$0.10 = $-0.05)
+00:32:02 |    \U0001f40b PDD: bullish 97% conv, $3795K wprem, spot=$125.53 @ 15:10
+00:32:02 |       \u274c No Polygon pricing for PDD250328P00122500 / PDD250328P00120000
+00:32:02 |    \U0001f40b WMT: bearish 100% conv, $879K wprem, spot=$86.11 @ 15:10
+00:32:02 |       \u274c No Polygon pricing for WMT250328C00087500 / WMT250328C00090000
+00:32:02 |    \U0001f40b PFE: bearish 100% conv, $597K wprem, spot=$26.20 @ 15:10
+00:32:02 |       \u274c Credit wiped by slippage (raw=$0.05 - slip=$0.10 = $-0.05)
+00:32:02 |    \U0001f40b PDD: bullish 97% conv, $2587K wprem, spot=$125.53 @ 15:15
+00:32:02 |       \u274c No Polygon pricing for PDD250328P00122500 / PDD250328P00120000
+00:32:02 |    \U0001f40b TLT: bearish 94% conv, $1103K wprem, spot=$90.89 @ 15:15
+00:32:02 |       \u274c Credit wiped by slippage (raw=$0.07 - slip=$0.10 = $-0.03)
+00:32:02 |    \U0001f40b GOOGL: bearish 93% conv, $1101K wprem, spot=$163.04 @ 15:15
+00:32:03 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:32:15 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:32:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:32:40 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:32:52 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:33:04 |       \u2705 OPENED: GOOGL Bear Call 167.5/170.0 x10 @ $0.44 credit (raw=$0.54, slip=$0.10, ratio=18%, DTE=7, bars=427, comm=$13)
+00:33:04 | 
+============================================================
+00:33:04 | \U0001f4c5 2025-03-24 | Balance: $32,703 | Positions: 5/5
+00:33:04 | ============================================================
+00:33:04 |    \u23f3 No open slots (5/5)
+00:33:04 | 
+============================================================
+00:33:04 | \U0001f4c5 2025-03-25 | Balance: $32,703 | Positions: 5/5
+00:33:04 | ============================================================
+00:33:04 |    \U0001f4b0 COIN: TP @ 14:50 ET! +$500 (spread=0.60, exit=0.70)
+00:33:04 |    \U0001f504 \u2705 AAPL: ROLLED 2025-03-28 \u2192 2025-04-04 | Close @ $3.21 | New @ $1.47 | Net: $-1.74 | Strikes: 220/225 \u2192 225/230
+00:33:04 |    \U0001f504 \u2705 AMZN: ROLLED 2025-03-28 \u2192 2025-04-04 | Close @ $2.05 | New @ $1.44 | Net: $-0.61 | Strikes: 200.0/202.5 \u2192 202.5/205.0
+00:33:05 |    \U0001f504 \u2705 GOOGL: ROLLED 2025-03-28 \u2192 2025-04-04 | Close @ $1.80 | New @ $1.14 | Net: $-0.66 | Strikes: 167.5/170.0 \u2192 170.0/172.5
+00:33:05 |    \U0001f50d Scanning at 14:30 UTC...
+00:33:05 |    \U0001f40b SNOW: bearish 100% conv, $1106K wprem, spot=$165.66 @ 14:30
+00:33:05 |       \u274c Credit ratio 4% < 12% (after $0.10 slippage)
+00:33:05 |    \U0001f40b QQQ: bearish 92% conv, $34490K wprem, spot=$493.14 @ 14:50
+00:33:05 |       \u274c Credit wiped by slippage (raw=$0.07 - slip=$0.10 = $-0.03)
+00:33:05 |    \U0001f40b SBUX: bearish 100% conv, $1655K wprem, spot=$96.21 @ 14:50
+00:33:05 |       \u274c No Polygon pricing for SBUX250328C00100000 / SBUX250328C00102500
+00:33:05 |    \U0001f40b PLTR: bearish 92% conv, $997K wprem, spot=$95.75 @ 14:50
+00:33:05 |       \u274c No Polygon pricing for PLTR250328C00097500 / PLTR250328C00100000
+00:33:05 |    \U0001f40b QQQ: bearish 92% conv, $27508K wprem, spot=$493.30 @ 14:55
+00:33:05 |       \u274c Credit wiped by slippage (raw=$0.07 - slip=$0.10 = $-0.03)
+00:33:05 |    \U0001f40b SBUX: bearish 100% conv, $1375K wprem, spot=$96.21 @ 14:55
+00:33:05 |       \u274c No Polygon pricing for SBUX250328C00100000 / SBUX250328C00102500
+00:33:05 |    \U0001f40b PDD: bearish 100% conv, $512K wprem, spot=$128.13 @ 14:55
+00:33:06 |       \u274c No Polygon pricing for PDD250328C00132500 / PDD250328C00135000
+00:33:06 |    \U0001f40b SBUX: bearish 100% conv, $1096K wprem, spot=$96.21 @ 15:00
+00:33:06 |       \u274c No Polygon pricing for SBUX250328C00100000 / SBUX250328C00102500
+00:33:06 |    \U0001f40b IWM: bearish 95% conv, $914K wprem, spot=$208.10 @ 15:00
+00:33:06 |       \u274c Credit wiped by slippage (raw=$0.05 - slip=$0.10 = $-0.05)
+00:33:06 |    \U0001f40b IWM: bearish 95% conv, $750K wprem, spot=$208.10 @ 15:05
+00:33:06 |       \u274c Credit wiped by slippage (raw=$0.05 - slip=$0.10 = $-0.05)
+00:33:06 |    \U0001f40b EWZ: bearish 100% conv, $1337K wprem, spot=$26.80 @ 15:10
+00:33:06 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:33:19 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:33:31 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:33:43 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:33:56 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:34:08 |       \u274c No Polygon pricing for EWZ250328C00028000 / EWZ250328C00031000
+00:34:08 |    \U0001f40b IWM: bearish 100% conv, $522K wprem, spot=$208.10 @ 15:10
+00:34:08 |       \u274c Credit wiped by slippage (raw=$0.05 - slip=$0.10 = $-0.05)
+00:34:08 |    \U0001f40b EWZ: bearish 100% conv, $1091K wprem, spot=$26.80 @ 15:15
+00:34:08 |       \u274c No Polygon pricing for EWZ250328C00028000 / EWZ250328C00031000
+00:34:08 |    \U0001f40b SLV: bearish 100% conv, $506K wprem, spot=$30.57 @ 15:15
+00:34:09 |       \u274c Credit ratio 11% < 12% (after $0.10 slippage)
+00:34:09 |    \U0001f40b EWZ: bearish 100% conv, $831K wprem, spot=$26.80 @ 15:20
+00:34:09 |       \u274c No Polygon pricing for EWZ250328C00028000 / EWZ250328C00031000
+00:34:09 |    \U0001f40b EWZ: bearish 91% conv, $1167K wprem, spot=$26.77 @ 15:25
+00:34:09 |       \u274c No Polygon pricing for EWZ250328C00028000 / EWZ250328C00031000
+00:34:09 |    \U0001f40b AVGO: bullish 100% conv, $1156K wprem, spot=$190.51 @ 15:25
+00:34:10 |       \u2705 OPENED: AVGO Bull Put 185.0/182.5 x10 @ $0.53 credit (raw=$0.63, slip=$0.10, ratio=21%, DTE=3, bars=195, comm=$13)
+00:34:10 | 
+============================================================
+00:34:10 | \U0001f4c5 2025-03-26 | Balance: $30,089 | Positions: 5/5
+00:34:10 | ============================================================
+00:34:10 |    \U0001f4b0 SMH: TP @ 10:20 ET! +$380 (spread=0.41, exit=0.51)
+00:34:10 |    \U0001f4b0 GOOGL: TP @ 14:30 ET! +$480 (spread=0.56, exit=0.66)
+00:34:10 |    \U0001f504 \u2705 AVGO: ROLLED 2025-03-28 \u2192 2025-04-04 | Close @ $2.09 | New @ $1.17 | Net: $-0.92 | Strikes: 185.0/182.5 \u2192 182.5/180.0
+00:34:10 |    \U0001f50d Scanning at 14:30 UTC...
+00:34:10 |    \U0001f40b XLK: bullish 91% conv, $707K wprem, spot=$215.54 @ 14:30
+00:34:10 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:34:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:34:35 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:34:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:35:00 |       \u2705 OPENED: XLK Bull Put 210/205 x10 @ $0.80 credit (raw=$0.90, slip=$0.10, ratio=16%, DTE=9, bars=54, comm=$13)
+00:35:00 |    \U0001f40b TLT: bullish 90% conv, $614K wprem, spot=$89.23 @ 14:30
+00:35:01 |       \u274c Credit ratio 4% < 12% (after $0.10 slippage)
+00:35:01 |    \U0001f40b TLT: bullish 94% conv, $661K wprem, spot=$89.33 @ 14:35
+00:35:01 |       \u274c Credit ratio 4% < 12% (after $0.10 slippage)
+00:35:01 |    \U0001f40b UNH: bullish 100% conv, $1203K wprem, spot=$519.83 @ 14:40
+00:35:02 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:35:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:35:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:35:39 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:35:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:36:03 |       \u2705 OPENED: UNH Bull Put 500/490 x7 @ $1.66 credit (raw=$1.76, slip=$0.10, ratio=17%, DTE=9, bars=58, comm=$9)
+00:36:03 | 
+============================================================
+00:36:03 | \U0001f4c5 2025-03-27 | Balance: $29,955 | Positions: 5/5
+00:36:03 | ============================================================
+00:36:03 |    \u23f3 No open slots (5/5)
+00:36:03 | 
+============================================================
+00:36:03 | \U0001f4c5 2025-03-28 | Balance: $29,955 | Positions: 5/5
+00:36:03 | ============================================================
+00:36:03 |    \U0001f4b0 AMZN: TP @ 08:30 ET! +$640 (spread=0.70, exit=0.80)
+00:36:03 |    \U0001f50d Scanning at 14:30 UTC...
+00:36:03 |    \U0001f40b PFE: bullish 100% conv, $3080K wprem, spot=$24.89 @ 14:30
+00:36:04 |       \u274c Credit wiped by slippage (raw=$0.08 - slip=$0.10 = $-0.02)
+00:36:04 |    \U0001f40b C: bearish 100% conv, $561K wprem, spot=$70.43 @ 14:35
+00:36:05 |       \u274c No Polygon pricing for C250404C00072500 / C250404C00075000
+00:36:05 |    \U0001f40b UVXY: bullish 100% conv, $1318K wprem, spot=$22.66 @ 14:40
+00:36:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:36:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:36:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:36:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:36:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:37:08 |       \u2705 OPENED: UVXY Bull Put 22/19 x10 @ $0.58 credit (raw=$0.68, slip=$0.10, ratio=19%, DTE=7, bars=113, comm=$13)
+00:37:08 | 
+============================================================
+00:37:08 | \U0001f4c5 2025-03-31 | Balance: $30,569 | Positions: 5/5
+00:37:08 | ============================================================
+00:37:08 |    \U0001f4b0 UNH: TP @ 10:55 ET! +$588 (spread=0.72, exit=0.82)
+00:37:08 |    \U0001f50d Scanning at 14:30 UTC...
+00:37:08 |    \U0001f40b DIA: bearish 91% conv, $2580K wprem, spot=$414.14 @ 14:30
+00:37:08 |       \u2705 OPENED: DIA Bear Call 425/430 x10 @ $1.32 credit (raw=$1.42, slip=$0.10, ratio=26%, DTE=4, bars=69, comm=$13)
+00:37:08 | 
+============================================================
+00:37:08 | \U0001f4c5 2025-04-01 | Balance: $31,135 | Positions: 5/5
+00:37:08 | ============================================================
+00:37:08 |    \U0001f504 \u2705 AVGO: ROLLED 2025-04-04 \u2192 2025-04-11 | Close @ $2.60 | New @ $1.94 | Net: $-0.66 | Strikes: 182.5/180.0 \u2192 182.5/180.0
+00:37:09 |    \U0001f504 \u2705 XLK: ROLLED 2025-04-04 \u2192 2025-04-11 | Close @ $2.73 | New @ $3.15 | Net: $+0.42 | Strikes: 210/205 \u2192 205/200
+00:37:09 |    \U0001f4b0 DIA: TP @ 09:20 ET! +$670 (spread=0.55, exit=0.65)
+00:37:09 |    \U0001f50d Scanning at 14:30 UTC...
+00:37:09 |    \U0001f40b PLTR: bearish 92% conv, $12350K wprem, spot=$83.14 @ 14:30
+00:37:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:37:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:37:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:37:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:37:59 |       \u274c No Polygon pricing for PLTR250404C00085000 / PLTR250404C00087500
+00:37:59 |    \U0001f40b C: bullish 100% conv, $968K wprem, spot=$69.53 @ 14:30
+00:38:00 |       \u274c No Polygon pricing for C250404P00067500 / C250404P00065000
+00:38:00 |    \U0001f40b SOXX: bearish 100% conv, $967K wprem, spot=$184.12 @ 14:30
+00:38:01 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:38:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:38:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:38:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:38:50 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:39:03 |       \u274c No Polygon pricing for SOXX250404C00190000 / SOXX250404C00192500
+00:39:03 |    \U0001f40b PLTR: bearish 93% conv, $11993K wprem, spot=$83.15 @ 14:35
+00:39:03 |       \u274c No Polygon pricing for PLTR250404C00085000 / PLTR250404C00087500
+00:39:03 |    \U0001f40b C: bullish 100% conv, $796K wprem, spot=$69.53 @ 14:35
+00:39:03 |       \u274c No Polygon pricing for C250404P00067500 / C250404P00065000
+00:39:03 |    \U0001f40b SOXX: bearish 100% conv, $714K wprem, spot=$184.12 @ 14:35
+00:39:03 |       \u274c No Polygon pricing for SOXX250404C00190000 / SOXX250404C00192500
+00:39:03 |    \U0001f40b UBER: bullish 100% conv, $553K wprem, spot=$71.19 @ 14:35
+00:39:04 |       \u274c No Polygon pricing for UBER250404P00070000 / UBER250404P00067500
+00:39:04 |    \U0001f40b PLTR: bearish 93% conv, $8847K wprem, spot=$83.15 @ 14:40
+00:39:04 |       \u274c No Polygon pricing for PLTR250404C00085000 / PLTR250404C00087500
+00:39:04 |    \U0001f40b COIN: bullish 100% conv, $1231K wprem, spot=$173.43 @ 14:40
+00:39:05 |       \u2705 OPENED: COIN Bull Put 167.5/165.0 x10 @ $0.63 credit (raw=$0.73, slip=$0.10, ratio=25%, DTE=3, bars=198, comm=$13)
+00:39:05 | 
+============================================================
+00:39:05 | \U0001f4c5 2025-04-02 | Balance: $31,487 | Positions: 5/5
+00:39:05 | ============================================================
+00:39:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:39:17 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:39:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:39:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:39:54 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:40:07 |    \U0001f504 \u2705 UVXY: ROLLED 2025-04-04 \u2192 2025-04-11 | Close @ $1.36 | New @ $1.30 | Net: $-0.06 | Strikes: 22/19 \u2192 22/19
+00:40:07 |    \U0001f4b0 COIN: TP @ 10:25 ET! +$220 (spread=0.31, exit=0.41)
+00:40:07 |    \U0001f50d Scanning at 14:30 UTC...
+00:40:07 |    \U0001f40b PDD: bearish 100% conv, $797K wprem, spot=$118.20 @ 14:30
+00:40:07 |       \u274c No Polygon pricing for PDD250411C00122500 / PDD250411C00125000
+00:40:07 |    \U0001f40b LLY: bullish 100% conv, $751K wprem, spot=$808.66 @ 14:35
+00:40:07 |       \u2705 OPENED: LLY Bull Put 780/770 x7 @ $1.60 credit (raw=$1.70, slip=$0.10, ratio=16%, DTE=9, bars=14, comm=$9)
+00:40:07 | 
+============================================================
+00:40:07 | \U0001f4c5 2025-04-03 | Balance: $31,599 | Positions: 5/5
+00:40:07 | ============================================================
+00:40:07 |    \U0001f4b0 AAPL: TP @ 08:30 ET! +$1,335 (spread=0.03, exit=0.14)
+00:40:07 |    \U0001f4b0 UVXY: TP @ 08:30 ET! +$890 (spread=0.31, exit=0.41)
+00:40:07 |    \U0001f50d Scanning at 14:30 UTC...
+00:40:07 |    \U0001f40b C: bullish 100% conv, $2206K wprem, spot=$64.70 @ 14:30
+00:40:07 |       \u274c No Polygon pricing for C250411P00062500 / C250411P00060000
+00:40:07 |    \U0001f40b LCID: bearish 98% conv, $1797K wprem, spot=$2.38 @ 14:30
+00:40:09 |       \u274c No Polygon pricing for LCID250411C00003000 / LCID250411C00006000
+00:40:09 |    \U0001f40b COST: bullish 100% conv, $689K wprem, spot=$963.18 @ 14:30
+00:40:09 |       \u274c No credit (spread = $-0.02)
+00:40:09 |    \U0001f40b XLF: bullish 100% conv, $624K wprem, spot=$47.99 @ 14:30
+00:40:09 |       \u274c Credit ratio 6% < 12% (after $0.10 slippage)
+00:40:09 |    \U0001f40b C: bullish 93% conv, $2400K wprem, spot=$64.67 @ 14:35
+00:40:09 |       \u274c No Polygon pricing for C250411P00062500 / C250411P00060000
+00:40:09 |    \U0001f40b LCID: bearish 100% conv, $1479K wprem, spot=$2.38 @ 14:35
+00:40:09 |       \u274c No Polygon pricing for LCID250411C00003000 / LCID250411C00006000
+00:40:09 |    \U0001f40b COST: bullish 100% conv, $1059K wprem, spot=$970.92 @ 14:35
+00:40:09 |       \u274c Credit wiped by slippage (raw=$0.01 - slip=$0.10 = $-0.09)
+00:40:09 |    \U0001f40b COST: bullish 100% conv, $788K wprem, spot=$970.92 @ 14:40
+00:40:09 |       \u274c Credit wiped by slippage (raw=$0.01 - slip=$0.10 = $-0.09)
+00:40:09 |    \U0001f40b PDD: bearish 92% conv, $2209K wprem, spot=$113.79 @ 14:45
+00:40:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:40:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:40:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:40:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:40:59 |       \u274c No Polygon pricing for PDD250411C00117500 / PDD250411C00120000
+00:40:59 |    \U0001f40b HYG: bearish 91% conv, $1877K wprem, spot=$77.91 @ 14:45
+00:41:00 |       \u274c No Polygon pricing for HYG250411C00080000 / HYG250411C00082500
+00:41:00 |    \U0001f40b HYG: bearish 94% conv, $1552K wprem, spot=$77.91 @ 14:50
+00:41:00 |       \u274c No Polygon pricing for HYG250411C00080000 / HYG250411C00082500
+00:41:00 |    \U0001f40b PDD: bearish 92% conv, $1471K wprem, spot=$113.79 @ 14:50
+00:41:00 |       \u274c No Polygon pricing for PDD250411C00117500 / PDD250411C00120000
+00:41:00 |    \U0001f40b UNH: bullish 100% conv, $528K wprem, spot=$536.55 @ 14:50
+00:41:01 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:41:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:41:25 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:41:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:41:50 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:42:03 |       \u2705 OPENED: UNH Bull Put 520/510 x8 @ $1.79 credit (raw=$1.89, slip=$0.10, ratio=18%, DTE=8, bars=50, comm=$10)
+00:42:03 |    \U0001f40b SLV: bearish 92% conv, $1750K wprem, spot=$29.41 @ 14:55
+00:42:04 |       \u274c Credit ratio 4% < 12% (after $0.10 slippage)
+00:42:04 |    \U0001f40b HYG: bearish 92% conv, $1169K wprem, spot=$77.86 @ 14:55
+00:42:04 |       \u274c No Polygon pricing for HYG250411C00080000 / HYG250411C00082500
+00:42:04 |    \U0001f40b XLE: bearish 92% conv, $1941K wprem, spot=$88.20 @ 15:00
+00:42:04 |       \u2705 OPENED: XLE Bear Call 90.0/92.5 x10 @ $0.46 credit (raw=$0.56, slip=$0.10, ratio=18%, DTE=8, bars=7, comm=$13)
+00:42:04 | 
+============================================================
+00:42:04 | \U0001f4c5 2025-04-04 | Balance: $33,775 | Positions: 5/5
+00:42:04 | ============================================================
+00:42:04 |    \U0001f4b0 XLE: TP @ 09:00 ET! +$210 (spread=0.15, exit=0.25)
+00:42:04 |    \U0001f50d Scanning at 14:30 UTC...
+00:42:04 |    \U0001f40b GS: bearish 100% conv, $1915K wprem, spot=$473.37 @ 14:30
+00:42:04 |       \u2705 OPENED: GS Bear Call 490/495 x10 @ $1.58 credit (raw=$1.68, slip=$0.10, ratio=32%, DTE=7, bars=116, comm=$13)
+00:42:04 | 
+============================================================
+00:42:04 | \U0001f4c5 2025-04-07 | Balance: $33,959 | Positions: 5/5
+00:42:04 | ============================================================
+00:42:04 |    \U0001f4b0 XLK: TP @ 09:10 ET! +$2,550 (spread=0.50, exit=0.60)
+00:42:04 |    \U0001f4b0 GS: TP @ 09:05 ET! +$1,080 (spread=0.40, exit=0.50)
+00:42:04 |    \U0001f50d Scanning at 14:30 UTC...
+00:42:04 |    \U0001f40b CRM: bearish 93% conv, $2983K wprem, spot=$246.68 @ 14:30
+00:42:04 |       \u274c Credit ratio 4% < 12% (after $0.10 slippage)
+00:42:04 |    \U0001f40b CVX: bearish 100% conv, $2111K wprem, spot=$139.68 @ 14:30
+00:42:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:42:17 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:42:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:42:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:42:54 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:43:07 |       \u274c No Polygon pricing for CVX250411C00145000 / CVX250411C00147500
+00:43:07 |    \U0001f40b MS: bearish 91% conv, $769K wprem, spot=$97.90 @ 14:30
+00:43:07 |       \u274c No Polygon pricing for MS250411C00100000 / MS250411C00102500
+00:43:07 |    \U0001f40b CRM: bearish 94% conv, $2191K wprem, spot=$246.68 @ 14:35
+00:43:07 |       \u274c Credit ratio 4% < 12% (after $0.10 slippage)
+00:43:07 |    \U0001f40b CVX: bearish 100% conv, $1755K wprem, spot=$139.68 @ 14:35
+00:43:08 |       \u274c No Polygon pricing for CVX250411C00145000 / CVX250411C00147500
+00:43:08 |    \U0001f40b JNJ: bearish 94% conv, $983K wprem, spot=$148.89 @ 14:35
+00:43:08 |       \u2705 OPENED: JNJ Bear Call 152.5/155.0 x10 @ $0.77 credit (raw=$0.87, slip=$0.10, ratio=31%, DTE=4, bars=125, comm=$13)
+00:43:08 |    \U0001f40b CAT: bullish 100% conv, $825K wprem, spot=$281.10 @ 14:35
+00:43:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:43:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:43:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:43:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:43:59 |       \u2705 OPENED: CAT Bull Put 275/270 x10 @ $2.05 credit (raw=$2.15, slip=$0.10, ratio=41%, DTE=4, bars=13, comm=$13)
+00:43:59 | 
+============================================================
+00:43:59 | \U0001f4c5 2025-04-08 | Balance: $37,537 | Positions: 5/5
+00:43:59 | ============================================================
+00:44:00 |    \U0001f504 \u274c LLY: Roll skipped — no Polygon pricing for new spread
+00:44:00 |    \U0001f4b0 UNH: TP @ 08:30 ET! +$792 (spread=0.70, exit=0.80)
+00:44:00 |    \U0001f4b0 CAT: TP @ 09:05 ET! +$1,050 (spread=0.90, exit=1.00)
+00:44:00 |    \U0001f50d Scanning at 14:30 UTC...
+00:44:00 |    \U0001f40b TLT: bearish 91% conv, $7657K wprem, spot=$89.55 @ 14:30
+00:44:00 |       \u274c No credit (spread = $0.00)
+00:44:00 |    \U0001f40b XLK: bullish 97% conv, $2506K wprem, spot=$192.18 @ 14:30
+00:44:00 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:44:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:44:25 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:44:37 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:44:50 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:45:02 |       \u274c No Polygon pricing for XLK250411P00187500 / XLK250411P00185000
+00:45:02 |    \U0001f40b SMH: bearish 100% conv, $876K wprem, spot=$195.01 @ 14:30
+00:45:03 |       \u274c Credit ratio 9% < 12% (after $0.10 slippage)
+00:45:03 |    \U0001f40b UBER: bearish 94% conv, $676K wprem, spot=$69.07 @ 14:30
+00:45:04 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:45:16 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:45:29 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:45:41 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:45:53 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:46:06 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:46:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:46:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:46:43 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:46:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:47:07 |       \u274c No Polygon pricing for UBER250411C00070000 / UBER250411C00072500
+00:47:07 |    \U0001f40b DIA: bullish 96% conv, $663K wprem, spot=$394.35 @ 14:30
+00:47:08 |       \u2705 OPENED: DIA Bull Put 385/380 x10 @ $3.40 credit (raw=$3.50, slip=$0.10, ratio=68%, DTE=3, bars=83, comm=$13)
+00:47:08 |    \U0001f40b NKE: bearish 97% conv, $1099K wprem, spot=$57.64 @ 14:35
+00:47:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:47:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:47:33 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:47:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:47:58 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:48:11 |       \u274c No Polygon pricing for NKE250411C00060000 / NKE250411C00062500
+00:48:11 |    \U0001f40b UBER: bearish 92% conv, $517K wprem, spot=$69.07 @ 14:35
+00:48:11 |       \u274c No Polygon pricing for UBER250411C00070000 / UBER250411C00072500
+00:48:11 |    \U0001f40b NKE: bearish 97% conv, $862K wprem, spot=$57.64 @ 14:40
+00:48:11 |       \u274c No Polygon pricing for NKE250411C00060000 / NKE250411C00062500
+00:48:11 |    \U0001f40b COST: bearish 100% conv, $623K wprem, spot=$939.28 @ 14:45
+00:48:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:48:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:48:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:48:48 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:49:01 |       \u274c Credit ratio 7% < 12% (after $0.10 slippage)
+00:49:01 |    \U0001f40b DIS: bearish 96% conv, $985K wprem, spot=$86.28 @ 14:50
+00:49:02 |       \u274c No Polygon pricing for DIS250411C00090000 / DIS250411C00092500
+00:49:02 |    \U0001f40b BA: bullish 94% conv, $859K wprem, spot=$146.26 @ 14:50
+00:49:02 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:49:15 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:49:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:49:39 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:49:52 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:50:04 |       \u274c No Polygon pricing for BA250411P00142500 / BA250411P00140000
+00:50:04 |    \U0001f40b MS: bullish 100% conv, $675K wprem, spot=$105.07 @ 14:50
+00:50:05 |       \u274c No Polygon pricing for MS250411P00102500 / MS250411P00100000
+00:50:05 |    \U0001f40b BA: bullish 96% conv, $1035K wprem, spot=$146.98 @ 14:55
+00:50:05 |       \u274c No Polygon pricing for BA250411P00142500 / BA250411P00140000
+00:50:05 |    \U0001f40b DIS: bearish 97% conv, $799K wprem, spot=$86.28 @ 14:55
+00:50:05 |       \u274c No Polygon pricing for DIS250411C00090000 / DIS250411C00092500
+00:50:05 |    \U0001f40b MS: bullish 100% conv, $545K wprem, spot=$105.07 @ 14:55
+00:50:05 |       \u274c No Polygon pricing for MS250411P00102500 / MS250411P00100000
+00:50:05 |    \U0001f40b GS: bullish 100% conv, $540K wprem, spot=$482.25 @ 14:55
+00:50:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:50:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:50:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:50:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:50:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:51:07 |       \u2705 OPENED: GS Bull Put 470/465 x10 @ $3.98 credit (raw=$4.08, slip=$0.10, ratio=80%, DTE=3, bars=46, comm=$13)
+00:51:07 | 
+============================================================
+00:51:07 | \U0001f4c5 2025-04-09 | Balance: $39,329 | Positions: 5/5
+00:51:07 | ============================================================
+00:51:07 |    \U0001f4b0 AVGO: TP @ 14:20 ET! +$1,090 (spread=0.75, exit=0.85)
+00:51:08 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:51:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:51:33 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:51:45 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:51:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:52:10 |    \U0001f504 \u274c LLY: Roll skipped — no Polygon pricing for new spread
+00:52:10 |    \U0001f4b0 JNJ: TP @ 09:20 ET! +$290 (spread=0.38, exit=0.48)
+00:52:10 |    \U0001f4b0 DIA: TP @ 12:20 ET! +$2,120 (spread=1.18, exit=1.28)
+00:52:10 |    \U0001f4b0 GS: TP @ 08:50 ET! +$3,680 (spread=0.20, exit=0.30)
+00:52:10 |    \U0001f50d Scanning at 14:30 UTC...
+00:52:10 |    \U0001f40b XLF: bullish 98% conv, $6414K wprem, spot=$43.74 @ 14:30
+00:52:11 |       \u274c No Polygon pricing for XLF250418P00042000 / XLF250418P00039000
+00:52:11 |    \U0001f40b EEM: bearish 100% conv, $708K wprem, spot=$38.91 @ 14:30
+00:52:11 |       \u274c No Polygon pricing for EEM250418C00040000 / EEM250418C00043000
+00:52:11 |    \U0001f40b XLF: bullish 98% conv, $5055K wprem, spot=$43.74 @ 14:35
+00:52:11 |       \u274c No Polygon pricing for XLF250418P00042000 / XLF250418P00039000
+00:52:11 |    \U0001f40b SHOP: bullish 100% conv, $608K wprem, spot=$78.42 @ 14:35
+00:52:11 |       \u274c No Polygon pricing for SHOP250418P00075000 / SHOP250418P00072500
+00:52:11 |    \U0001f40b EEM: bearish 100% conv, $533K wprem, spot=$38.91 @ 14:35
+00:52:11 |       \u274c No Polygon pricing for EEM250418C00040000 / EEM250418C00043000
+00:52:11 |    \U0001f40b GLD: bearish 91% conv, $1498K wprem, spot=$284.19 @ 14:40
+00:52:11 |       \u274c No Polygon pricing for GLD250418C00295000 / GLD250418C00300000
+00:52:11 |    \U0001f40b GOOGL: bearish 96% conv, $1082K wprem, spot=$145.10 @ 14:40
+00:52:11 |       \u274c No Polygon pricing for GOOGL250418C00150000 / GOOGL250418C00152500
+00:52:11 |    \U0001f40b SHOP: bullish 100% conv, $656K wprem, spot=$78.56 @ 14:40
+00:52:11 |       \u274c No Polygon pricing for SHOP250418P00075000 / SHOP250418P00072500
+00:52:11 |    \U0001f40b BAC: bearish 92% conv, $646K wprem, spot=$33.95 @ 14:40
+00:52:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:52:23 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:52:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:52:48 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:53:00 |       \u274c No Polygon pricing for BAC250418C00035000 / BAC250418C00038000
+00:53:00 |    \U0001f40b ABBV: bearish 93% conv, $587K wprem, spot=$167.42 @ 14:40
+00:53:00 |       \u274c No Polygon pricing for ABBV250418C00172500 / ABBV250418C00175000
+00:53:00 |    \U0001f40b GLD: bearish 98% conv, $1275K wprem, spot=$283.86 @ 14:45
+00:53:00 |       \u274c No Polygon pricing for GLD250418C00290000 / GLD250418C00295000
+00:53:00 |    \U0001f40b SHOP: bullish 100% conv, $516K wprem, spot=$78.56 @ 14:45
+00:53:00 |       \u274c No Polygon pricing for SHOP250418P00075000 / SHOP250418P00072500
+00:53:00 |    \U0001f40b C: bearish 91% conv, $2105K wprem, spot=$56.88 @ 14:50
+00:53:01 |       \u274c No Polygon pricing for C250418C00057500 / C250418C00060000
+00:53:01 |    \U0001f40b GLD: bearish 100% conv, $944K wprem, spot=$283.86 @ 14:50
+00:53:01 |       \u274c No Polygon pricing for GLD250418C00290000 / GLD250418C00295000
+00:53:01 |    \U0001f40b XLK: bullish 100% conv, $702K wprem, spot=$182.68 @ 14:50
+00:53:01 |       \u274c No Polygon pricing for XLK250418P00177500 / XLK250418P00175000
+00:53:01 |    \U0001f40b BAC: bearish 91% conv, $606K wprem, spot=$33.55 @ 14:50
+00:53:01 |       \u274c No Polygon pricing for BAC250418C00035000 / BAC250418C00038000
+00:53:01 |    \U0001f40b C: bearish 95% conv, $3146K wprem, spot=$56.43 @ 14:55
+00:53:01 |       \u274c No Polygon pricing for C250418C00057500 / C250418C00060000
+00:53:01 |    \U0001f40b GS: bearish 100% conv, $1495K wprem, spot=$449.54 @ 14:55
+00:53:01 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:53:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:53:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:53:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:53:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:54:03 |       \u274c No Polygon pricing for GS250418C00465000 / GS250418C00470000
+00:54:03 |    \U0001f40b GLD: bearish 100% conv, $788K wprem, spot=$283.61 @ 14:55
+00:54:03 |       \u274c No Polygon pricing for GLD250418C00290000 / GLD250418C00295000
+00:54:03 |    \U0001f40b ABBV: bearish 100% conv, $734K wprem, spot=$166.22 @ 14:55
+00:54:03 |       \u274c No Polygon pricing for ABBV250418C00170000 / ABBV250418C00172500
+00:54:03 |    \U0001f40b XLK: bullish 100% conv, $562K wprem, spot=$182.68 @ 14:55
+00:54:03 |       \u274c No Polygon pricing for XLK250418P00177500 / XLK250418P00175000
+00:54:03 |    \U0001f40b C: bearish 97% conv, $2545K wprem, spot=$56.64 @ 15:00
+00:54:03 |       \u274c No Polygon pricing for C250418C00057500 / C250418C00060000
+00:54:03 |    \U0001f40b SBUX: bullish 100% conv, $2001K wprem, spot=$78.14 @ 15:00
+00:54:03 |       \u274c No Polygon pricing for SBUX250418P00075000 / SBUX250418P00072500
+00:54:03 |    \U0001f40b UVXY: bullish 96% conv, $1369K wprem, spot=$51.76 @ 15:00
+00:54:04 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:54:16 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:54:28 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:54:41 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:54:53 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:55:06 |       \u274c No Polygon pricing for UVXY250418P00050000 / UVXY250418P00047500
+00:55:06 |    \U0001f40b GS: bearish 100% conv, $1221K wprem, spot=$449.54 @ 15:00
+00:55:06 |       \u274c No Polygon pricing for GS250418C00465000 / GS250418C00470000
+00:55:06 |    \U0001f40b ABBV: bearish 100% conv, $827K wprem, spot=$165.70 @ 15:00
+00:55:06 |       \u274c No Polygon pricing for ABBV250418C00170000 / ABBV250418C00172500
+00:55:06 |    \U0001f40b XLF: bearish 100% conv, $792K wprem, spot=$43.15 @ 15:00
+00:55:07 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:55:19 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:55:31 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:55:44 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:55:56 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:56:08 |       \u274c No Polygon pricing for XLF250418C00044000 / XLF250418C00047000
+00:56:08 |    \U0001f40b GLD: bearish 100% conv, $545K wprem, spot=$283.61 @ 15:00
+00:56:08 |       \u274c No Polygon pricing for GLD250418C00290000 / GLD250418C00295000
+00:56:08 |    \U0001f40b HYG: bullish 95% conv, $505K wprem, spot=$75.28 @ 15:00
+00:56:08 |       \u274c No Polygon pricing for HYG250418P00072500 / HYG250418P00070000
+00:56:08 |    \U0001f40b C: bearish 93% conv, $2033K wprem, spot=$56.81 @ 15:05
+00:56:08 |       \u274c No Polygon pricing for C250418C00057500 / C250418C00060000
+00:56:08 |    \U0001f40b SBUX: bullish 100% conv, $1622K wprem, spot=$78.14 @ 15:05
+00:56:08 |       \u274c No Polygon pricing for SBUX250418P00075000 / SBUX250418P00072500
+00:56:08 |    \U0001f40b GS: bearish 100% conv, $948K wprem, spot=$449.54 @ 15:05
+00:56:08 |       \u274c No Polygon pricing for GS250418C00465000 / GS250418C00470000
+00:56:08 |    \U0001f40b XLE: bearish 100% conv, $760K wprem, spot=$74.74 @ 15:05
+00:56:08 |       \u274c No Polygon pricing for XLE250418C00077500 / XLE250418C00080000
+00:56:08 |    \U0001f40b ABBV: bearish 100% conv, $637K wprem, spot=$165.70 @ 15:05
+00:56:08 |       \u274c No Polygon pricing for ABBV250418C00170000 / ABBV250418C00172500
+00:56:08 |    \U0001f40b XLF: bearish 100% conv, $624K wprem, spot=$43.15 @ 15:05
+00:56:08 |       \u274c No Polygon pricing for XLF250418C00044000 / XLF250418C00047000
+00:56:08 |    \U0001f40b HYG: bullish 100% conv, $594K wprem, spot=$75.38 @ 15:05
+00:56:08 |       \u274c No Polygon pricing for HYG250418P00072500 / HYG250418P00070000
+00:56:08 |    \U0001f40b SBUX: bullish 100% conv, $1243K wprem, spot=$78.14 @ 15:10
+00:56:08 |       \u274c No Polygon pricing for SBUX250418P00075000 / SBUX250418P00072500
+00:56:08 |    \U0001f40b XLE: bearish 100% conv, $752K wprem, spot=$75.28 @ 15:10
+00:56:08 |       \u274c No Polygon pricing for XLE250418C00077500 / XLE250418C00080000
+00:56:08 |    \U0001f40b GS: bearish 100% conv, $724K wprem, spot=$454.42 @ 15:10
+00:56:08 |       \u274c No Polygon pricing for GS250418C00470000 / GS250418C00475000
+00:56:08 |    \U0001f40b EEM: bullish 100% conv, $966K wprem, spot=$38.66 @ 15:15
+00:56:08 |       \u274c No Polygon pricing for EEM250418P00038000 / EEM250418P00035000
+00:56:08 |    \U0001f40b ABBV: bearish 100% conv, $688K wprem, spot=$165.09 @ 15:15
+00:56:08 |       \u274c No Polygon pricing for ABBV250418C00170000 / ABBV250418C00172500
+00:56:08 |    \U0001f40b ORCL: bearish 100% conv, $612K wprem, spot=$126.82 @ 15:15
+00:56:09 |       \u274c No Polygon pricing for ORCL250418C00130000 / ORCL250418C00132500
+00:56:09 |    \U0001f40b XLE: bearish 100% conv, $548K wprem, spot=$75.28 @ 15:15
+00:56:09 |       \u274c No Polygon pricing for XLE250418C00077500 / XLE250418C00080000
+00:56:09 |    \U0001f40b PDD: bearish 92% conv, $3849K wprem, spot=$89.90 @ 15:20
+00:56:09 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+00:56:09 |    \U0001f40b UNH: bullish 100% conv, $1238K wprem, spot=$561.41 @ 15:20
+00:56:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:56:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:56:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:56:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:56:59 |       \u274c No Polygon pricing for UNH250418P00540000 / UNH250418P00530000
+00:56:59 |    \U0001f40b EEM: bullish 100% conv, $768K wprem, spot=$38.66 @ 15:20
+00:56:59 |       \u274c No Polygon pricing for EEM250418P00038000 / EEM250418P00035000
+00:56:59 |    \U0001f40b ABBV: bearish 100% conv, $761K wprem, spot=$166.66 @ 15:20
+00:56:59 |       \u274c No Polygon pricing for ABBV250418C00172500 / ABBV250418C00175000
+00:56:59 |    \U0001f40b ORCL: bearish 100% conv, $503K wprem, spot=$126.82 @ 15:20
+00:56:59 |       \u274c No Polygon pricing for ORCL250418C00130000 / ORCL250418C00132500
+00:56:59 |    \U0001f40b PDD: bearish 94% conv, $2879K wprem, spot=$89.90 @ 15:25
+00:56:59 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+00:56:59 |    \U0001f40b UNH: bullish 100% conv, $1006K wprem, spot=$561.41 @ 15:25
+00:56:59 |       \u274c No Polygon pricing for UNH250418P00540000 / UNH250418P00530000
+00:56:59 |    \U0001f40b EEM: bullish 100% conv, $599K wprem, spot=$38.66 @ 15:25
+00:56:59 |       \u274c No Polygon pricing for EEM250418P00038000 / EEM250418P00035000
+00:56:59 |    \U0001f40b SOXX: bullish 95% conv, $566K wprem, spot=$157.85 @ 15:25
+00:57:00 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:57:12 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:57:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:57:37 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:57:49 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:58:01 |       \u274c No Polygon pricing for SOXX250418P00152500 / SOXX250418P00150000
+00:58:01 |    \U0001f40b ABBV: bearish 100% conv, $539K wprem, spot=$166.66 @ 15:25
+00:58:01 |       \u274c No Polygon pricing for ABBV250418C00172500 / ABBV250418C00175000
+00:58:01 |    \U0001f40b HYG: bearish 98% conv, $2117K wprem, spot=$75.48 @ 15:30
+00:58:01 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+00:58:01 |    \U0001f40b PDD: bearish 94% conv, $2041K wprem, spot=$89.90 @ 15:30
+00:58:01 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+00:58:01 |    \U0001f40b UNH: bullish 100% conv, $787K wprem, spot=$561.41 @ 15:30
+00:58:01 |       \u274c No Polygon pricing for UNH250418P00540000 / UNH250418P00530000
+00:58:01 |    \U0001f40b HYG: bearish 100% conv, $1846K wprem, spot=$75.39 @ 15:35
+00:58:01 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+00:58:01 |    \U0001f40b PDD: bearish 91% conv, $1436K wprem, spot=$89.45 @ 15:35
+00:58:01 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+00:58:01 |    \U0001f40b XOM: bearish 90% conv, $3098K wprem, spot=$99.62 @ 15:40
+00:58:01 |       \u274c No Polygon pricing for XOM250418C00102500 / XOM250418C00105000
+00:58:01 |    \U0001f40b HYG: bearish 100% conv, $1556K wprem, spot=$75.31 @ 15:40
+00:58:01 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+00:58:01 |    \U0001f40b BAC: bullish 97% conv, $1174K wprem, spot=$33.52 @ 15:40
+00:58:02 |       \u274c No Polygon pricing for BAC250418P00033000 / BAC250418P00030000
+00:58:02 |    \U0001f40b XLK: bullish 100% conv, $534K wprem, spot=$181.99 @ 15:40
+00:58:02 |       \u274c No Polygon pricing for XLK250418P00177500 / XLK250418P00175000
+00:58:02 |    \U0001f40b EEM: bullish 100% conv, $8038K wprem, spot=$38.55 @ 15:45
+00:58:02 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:58:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:58:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:58:39 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:58:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:59:04 |       \u274c No Polygon pricing for EEM250418P00037000 / EEM250418P00034000
+00:59:04 |    \U0001f40b WFC: bullish 92% conv, $3753K wprem, spot=$59.85 @ 15:45
+00:59:04 |       \u274c No Polygon pricing for WFC250418P00057500 / WFC250418P00055000
+00:59:04 |    \U0001f40b GOOGL: bullish 100% conv, $1216K wprem, spot=$144.57 @ 15:45
+00:59:04 |       \u274c No Polygon pricing for GOOGL250418P00140000 / GOOGL250418P00137500
+00:59:04 |    \U0001f40b HYG: bearish 100% conv, $1090K wprem, spot=$75.31 @ 15:45
+00:59:04 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+00:59:04 |    \U0001f40b EEM: bullish 100% conv, $6588K wprem, spot=$38.55 @ 15:50
+00:59:04 |       \u274c No Polygon pricing for EEM250418P00037000 / EEM250418P00034000
+00:59:04 |    \U0001f40b WFC: bullish 93% conv, $3016K wprem, spot=$59.85 @ 15:50
+00:59:04 |       \u274c No Polygon pricing for WFC250418P00057500 / WFC250418P00055000
+00:59:04 |    \U0001f40b GOOGL: bullish 100% conv, $1097K wprem, spot=$145.37 @ 15:50
+00:59:04 |       \u274c No Polygon pricing for GOOGL250418P00140000 / GOOGL250418P00137500
+00:59:04 |    \U0001f40b HYG: bearish 100% conv, $676K wprem, spot=$75.31 @ 15:50
+00:59:04 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+00:59:04 |    \U0001f40b IWM: bullish 97% conv, $24574K wprem, spot=$173.01 @ 15:55
+00:59:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:59:17 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:59:29 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:59:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+00:59:54 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:00:07 |       \u274c No Polygon pricing for IWM250418P00167500 / IWM250418P00165000
+01:00:07 |    \U0001f40b EEM: bullish 100% conv, $5138K wprem, spot=$38.55 @ 15:55
+01:00:07 |       \u274c No Polygon pricing for EEM250418P00037000 / EEM250418P00034000
+01:00:07 |    \U0001f40b WFC: bullish 93% conv, $2278K wprem, spot=$59.85 @ 15:55
+01:00:07 |       \u274c No Polygon pricing for WFC250418P00057500 / WFC250418P00055000
+01:00:07 |    \U0001f40b MCD: bullish 100% conv, $2043K wprem, spot=$297.72 @ 15:55
+01:00:07 |       \u274c No Polygon pricing for MCD250418P00290000 / MCD250418P00285000
+01:00:07 |    \U0001f40b GOOGL: bullish 100% conv, $1040K wprem, spot=$145.18 @ 15:55
+01:00:07 |       \u274c No Polygon pricing for GOOGL250418P00140000 / GOOGL250418P00137500
+01:00:07 |    \U0001f40b IWM: bullish 98% conv, $24204K wprem, spot=$171.98 @ 16:00
+01:00:07 |       \u274c No Polygon pricing for IWM250418P00167500 / IWM250418P00165000
+01:00:07 |    \U0001f40b MCD: bullish 100% conv, $1637K wprem, spot=$297.72 @ 16:00
+01:00:07 |       \u274c No Polygon pricing for MCD250418P00290000 / MCD250418P00285000
+01:00:07 |    \U0001f40b WMT: bearish 100% conv, $728K wprem, spot=$84.77 @ 16:00
+01:00:07 |       \u274c No Polygon pricing for WMT250418C00087500 / WMT250418C00090000
+01:00:07 |    \U0001f40b IWM: bullish 97% conv, $20219K wprem, spot=$172.06 @ 16:05
+01:00:07 |       \u274c No Polygon pricing for IWM250418P00167500 / IWM250418P00165000
+01:00:07 |    \U0001f40b MCD: bullish 100% conv, $1231K wprem, spot=$297.72 @ 16:05
+01:00:07 |       \u274c No Polygon pricing for MCD250418P00290000 / MCD250418P00285000
+01:00:07 |    \U0001f40b WMT: bearish 100% conv, $721K wprem, spot=$84.64 @ 16:05
+01:00:07 |       \u274c No Polygon pricing for WMT250418C00087500 / WMT250418C00090000
+01:00:07 |    \U0001f40b HYG: bearish 100% conv, $1242K wprem, spot=$75.25 @ 16:10
+01:00:07 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+01:00:07 |    \U0001f40b XLF: bearish 92% conv, $619K wprem, spot=$43.37 @ 16:10
+01:00:07 |       \u274c No Polygon pricing for XLF250418C00045000 / XLF250418C00048000
+01:00:07 |    \U0001f40b WMT: bearish 100% conv, $574K wprem, spot=$84.64 @ 16:10
+01:00:07 |       \u274c No Polygon pricing for WMT250418C00087500 / WMT250418C00090000
+01:00:07 |    \U0001f40b HYG: bearish 100% conv, $2036K wprem, spot=$75.38 @ 16:15
+01:00:07 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+01:00:07 |    \U0001f40b WMT: bearish 100% conv, $531K wprem, spot=$85.02 @ 16:15
+01:00:07 |       \u274c No Polygon pricing for WMT250418C00087500 / WMT250418C00090000
+01:00:07 |    \U0001f40b HYG: bearish 100% conv, $1613K wprem, spot=$75.38 @ 16:20
+01:00:07 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+01:00:07 |    \U0001f40b UVXY: bullish 100% conv, $656K wprem, spot=$48.82 @ 16:20
+01:00:08 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:00:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:00:32 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:00:45 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:00:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:01:09 |       \u274c No Polygon pricing for UVXY250418P00047000 / UVXY250418P00044000
+01:01:09 |    \U0001f40b HYG: bearish 100% conv, $1589K wprem, spot=$75.42 @ 16:25
+01:01:09 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+01:01:09 |    \U0001f40b SLV: bullish 100% conv, $1068K wprem, spot=$27.66 @ 16:25
+01:01:10 |       \u274c No Polygon pricing for SLV250418P00027000 / SLV250418P00024000
+01:01:10 |    \U0001f40b AVGO: bullish 100% conv, $571K wprem, spot=$160.53 @ 16:25
+01:01:10 |       \u274c No Polygon pricing for AVGO250418P00155000 / AVGO250418P00152500
+01:01:10 |    \U0001f40b HYG: bearish 100% conv, $1354K wprem, spot=$75.42 @ 16:30
+01:01:10 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+01:01:10 |    \U0001f40b SLV: bullish 100% conv, $1003K wprem, spot=$27.66 @ 16:30
+01:01:10 |       \u274c No Polygon pricing for SLV250418P00027000 / SLV250418P00024000
+01:01:10 |    \U0001f40b WMT: bearish 100% conv, $664K wprem, spot=$85.52 @ 16:30
+01:01:10 |       \u274c No Polygon pricing for WMT250418C00087500 / WMT250418C00090000
+01:01:10 |    \U0001f40b UNH: bullish 100% conv, $2053K wprem, spot=$566.68 @ 16:35
+01:01:10 |       \u274c No Polygon pricing for UNH250418P00550000 / UNH250418P00540000
+01:01:10 |    \U0001f40b HYG: bearish 100% conv, $1056K wprem, spot=$75.42 @ 16:35
+01:01:10 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+01:01:10 |    \U0001f40b SLV: bullish 91% conv, $981K wprem, spot=$27.68 @ 16:35
+01:01:10 |       \u274c No Polygon pricing for SLV250418P00027000 / SLV250418P00024000
+01:01:10 |    \U0001f40b WMT: bearish 100% conv, $509K wprem, spot=$85.52 @ 16:35
+01:01:10 |       \u274c No Polygon pricing for WMT250418C00087500 / WMT250418C00090000
+01:01:10 |    \U0001f40b UNH: bullish 100% conv, $4852K wprem, spot=$567.94 @ 16:40
+01:01:10 |       \u274c No Polygon pricing for UNH250418P00550000 / UNH250418P00540000
+01:01:10 |    \U0001f40b GOOGL: bullish 91% conv, $1642K wprem, spot=$146.45 @ 16:40
+01:01:10 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:01:23 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:01:35 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:01:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:02:00 |       \u274c No Polygon pricing for GOOGL250418P00142500 / GOOGL250418P00140000
+01:02:00 |    \U0001f40b OXY: bearish 100% conv, $1301K wprem, spot=$36.10 @ 16:40
+01:02:00 |       \u274c No Polygon pricing for OXY250418C00037000 / OXY250418C00040000
+01:02:00 |    \U0001f40b SLV: bullish 91% conv, $845K wprem, spot=$27.70 @ 16:40
+01:02:00 |       \u274c No Polygon pricing for SLV250418P00027000 / SLV250418P00024000
+01:02:00 |    \U0001f40b HYG: bearish 100% conv, $562K wprem, spot=$75.42 @ 16:40
+01:02:00 |       \u274c No Polygon pricing for HYG250418C00077500 / HYG250418C00080000
+01:02:00 |    \U0001f40b META: bullish 94% conv, $4341K wprem, spot=$510.80 @ 16:45
+01:02:00 |       \u274c No Polygon pricing for META250418P00500000 / META250418P00490000
+01:02:00 |    \U0001f40b UNH: bullish 100% conv, $3949K wprem, spot=$567.94 @ 16:45
+01:02:00 |       \u274c No Polygon pricing for UNH250418P00550000 / UNH250418P00540000
+01:02:00 |    \U0001f40b C: bullish 91% conv, $1838K wprem, spot=$56.73 @ 16:45
+01:02:00 |       \u274c No Polygon pricing for C250418P00055000 / C250418P00052500
+01:02:00 |    \U0001f40b GOOGL: bullish 92% conv, $1327K wprem, spot=$146.45 @ 16:45
+01:02:00 |       \u274c No Polygon pricing for GOOGL250418P00142500 / GOOGL250418P00140000
+01:02:00 |    \U0001f40b OXY: bearish 100% conv, $1235K wprem, spot=$36.01 @ 16:45
+01:02:00 |       \u274c No Polygon pricing for OXY250418C00037000 / OXY250418C00040000
+01:02:00 |    \U0001f40b SLV: bullish 91% conv, $597K wprem, spot=$27.70 @ 16:45
+01:02:00 |       \u274c No Polygon pricing for SLV250418P00027000 / SLV250418P00024000
+01:02:00 |    \U0001f40b META: bullish 96% conv, $4486K wprem, spot=$511.31 @ 16:50
+01:02:00 |       \u274c No Polygon pricing for META250418P00500000 / META250418P00490000
+01:02:00 |    \U0001f40b PFE: bearish 100% conv, $3160K wprem, spot=$21.20 @ 16:50
+01:02:00 |       \u274c No Polygon pricing for PFE250418C00022000 / PFE250418C00025000
+01:02:00 |    \U0001f40b UNH: bullish 100% conv, $3046K wprem, spot=$567.94 @ 16:50
+01:02:00 |       \u274c No Polygon pricing for UNH250418P00550000 / UNH250418P00540000
+01:02:00 |    \U0001f40b C: bullish 91% conv, $1448K wprem, spot=$56.73 @ 16:50
+01:02:00 |       \u274c No Polygon pricing for C250418P00055000 / C250418P00052500
+01:02:00 |    \U0001f40b GOOGL: bullish 93% conv, $1011K wprem, spot=$146.45 @ 16:50
+01:02:00 |       \u274c No Polygon pricing for GOOGL250418P00142500 / GOOGL250418P00140000
+01:02:00 |    \U0001f40b OXY: bearish 100% conv, $989K wprem, spot=$36.01 @ 16:50
+01:02:00 |       \u274c No Polygon pricing for OXY250418C00037000 / OXY250418C00040000
+01:02:00 |    \U0001f40b C: bullish 93% conv, $3261K wprem, spot=$56.67 @ 16:55
+01:02:00 |       \u274c No Polygon pricing for C250418P00055000 / C250418P00052500
+01:02:00 |    \U0001f40b PFE: bearish 100% conv, $2608K wprem, spot=$21.20 @ 16:55
+01:02:00 |       \u274c No Polygon pricing for PFE250418C00022000 / PFE250418C00025000
+01:02:00 |    \U0001f40b GOOGL: bullish 95% conv, $857K wprem, spot=$146.02 @ 16:55
+01:02:00 |       \u274c No Polygon pricing for GOOGL250418P00142500 / GOOGL250418P00140000
+01:02:00 |    \U0001f40b OXY: bearish 100% conv, $743K wprem, spot=$36.01 @ 16:55
+01:02:00 |       \u274c No Polygon pricing for OXY250418C00037000 / OXY250418C00040000
+01:02:00 |    \U0001f40b QQQ: bullish 93% conv, $66159K wprem, spot=$446.51 @ 17:00
+01:02:01 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:02:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:02:25 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:02:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:02:50 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:03:02 |       \u274c No Polygon pricing for QQQ250418P00435000 / QQQ250418P00430000
+01:03:02 |    \U0001f40b META: bullish 92% conv, $6330K wprem, spot=$512.96 @ 17:00
+01:03:02 |       \u274c No Polygon pricing for META250418P00500000 / META250418P00490000
+01:03:02 |    \U0001f40b C: bullish 97% conv, $5921K wprem, spot=$56.80 @ 17:00
+01:03:02 |       \u274c No Polygon pricing for C250418P00055000 / C250418P00052500
+01:03:02 |    \U0001f40b PFE: bearish 100% conv, $2055K wprem, spot=$21.20 @ 17:00
+01:03:02 |       \u274c No Polygon pricing for PFE250418C00022000 / PFE250418C00025000
+01:03:02 |    \U0001f40b AMZN: bullish 100% conv, $934K wprem, spot=$172.12 @ 17:00
+01:03:02 |       \u274c No Polygon pricing for AMZN250418P00167500 / AMZN250418P00165000
+01:03:02 |    \U0001f40b GLD: bullish 100% conv, $634K wprem, spot=$285.35 @ 17:00
+01:03:02 |       \u274c No Polygon pricing for GLD250418P00275000 / GLD250418P00270000
+01:03:02 |    \U0001f40b GOOGL: bullish 100% conv, $602K wprem, spot=$146.02 @ 17:00
+01:03:02 |       \u274c No Polygon pricing for GOOGL250418P00142500 / GOOGL250418P00140000
+01:03:02 |    \U0001f40b CVX: bearish 100% conv, $558K wprem, spot=$137.23 @ 17:00
+01:03:03 |       \u274c No Polygon pricing for CVX250418C00142500 / CVX250418C00145000
+01:03:03 |    \U0001f40b QQQ: bullish 93% conv, $59001K wprem, spot=$426.58 @ 17:05
+01:03:03 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:03:16 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:03:28 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:03:40 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:03:53 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:04:05 |       \u274c No Polygon pricing for QQQ250418P00415000 / QQQ250418P00410000
+01:04:05 |    \U0001f40b SMH: bearish 100% conv, $5987K wprem, spot=$184.47 @ 17:05
+01:04:05 |       \u274c No Polygon pricing for SMH250418C00190000 / SMH250418C00192500
+01:04:05 |    \U0001f40b GLD: bullish 100% conv, $990K wprem, spot=$285.36 @ 17:05
+01:04:05 |       \u274c No Polygon pricing for GLD250418P00275000 / GLD250418P00270000
+01:04:05 |    \U0001f40b SMH: bearish 100% conv, $4802K wprem, spot=$184.47 @ 17:10
+01:04:05 |       \u274c No Polygon pricing for SMH250418C00190000 / SMH250418C00192500
+01:04:05 |    \U0001f40b XLF: bearish 99% conv, $2242K wprem, spot=$43.85 @ 17:10
+01:04:05 |       \u274c No Polygon pricing for XLF250418C00045000 / XLF250418C00048000
+01:04:05 |    \U0001f40b GLD: bullish 100% conv, $1026K wprem, spot=$284.48 @ 17:10
+01:04:05 |       \u274c No Polygon pricing for GLD250418P00275000 / GLD250418P00270000
+01:04:05 |    \U0001f40b XLF: bearish 90% conv, $8206K wprem, spot=$43.65 @ 17:15
+01:04:05 |       \u274c No Polygon pricing for XLF250418C00045000 / XLF250418C00048000
+01:04:05 |    \U0001f40b SMH: bearish 100% conv, $3566K wprem, spot=$184.47 @ 17:15
+01:04:05 |       \u274c No Polygon pricing for SMH250418C00190000 / SMH250418C00192500
+01:04:05 |    \U0001f40b TLT: bullish 98% conv, $2296K wprem, spot=$86.48 @ 17:15
+01:04:05 |       \u274c No Polygon pricing for TLT250418P00085000 / TLT250418P00082500
+01:04:05 |    \U0001f40b XLE: bullish 100% conv, $924K wprem, spot=$75.80 @ 17:15
+01:04:05 |       \u274c No Polygon pricing for XLE250418P00072500 / XLE250418P00070000
+01:04:05 |    \U0001f40b PFE: bearish 100% conv, $717K wprem, spot=$21.14 @ 17:15
+01:04:05 |       \u274c No Polygon pricing for PFE250418C00022000 / PFE250418C00025000
+01:04:05 |    \U0001f40b XLF: bearish 91% conv, $6795K wprem, spot=$43.75 @ 17:20
+01:04:05 |       \u274c No Polygon pricing for XLF250418C00045000 / XLF250418C00048000
+01:04:05 |    \U0001f40b SMH: bearish 92% conv, $2427K wprem, spot=$186.07 @ 17:20
+01:04:06 |       \u274c No Polygon pricing for SMH250418C00192500 / SMH250418C00195000
+01:04:06 |    \U0001f40b XLE: bullish 100% conv, $1142K wprem, spot=$77.44 @ 17:20
+01:04:06 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:04:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:04:31 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:04:43 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:04:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:05:08 |       \u274c No Polygon pricing for XLE250418P00075000 / XLE250418P00072500
+01:05:08 |    \U0001f40b PDD: bearish 93% conv, $704K wprem, spot=$89.42 @ 17:20
+01:05:08 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+01:05:08 |    \U0001f40b UVXY: bullish 95% conv, $1201K wprem, spot=$41.86 @ 17:25
+01:05:08 |       \u274c No Polygon pricing for UVXY250418P00041000 / UVXY250418P00038000
+01:05:08 |    \U0001f40b PDD: bearish 97% conv, $1077K wprem, spot=$92.41 @ 17:25
+01:05:08 |       \u274c No Polygon pricing for PDD250418C00095000 / PDD250418C00097500
+01:05:08 |    \U0001f40b WFC: bullish 95% conv, $986K wprem, spot=$62.73 @ 17:25
+01:05:08 |       \u274c No Polygon pricing for WFC250418P00060000 / WFC250418P00057500
+01:05:08 |    \U0001f40b XLE: bullish 100% conv, $916K wprem, spot=$77.44 @ 17:25
+01:05:08 |       \u274c No Polygon pricing for XLE250418P00075000 / XLE250418P00072500
+01:05:08 |    \U0001f40b GS: bullish 93% conv, $793K wprem, spot=$486.85 @ 17:25
+01:05:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:05:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:05:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:05:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:05:58 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:06:11 |       \u274c No Polygon pricing for GS250418P00470000 / GS250418P00465000
+01:06:11 |    \U0001f40b HYG: bullish 100% conv, $562K wprem, spot=$76.71 @ 17:25
+01:06:11 |       \u274c No Polygon pricing for HYG250418P00075000 / HYG250418P00072500
+01:06:11 |    \U0001f40b CRM: bullish 100% conv, $1374K wprem, spot=$255.59 @ 17:30
+01:06:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:06:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:06:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:06:48 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:07:01 |       \u274c No Polygon pricing for CRM250418P00250000 / CRM250418P00245000
+01:07:01 |    \U0001f40b UVXY: bullish 100% conv, $1344K wprem, spot=$38.69 @ 17:30
+01:07:01 |       \u274c No Polygon pricing for UVXY250418P00038000 / UVXY250418P00035000
+01:07:01 |    \U0001f40b NKE: bullish 93% conv, $931K wprem, spot=$57.06 @ 17:30
+01:07:01 |       \u274c No Polygon pricing for NKE250418P00055000 / NKE250418P00052500
+01:07:01 |    \U0001f40b PDD: bearish 97% conv, $867K wprem, spot=$92.41 @ 17:30
+01:07:01 |       \u274c No Polygon pricing for PDD250418C00095000 / PDD250418C00097500
+01:07:01 |    \U0001f40b WFC: bullish 95% conv, $780K wprem, spot=$62.73 @ 17:30
+01:07:01 |       \u274c No Polygon pricing for WFC250418P00060000 / WFC250418P00057500
+01:07:01 |    \U0001f40b BAC: bullish 92% conv, $732K wprem, spot=$36.28 @ 17:30
+01:07:02 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:07:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:07:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:07:39 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:07:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:08:04 |       \u274c No Polygon pricing for BAC250418P00035000 / BAC250418P00032000
+01:08:04 |    \U0001f40b XLE: bullish 100% conv, $689K wprem, spot=$77.44 @ 17:30
+01:08:04 |       \u274c No Polygon pricing for XLE250418P00075000 / XLE250418P00072500
+01:08:04 |    \U0001f40b UVXY: bullish 100% conv, $1040K wprem, spot=$38.69 @ 17:35
+01:08:04 |       \u274c No Polygon pricing for UVXY250418P00038000 / UVXY250418P00035000
+01:08:04 |    \U0001f40b NKE: bullish 100% conv, $892K wprem, spot=$57.65 @ 17:35
+01:08:04 |       \u274c No Polygon pricing for NKE250418P00055000 / NKE250418P00052500
+01:08:04 |    \U0001f40b XLE: bullish 100% conv, $586K wprem, spot=$80.94 @ 17:35
+01:08:04 |       \u274c No Polygon pricing for XLE250418P00077500 / XLE250418P00075000
+01:08:04 |    \U0001f40b BAC: bullish 94% conv, $566K wprem, spot=$36.28 @ 17:35
+01:08:04 |       \u274c No Polygon pricing for BAC250418P00035000 / BAC250418P00032000
+01:08:04 |    \U0001f40b WFC: bullish 96% conv, $562K wprem, spot=$62.73 @ 17:35
+01:08:04 |       \u274c No Polygon pricing for WFC250418P00060000 / WFC250418P00057500
+01:08:04 |    \U0001f40b HYG: bearish 90% conv, $2580K wprem, spot=$77.39 @ 17:40
+01:08:04 |       \u274c No Polygon pricing for HYG250418C00080000 / HYG250418C00082500
+01:08:04 |    \U0001f40b NKE: bullish 100% conv, $865K wprem, spot=$58.59 @ 17:40
+01:08:04 |       \u274c No Polygon pricing for NKE250418P00057500 / NKE250418P00055000
+01:08:04 |    \U0001f40b XLE: bullish 100% conv, $572K wprem, spot=$81.06 @ 17:40
+01:08:04 |       \u274c No Polygon pricing for XLE250418P00077500 / XLE250418P00075000
+01:08:04 |    \U0001f40b SBUX: bullish 100% conv, $1674K wprem, spot=$83.89 @ 17:45
+01:08:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:08:17 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:08:29 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:08:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:08:54 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:09:06 |       \u274c No Polygon pricing for SBUX250418P00082500 / SBUX250418P00080000
+01:09:06 |    \U0001f40b BA: bullish 100% conv, $758K wprem, spot=$152.77 @ 17:45
+01:09:07 |       \u274c No Polygon pricing for BA250418P00147500 / BA250418P00145000
+01:09:07 |    \U0001f40b CAT: bullish 100% conv, $585K wprem, spot=$290.03 @ 17:45
+01:09:07 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:09:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:09:32 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:09:44 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:09:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:10:09 |       \u274c No Polygon pricing for CAT250418P00280000 / CAT250418P00275000
+01:10:09 |    \U0001f40b SLV: bearish 92% conv, $2055K wprem, spot=$27.91 @ 17:50
+01:10:10 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:10:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:10:35 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:10:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:10:59 |       \u274c No Polygon pricing for SLV250418C00029000 / SLV250418C00032000
+01:10:59 |    \U0001f40b HYG: bearish 93% conv, $1649K wprem, spot=$77.35 @ 17:50
+01:10:59 |       \u274c No Polygon pricing for HYG250418C00080000 / HYG250418C00082500
+01:10:59 |    \U0001f40b SBUX: bullish 100% conv, $1357K wprem, spot=$83.89 @ 17:50
+01:10:59 |       \u274c No Polygon pricing for SBUX250418P00082500 / SBUX250418P00080000
+01:10:59 |    \U0001f40b XLF: bullish 100% conv, $883K wprem, spot=$46.21 @ 17:50
+01:11:00 |       \u274c No Polygon pricing for XLF250418P00045000 / XLF250418P00042000
+01:11:00 |    \U0001f40b COST: bullish 100% conv, $650K wprem, spot=$955.17 @ 17:50
+01:11:00 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:11:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:11:25 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:11:37 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:11:50 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:12:02 |       \u274c No Polygon pricing for COST250418P00930000 / COST250418P00920000
+01:12:02 |    \U0001f40b SLV: bearish 94% conv, $1671K wprem, spot=$27.91 @ 17:55
+01:12:02 |       \u274c No Polygon pricing for SLV250418C00029000 / SLV250418C00032000
+01:12:02 |    \U0001f40b HYG: bearish 100% conv, $1112K wprem, spot=$77.35 @ 17:55
+01:12:02 |       \u274c No Polygon pricing for HYG250418C00080000 / HYG250418C00082500
+01:12:02 |    \U0001f40b SBUX: bullish 100% conv, $1041K wprem, spot=$83.89 @ 17:55
+01:12:02 |       \u274c No Polygon pricing for SBUX250418P00082500 / SBUX250418P00080000
+01:12:02 |    \U0001f40b HD: bearish 100% conv, $522K wprem, spot=$348.68 @ 17:55
+01:12:03 |       \u274c No Polygon pricing for HD250418C00360000 / HD250418C00365000
+01:12:03 |    \U0001f40b XLF: bullish 100% conv, $516K wprem, spot=$46.21 @ 17:55
+01:12:03 |       \u274c No Polygon pricing for XLF250418P00045000 / XLF250418P00042000
+01:12:03 |    \U0001f40b CAT: bullish 100% conv, $506K wprem, spot=$292.50 @ 17:55
+01:12:03 |       \u274c No Polygon pricing for CAT250418P00285000 / CAT250418P00280000
+01:12:03 |    \U0001f40b SLV: bearish 95% conv, $1287K wprem, spot=$27.91 @ 18:00
+01:12:03 |       \u274c No Polygon pricing for SLV250418C00029000 / SLV250418C00032000
+01:12:03 |    \U0001f40b CRM: bullish 97% conv, $1120K wprem, spot=$263.21 @ 18:00
+01:12:04 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:12:16 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:12:28 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:12:41 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:12:53 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:13:05 |       \u274c No Polygon pricing for CRM250418P00255000 / CRM250418P00250000
+01:13:05 |    \U0001f40b HYG: bearish 91% conv, $663K wprem, spot=$77.42 @ 18:00
+01:13:05 |       \u274c No Polygon pricing for HYG250418C00080000 / HYG250418C00082500
+01:13:05 |    \U0001f40b XLF: bullish 100% conv, $541K wprem, spot=$46.70 @ 18:00
+01:13:05 |       \u274c No Polygon pricing for XLF250418P00045000 / XLF250418P00042000
+01:13:05 |    \U0001f40b SLV: bearish 94% conv, $1342K wprem, spot=$28.08 @ 18:05
+01:13:05 |       \u274c No Polygon pricing for SLV250418C00029000 / SLV250418C00032000
+01:13:05 |    \U0001f40b CRM: bullish 100% conv, $920K wprem, spot=$263.21 @ 18:05
+01:13:05 |       \u274c No Polygon pricing for CRM250418P00255000 / CRM250418P00250000
+01:13:05 |    \U0001f40b SLV: bearish 92% conv, $926K wprem, spot=$28.08 @ 18:10
+01:13:05 |       \u274c No Polygon pricing for SLV250418C00029000 / SLV250418C00032000
+01:13:05 |    \U0001f40b CRM: bullish 100% conv, $683K wprem, spot=$263.21 @ 18:10
+01:13:05 |       \u274c No Polygon pricing for CRM250418P00255000 / CRM250418P00250000
+01:13:05 |    \U0001f40b OXY: bearish 92% conv, $1721K wprem, spot=$39.95 @ 18:15
+01:13:06 |       \u274c No Polygon pricing for OXY250418C00041000 / OXY250418C00044000
+01:13:06 |    \U0001f40b XLF: bullish 100% conv, $671K wprem, spot=$46.69 @ 18:15
+01:13:06 |       \u274c No Polygon pricing for XLF250418P00045000 / XLF250418P00042000
+01:13:06 |    \U0001f40b OXY: bearish 92% conv, $1379K wprem, spot=$39.95 @ 18:20
+01:13:06 |       \u274c No Polygon pricing for OXY250418C00041000 / OXY250418C00044000
+01:13:06 |    \U0001f40b SHOP: bullish 100% conv, $786K wprem, spot=$91.46 @ 18:20
+01:13:06 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:13:19 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:13:31 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:13:43 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:13:56 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:14:08 |       \u274c No Polygon pricing for SHOP250418P00087500 / SHOP250418P00085000
+01:14:08 |    \U0001f40b XLF: bullish 100% conv, $554K wprem, spot=$46.74 @ 18:20
+01:14:08 |       \u274c No Polygon pricing for XLF250418P00045000 / XLF250418P00042000
+01:14:08 |    \U0001f40b HYG: bearish 95% conv, $902K wprem, spot=$77.22 @ 18:25
+01:14:08 |       \u274c No Polygon pricing for HYG250418C00080000 / HYG250418C00082500
+01:14:08 |    \U0001f40b SHOP: bullish 100% conv, $709K wprem, spot=$93.28 @ 18:25
+01:14:09 |       \u274c No Polygon pricing for SHOP250418P00090000 / SHOP250418P00087500
+01:14:09 |    \U0001f40b PDD: bearish 93% conv, $926K wprem, spot=$93.83 @ 18:30
+01:14:09 |       \u274c No Polygon pricing for PDD250418C00097500 / PDD250418C00100000
+01:14:09 |    \U0001f40b HYG: bearish 97% conv, $732K wprem, spot=$77.22 @ 18:30
+01:14:09 |       \u274c No Polygon pricing for HYG250418C00080000 / HYG250418C00082500
+01:14:09 |    \U0001f40b SHOP: bullish 100% conv, $535K wprem, spot=$93.28 @ 18:30
+01:14:09 |       \u274c No Polygon pricing for SHOP250418P00090000 / SHOP250418P00087500
+01:14:09 |    \U0001f40b AVGO: bearish 91% conv, $4108K wprem, spot=$182.03 @ 18:35
+01:14:09 |       \u274c No Polygon pricing for AVGO250418C00187500 / AVGO250418C00190000
+01:14:09 |    \U0001f40b PDD: bearish 96% conv, $1307K wprem, spot=$93.69 @ 18:35
+01:14:09 |       \u274c No Polygon pricing for PDD250418C00097500 / PDD250418C00100000
+01:14:09 |    \U0001f40b TLT: bearish 92% conv, $641K wprem, spot=$87.63 @ 18:35
+01:14:09 |       \u274c No Polygon pricing for TLT250418C00090000 / TLT250418C00092500
+01:14:09 |    \U0001f40b HYG: bearish 100% conv, $563K wprem, spot=$77.22 @ 18:35
+01:14:09 |       \u274c No Polygon pricing for HYG250418C00080000 / HYG250418C00082500
+01:14:09 |    \U0001f40b PDD: bearish 96% conv, $5156K wprem, spot=$94.06 @ 18:40
+01:14:09 |       \u274c No Polygon pricing for PDD250418C00097500 / PDD250418C00100000
+01:14:09 |    \U0001f40b XLF: bullish 100% conv, $574K wprem, spot=$46.99 @ 18:40
+01:14:09 |       \u274c No Polygon pricing for XLF250418P00046000 / XLF250418P00043000
+01:14:09 |    \U0001f40b PDD: bearish 97% conv, $6044K wprem, spot=$93.56 @ 18:45
+01:14:09 |       \u274c No Polygon pricing for PDD250418C00097500 / PDD250418C00100000
+01:14:09 |    \U0001f40b UNH: bearish 92% conv, $716K wprem, spot=$579.90 @ 18:45
+01:14:09 |       \u274c No Polygon pricing for UNH250418C00600000 / UNH250418C00610000
+01:14:09 |    \U0001f40b VXX: bearish 92% conv, $546K wprem, spot=$66.38 @ 18:45
+01:14:09 |       \u274c No Polygon pricing for VXX250418C00067500 / VXX250418C00070000
+01:14:09 |    \U0001f40b PDD: bearish 96% conv, $4757K wprem, spot=$92.49 @ 18:50
+01:14:09 |       \u274c No Polygon pricing for PDD250418C00095000 / PDD250418C00097500
+01:14:09 |    \U0001f40b MCD: bullish 100% conv, $1279K wprem, spot=$297.57 @ 18:50
+01:14:09 |       \u274c No Polygon pricing for MCD250418P00290000 / MCD250418P00285000
+01:14:09 |    \U0001f40b UNH: bearish 96% conv, $572K wprem, spot=$579.90 @ 18:50
+01:14:09 |       \u274c No Polygon pricing for UNH250418C00600000 / UNH250418C00610000
+01:14:09 |    \U0001f40b PDD: bearish 96% conv, $3948K wprem, spot=$92.57 @ 18:55
+01:14:09 |       \u274c No Polygon pricing for PDD250418C00095000 / PDD250418C00097500
+01:14:09 |    \U0001f40b MCD: bullish 100% conv, $1029K wprem, spot=$297.57 @ 18:55
+01:14:09 |       \u274c No Polygon pricing for MCD250418P00290000 / MCD250418P00285000
+01:14:09 |    \U0001f40b PDD: bearish 97% conv, $3860K wprem, spot=$92.13 @ 19:00
+01:14:09 |       \u274c No Polygon pricing for PDD250418C00095000 / PDD250418C00097500
+01:14:09 |    \U0001f40b MCD: bullish 100% conv, $2115K wprem, spot=$300.64 @ 19:00
+01:14:09 |       \u274c No Polygon pricing for MCD250418P00290000 / MCD250418P00285000
+01:14:09 |    \U0001f40b COIN: bearish 95% conv, $1359K wprem, spot=$176.32 @ 19:00
+01:14:09 |       \u274c No Polygon pricing for COIN250418C00182500 / COIN250418C00185000
+01:14:09 |    \U0001f40b HYG: bearish 91% conv, $1086K wprem, spot=$77.30 @ 19:00
+01:14:09 |       \u274c No Polygon pricing for HYG250418C00080000 / HYG250418C00082500
+01:14:09 |    \U0001f40b WMT: bearish 100% conv, $2914K wprem, spot=$89.16 @ 19:05
+01:14:09 |       \u274c No Polygon pricing for WMT250418C00092500 / WMT250418C00095000
+01:14:09 |    \U0001f40b PDD: bearish 97% conv, $2573K wprem, spot=$92.13 @ 19:05
+01:14:09 |       \u274c No Polygon pricing for PDD250418C00095000 / PDD250418C00097500
+01:14:09 |    \U0001f40b MCD: bullish 100% conv, $1639K wprem, spot=$300.64 @ 19:05
+01:14:09 |       \u274c No Polygon pricing for MCD250418P00290000 / MCD250418P00285000
+01:14:09 |    \U0001f40b HYG: bearish 92% conv, $837K wprem, spot=$77.30 @ 19:05
+01:14:09 |       \u274c No Polygon pricing for HYG250418C00080000 / HYG250418C00082500
+01:14:09 |    \U0001f40b GLD: bullish 92% conv, $2733K wprem, spot=$284.24 @ 19:10
+01:14:09 |       \u274c No Polygon pricing for GLD250418P00275000 / GLD250418P00270000
+01:14:09 |    \U0001f40b WMT: bearish 100% conv, $2379K wprem, spot=$89.16 @ 19:10
+01:14:09 |       \u274c No Polygon pricing for WMT250418C00092500 / WMT250418C00095000
+01:14:09 |    \U0001f40b MCD: bullish 100% conv, $1182K wprem, spot=$300.64 @ 19:10
+01:14:09 |       \u274c No Polygon pricing for MCD250418P00290000 / MCD250418P00285000
+01:14:09 |    \U0001f40b TLT: bullish 94% conv, $995K wprem, spot=$87.88 @ 19:10
+01:14:09 |       \u274c No Polygon pricing for TLT250418P00085000 / TLT250418P00082500
+01:14:09 |    \U0001f40b MA: bearish 100% conv, $666K wprem, spot=$509.32 @ 19:10
+01:14:09 |       \u274c No Polygon pricing for MA250418C00520000 / MA250418C00530000
+01:14:09 |    \U0001f40b UVXY: bullish 100% conv, $613K wprem, spot=$33.01 @ 19:10
+01:14:09 |       \u274c No Polygon pricing for UVXY250418P00032000 / UVXY250418P00029000
+01:14:09 |    \U0001f40b WMT: bearish 100% conv, $1844K wprem, spot=$89.16 @ 19:15
+01:14:09 |       \u274c No Polygon pricing for WMT250418C00092500 / WMT250418C00095000
+01:14:09 |    \U0001f40b UVXY: bullish 100% conv, $610K wprem, spot=$31.94 @ 19:15
+01:14:09 |       \u274c No Polygon pricing for UVXY250418P00031000 / UVXY250418P00028000
+01:14:09 |    \U0001f40b DIA: bearish 93% conv, $542K wprem, spot=$400.96 @ 19:15
+01:14:09 |       \u274c No Polygon pricing for DIA250418C00415000 / DIA250418C00420000
+01:14:09 |    \U0001f40b MA: bearish 100% conv, $537K wprem, spot=$509.32 @ 19:15
+01:14:09 |       \u274c No Polygon pricing for MA250418C00520000 / MA250418C00530000
+01:14:09 |    \U0001f40b WMT: bearish 90% conv, $1310K wprem, spot=$89.41 @ 19:20
+01:14:09 |       \u274c No Polygon pricing for WMT250418C00092500 / WMT250418C00095000
+01:14:09 |    \U0001f40b V: bearish 100% conv, $558K wprem, spot=$329.59 @ 19:20
+01:14:09 |       \u274c No Polygon pricing for V250418C00340000 / V250418C00345000
+01:14:09 |    \U0001f40b META: bullish 91% conv, $9246K wprem, spot=$582.73 @ 19:25
+01:14:09 |       \u274c No Polygon pricing for META250418P00570000 / META250418P00560000
+01:14:09 |    \U0001f40b V: bearish 100% conv, $571K wprem, spot=$330.74 @ 19:25
+01:14:09 |       \u274c No Polygon pricing for V250418C00340000 / V250418C00345000
+01:14:09 |    \U0001f40b XLF: bearish 100% conv, $996K wprem, spot=$47.22 @ 19:30
+01:14:09 |       \u274c No Polygon pricing for XLF250418C00049000 / XLF250418C00052000
+01:14:09 |    \U0001f40b PLTR: bullish 91% conv, $8714K wprem, spot=$92.37 @ 19:40
+01:14:09 |       \u274c No Polygon pricing for PLTR250418P00090000 / PLTR250418P00087500
+01:14:09 |    \U0001f40b NKE: bullish 91% conv, $576K wprem, spot=$58.61 @ 19:40
+01:14:09 |       \u274c No Polygon pricing for NKE250418P00057500 / NKE250418P00055000
+01:14:09 |    \U0001f40b NKE: bullish 95% conv, $635K wprem, spot=$58.87 @ 19:45
+01:14:09 |       \u274c No Polygon pricing for NKE250418P00057500 / NKE250418P00055000
+01:14:09 |    \U0001f40b SMH: bullish 90% conv, $505K wprem, spot=$209.56 @ 19:45
+01:14:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:14:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:14:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:14:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:14:59 |       \u274c No Polygon pricing for SMH250418P00205000 / SMH250418P00200000
+01:14:59 |    \U0001f40b NKE: bullish 94% conv, $510K wprem, spot=$58.87 @ 19:50
+01:14:59 |       \u274c No Polygon pricing for NKE250418P00057500 / NKE250418P00055000
+01:14:59 |    \U0001f40b V: bearish 99% conv, $2524K wprem, spot=$332.70 @ 19:55
+01:14:59 |       \u274c No Polygon pricing for V250418C00345000 / V250418C00350000
+01:14:59 |    \U0001f40b SNOW: bullish 100% conv, $2167K wprem, spot=$151.48 @ 20:00
+01:14:59 |       \u274c No Polygon pricing for SNOW250418P00147500 / SNOW250418P00145000
+01:14:59 |    \U0001f40b V: bearish 99% conv, $2094K wprem, spot=$332.70 @ 20:00
+01:14:59 |       \u274c No Polygon pricing for V250418C00345000 / V250418C00350000
+01:14:59 |    \U0001f40b BA: bullish 93% conv, $809K wprem, spot=$162.03 @ 20:00
+01:14:59 |       \u274c No Polygon pricing for BA250418P00157500 / BA250418P00155000
+01:14:59 |    \U0001f40b C: bullish 94% conv, $622K wprem, spot=$64.27 @ 20:00
+01:14:59 |       \u274c No Polygon pricing for C250418P00062500 / C250418P00060000
+01:14:59 |    \U0001f40b SNOW: bullish 100% conv, $1732K wprem, spot=$151.48 @ 20:05
+01:14:59 |       \u274c No Polygon pricing for SNOW250418P00147500 / SNOW250418P00145000
+01:14:59 |    \U0001f40b V: bearish 100% conv, $1629K wprem, spot=$332.70 @ 20:05
+01:14:59 |       \u274c No Polygon pricing for V250418C00345000 / V250418C00350000
+01:14:59 |    \U0001f40b BAC: bullish 94% conv, $1061K wprem, spot=$37.35 @ 20:05
+01:14:59 |       \u274c No Polygon pricing for BAC250418P00036000 / BAC250418P00033000
+01:14:59 |    \U0001f40b BA: bullish 94% conv, $594K wprem, spot=$162.03 @ 20:05
+01:14:59 |       \u274c No Polygon pricing for BA250418P00157500 / BA250418P00155000
+01:14:59 |    \U0001f40b C: bullish 95% conv, $504K wprem, spot=$64.27 @ 20:05
+01:14:59 |       \u274c No Polygon pricing for C250418P00062500 / C250418P00060000
+01:14:59 |    \U0001f40b UVXY: bullish 91% conv, $2090K wprem, spot=$32.36 @ 20:10
+01:14:59 |       \u274c No Polygon pricing for UVXY250418P00031000 / UVXY250418P00028000
+01:14:59 |    \U0001f40b SNOW: bullish 100% conv, $1296K wprem, spot=$151.48 @ 20:10
+01:14:59 |       \u274c No Polygon pricing for SNOW250418P00147500 / SNOW250418P00145000
+01:14:59 |    \U0001f40b BAC: bullish 93% conv, $560K wprem, spot=$37.35 @ 20:10
+01:14:59 |       \u274c No Polygon pricing for BAC250418P00036000 / BAC250418P00033000
+01:14:59 |    \U0001f40b XLY: bearish 100% conv, $778K wprem, spot=$195.39 @ 20:15
+01:14:59 |       \u274c No Polygon pricing for XLY250418C00202500 / XLY250418C00205000
+01:14:59 |    \U0001f40b XLY: bearish 100% conv, $641K wprem, spot=$195.39 @ 20:20
+01:14:59 |       \u274c No Polygon pricing for XLY250418C00202500 / XLY250418C00205000
+01:14:59 |    \U0001f40b XLY: bearish 100% conv, $505K wprem, spot=$195.39 @ 20:25
+01:14:59 |       \u274c No Polygon pricing for XLY250418C00202500 / XLY250418C00205000
+01:14:59 | 
+============================================================
+01:14:59 | \U0001f4c5 2025-04-10 | Balance: $46,457 | Positions: 1/5
+01:14:59 | ============================================================
+01:14:59 |    \U0001f50d Scanning at 14:30 UTC...
+01:14:59 |    \U0001f40b AVGO: bullish 94% conv, $6149K wprem, spot=$175.64 @ 14:30
+01:14:59 |       \u274c No Polygon pricing for AVGO250418P00170000 / AVGO250418P00167500
+01:14:59 |    \U0001f40b AMZN: bullish 92% conv, $842K wprem, spot=$185.01 @ 14:35
+01:14:59 |       \u274c No Polygon pricing for AMZN250418P00180000 / AMZN250418P00177500
+01:14:59 |    \U0001f40b UNH: bullish 100% conv, $3947K wprem, spot=$597.07 @ 14:40
+01:14:59 |       \u274c No Polygon pricing for UNH250418P00580000 / UNH250418P00570000
+01:14:59 |    \U0001f40b NKE: bullish 92% conv, $874K wprem, spot=$54.23 @ 14:40
+01:14:59 |       \u274c No Polygon pricing for NKE250418P00052500 / NKE250418P00050000
+01:14:59 |    \U0001f40b AMZN: bullish 100% conv, $662K wprem, spot=$185.01 @ 14:40
+01:14:59 |       \u274c No Polygon pricing for AMZN250418P00180000 / AMZN250418P00177500
+01:14:59 |    \U0001f40b UNH: bullish 100% conv, $3225K wprem, spot=$597.07 @ 14:45
+01:14:59 |       \u274c No Polygon pricing for UNH250418P00580000 / UNH250418P00570000
+01:14:59 |    \U0001f40b UNH: bullish 100% conv, $2503K wprem, spot=$597.07 @ 14:50
+01:14:59 |       \u274c No Polygon pricing for UNH250418P00580000 / UNH250418P00570000
+01:14:59 |    \U0001f40b BA: bearish 100% conv, $852K wprem, spot=$155.73 @ 14:50
+01:15:00 |       \u274c No Polygon pricing for BA250418C00160000 / BA250418C00162500
+01:15:00 |    \U0001f40b UNH: bullish 100% conv, $10665K wprem, spot=$593.48 @ 14:55
+01:15:00 |       \u274c No Polygon pricing for UNH250418P00580000 / UNH250418P00570000
+01:15:00 |    \U0001f40b TLT: bearish 100% conv, $1142K wprem, spot=$87.53 @ 14:55
+01:15:00 |       \u274c No Polygon pricing for TLT250418C00090000 / TLT250418C00092500
+01:15:00 |    \U0001f40b PLTR: bearish 100% conv, $1102K wprem, spot=$89.38 @ 14:55
+01:15:00 |       \u274c No Polygon pricing for PLTR250418C00092500 / PLTR250418C00095000
+01:15:00 |    \U0001f40b BA: bearish 100% conv, $699K wprem, spot=$155.73 @ 14:55
+01:15:00 |       \u274c No Polygon pricing for BA250418C00160000 / BA250418C00162500
+01:15:00 |    \U0001f40b GOOGL: bearish 100% conv, $574K wprem, spot=$155.69 @ 14:55
+01:15:00 |       \u274c No Polygon pricing for GOOGL250418C00160000 / GOOGL250418C00162500
+01:15:00 |    \U0001f40b UNH: bullish 100% conv, $8328K wprem, spot=$593.48 @ 15:00
+01:15:00 |       \u274c No Polygon pricing for UNH250418P00580000 / UNH250418P00570000
+01:15:00 |    \U0001f40b GLD: bearish 100% conv, $1203K wprem, spot=$290.45 @ 15:00
+01:15:00 |       \u274c No Polygon pricing for GLD250418C00300000 / GLD250418C00305000
+01:15:00 |    \U0001f40b PLTR: bearish 100% conv, $891K wprem, spot=$89.38 @ 15:00
+01:15:00 |       \u274c No Polygon pricing for PLTR250418C00092500 / PLTR250418C00095000
+01:15:00 |    \U0001f40b BA: bearish 100% conv, $546K wprem, spot=$155.73 @ 15:00
+01:15:00 |       \u274c No Polygon pricing for BA250418C00160000 / BA250418C00162500
+01:15:00 |    \U0001f40b UNH: bullish 100% conv, $6521K wprem, spot=$593.48 @ 15:05
+01:15:00 |       \u274c No Polygon pricing for UNH250418P00580000 / UNH250418P00570000
+01:15:00 |    \U0001f40b GLD: bearish 100% conv, $2370K wprem, spot=$291.22 @ 15:05
+01:15:00 |       \u274c No Polygon pricing for GLD250418C00300000 / GLD250418C00305000
+01:15:00 |    \U0001f40b AAPL: bearish 90% conv, $2364K wprem, spot=$190.40 @ 15:05
+01:15:00 |       \u274c No Polygon pricing for AAPL250418C00195000 / AAPL250418C00197500
+01:15:00 |    \U0001f40b UVXY: bearish 100% conv, $746K wprem, spot=$39.06 @ 15:05
+01:15:00 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:15:12 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:15:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:15:37 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:15:49 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:16:01 |       \u274c No Polygon pricing for UVXY250418C00040000 / UVXY250418C00043000
+01:16:01 |    \U0001f40b PLTR: bearish 100% conv, $680K wprem, spot=$89.38 @ 15:05
+01:16:01 |       \u274c No Polygon pricing for PLTR250418C00092500 / PLTR250418C00095000
+01:16:01 |    \U0001f40b UBER: bearish 100% conv, $626K wprem, spot=$71.21 @ 15:05
+01:16:02 |       \u274c No Polygon pricing for UBER250418C00072500 / UBER250418C00075000
+01:16:02 |    \U0001f40b GLD: bearish 100% conv, $1776K wprem, spot=$291.22 @ 15:10
+01:16:02 |       \u274c No Polygon pricing for GLD250418C00300000 / GLD250418C00305000
+01:16:02 |    \U0001f40b UVXY: bearish 100% conv, $618K wprem, spot=$39.06 @ 15:10
+01:16:02 |       \u274c No Polygon pricing for UVXY250418C00040000 / UVXY250418C00043000
+01:16:02 |    \U0001f40b UBER: bearish 100% conv, $519K wprem, spot=$71.21 @ 15:10
+01:16:02 |       \u274c No Polygon pricing for UBER250418C00072500 / UBER250418C00075000
+01:16:02 |    \U0001f40b XOM: bearish 100% conv, $1268K wprem, spot=$101.51 @ 15:15
+01:16:02 |       \u274c No Polygon pricing for XOM250418C00105000 / XOM250418C00107500
+01:16:02 |    \U0001f40b XOM: bearish 100% conv, $1030K wprem, spot=$101.51 @ 15:20
+01:16:02 |       \u274c No Polygon pricing for XOM250418C00105000 / XOM250418C00107500
+01:16:02 |    \U0001f40b NKE: bullish 100% conv, $621K wprem, spot=$53.69 @ 15:20
+01:16:02 |       \u274c No Polygon pricing for NKE250418P00052500 / NKE250418P00050000
+01:16:02 |    \U0001f40b AVGO: bearish 100% conv, $617K wprem, spot=$173.46 @ 15:20
+01:16:02 |       \u274c No Polygon pricing for AVGO250418C00177500 / AVGO250418C00180000
+01:16:02 |    \U0001f40b XOM: bearish 100% conv, $791K wprem, spot=$101.51 @ 15:25
+01:16:02 |       \u274c No Polygon pricing for XOM250418C00105000 / XOM250418C00107500
+01:16:02 |    \U0001f40b UNH: bearish 100% conv, $743K wprem, spot=$591.76 @ 15:25
+01:16:02 |       \u274c No Polygon pricing for UNH250418C00610000 / UNH250418C00620000
+01:16:02 |    \U0001f40b PLTR: bearish 100% conv, $620K wprem, spot=$88.33 @ 15:25
+01:16:03 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:16:15 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:16:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:16:39 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:16:52 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:17:04 |       \u274c No Polygon pricing for PLTR250418C00090000 / PLTR250418C00092500
+01:17:04 |    \U0001f40b UVXY: bearish 100% conv, $1098K wprem, spot=$39.92 @ 15:30
+01:17:05 |       \u274c No Polygon pricing for UVXY250418C00041000 / UVXY250418C00044000
+01:17:05 |    \U0001f40b UNH: bearish 100% conv, $579K wprem, spot=$591.76 @ 15:30
+01:17:05 |       \u274c No Polygon pricing for UNH250418C00610000 / UNH250418C00620000
+01:17:05 |    \U0001f40b PLTR: bearish 100% conv, $513K wprem, spot=$88.33 @ 15:30
+01:17:05 |       \u274c No Polygon pricing for PLTR250418C00090000 / PLTR250418C00092500
+01:17:05 |    \U0001f40b GLD: bullish 94% conv, $5502K wprem, spot=$292.06 @ 15:35
+01:17:05 |       \u274c No Polygon pricing for GLD250418P00285000 / GLD250418P00280000
+01:17:05 |    \U0001f40b COIN: bullish 100% conv, $4625K wprem, spot=$168.12 @ 15:35
+01:17:05 |       \u274c No Polygon pricing for COIN250418P00162500 / COIN250418P00160000
+01:17:05 |    \U0001f40b AMZN: bearish 100% conv, $1088K wprem, spot=$182.27 @ 15:35
+01:17:05 |       \u274c No Polygon pricing for AMZN250418C00187500 / AMZN250418C00190000
+01:17:05 |    \U0001f40b PLTR: bearish 100% conv, $1049K wprem, spot=$88.14 @ 15:35
+01:17:05 |       \u274c No Polygon pricing for PLTR250418C00090000 / PLTR250418C00092500
+01:17:05 |    \U0001f40b UVXY: bearish 100% conv, $757K wprem, spot=$39.92 @ 15:35
+01:17:05 |       \u274c No Polygon pricing for UVXY250418C00041000 / UVXY250418C00044000
+01:17:05 |    \U0001f40b UNH: bearish 100% conv, $703K wprem, spot=$592.58 @ 15:35
+01:17:05 |       \u274c No Polygon pricing for UNH250418C00610000 / UNH250418C00620000
+01:17:05 |    \U0001f40b BA: bearish 100% conv, $615K wprem, spot=$154.62 @ 15:35
+01:17:05 |       \u274c No Polygon pricing for BA250418C00160000 / BA250418C00162500
+01:17:05 |    \U0001f40b COST: bearish 100% conv, $513K wprem, spot=$971.54 @ 15:35
+01:17:05 |       \u274c No Polygon pricing for COST250418C01000000 / COST250418C01010000
+01:17:05 |    \U0001f40b GLD: bullish 94% conv, $4212K wprem, spot=$292.06 @ 15:40
+01:17:05 |       \u274c No Polygon pricing for GLD250418P00285000 / GLD250418P00280000
+01:17:05 |    \U0001f40b COIN: bullish 100% conv, $3776K wprem, spot=$168.12 @ 15:40
+01:17:05 |       \u274c No Polygon pricing for COIN250418P00162500 / COIN250418P00160000
+01:17:05 |    \U0001f40b AMZN: bearish 100% conv, $867K wprem, spot=$182.27 @ 15:40
+01:17:05 |       \u274c No Polygon pricing for AMZN250418C00187500 / AMZN250418C00190000
+01:17:05 |    \U0001f40b UVXY: bearish 100% conv, $570K wprem, spot=$39.92 @ 15:40
+01:17:05 |       \u274c No Polygon pricing for UVXY250418C00041000 / UVXY250418C00044000
+01:17:05 |    \U0001f40b BA: bearish 100% conv, $509K wprem, spot=$154.62 @ 15:40
+01:17:05 |       \u274c No Polygon pricing for BA250418C00160000 / BA250418C00162500
+01:17:05 |    \U0001f40b COIN: bullish 100% conv, $2926K wprem, spot=$168.12 @ 15:45
+01:17:05 |       \u274c No Polygon pricing for COIN250418P00162500 / COIN250418P00160000
+01:17:05 |    \U0001f40b AMZN: bearish 100% conv, $646K wprem, spot=$182.27 @ 15:45
+01:17:05 |       \u274c No Polygon pricing for AMZN250418C00187500 / AMZN250418C00190000
+01:17:05 |    \U0001f40b UNH: bullish 95% conv, $2484K wprem, spot=$590.11 @ 15:50
+01:17:05 |       \u274c No Polygon pricing for UNH250418P00570000 / UNH250418P00560000
+01:17:05 |    \U0001f40b PDD: bearish 100% conv, $1003K wprem, spot=$90.10 @ 15:50
+01:17:05 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+01:17:05 |    \U0001f40b UNH: bullish 99% conv, $9940K wprem, spot=$590.86 @ 15:55
+01:17:05 |       \u274c No Polygon pricing for UNH250418P00570000 / UNH250418P00560000
+01:17:05 |    \U0001f40b SMH: bullish 100% conv, $8119K wprem, spot=$193.70 @ 15:55
+01:17:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:17:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:17:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:17:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:17:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:18:07 |       \u274c No Polygon pricing for SMH250418P00187500 / SMH250418P00185000
+01:18:07 |    \U0001f40b PDD: bearish 100% conv, $816K wprem, spot=$90.10 @ 15:55
+01:18:07 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+01:18:07 |    \U0001f40b GOOGL: bearish 100% conv, $741K wprem, spot=$152.89 @ 15:55
+01:18:07 |       \u274c No Polygon pricing for GOOGL250418C00157500 / GOOGL250418C00160000
+01:18:07 |    \U0001f40b UNH: bullish 99% conv, $12098K wprem, spot=$588.75 @ 16:00
+01:18:07 |       \u274c No Polygon pricing for UNH250418P00570000 / UNH250418P00560000
+01:18:07 |    \U0001f40b SMH: bullish 100% conv, $6603K wprem, spot=$193.70 @ 16:00
+01:18:07 |       \u274c No Polygon pricing for SMH250418P00187500 / SMH250418P00185000
+01:18:07 |    \U0001f40b BAC: bearish 100% conv, $736K wprem, spot=$35.34 @ 16:00
+01:18:08 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:18:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:18:33 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:18:45 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:18:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:19:10 |       \u274c No Polygon pricing for BAC250418C00036000 / BAC250418C00039000
+01:19:10 |    \U0001f40b XOM: bullish 100% conv, $640K wprem, spot=$99.86 @ 16:00
+01:19:10 |       \u274c No Polygon pricing for XOM250418P00097500 / XOM250418P00095000
+01:19:10 |    \U0001f40b PDD: bearish 100% conv, $629K wprem, spot=$90.10 @ 16:00
+01:19:10 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+01:19:10 |    \U0001f40b GOOGL: bearish 100% conv, $586K wprem, spot=$152.89 @ 16:00
+01:19:10 |       \u274c No Polygon pricing for GOOGL250418C00157500 / GOOGL250418C00160000
+01:19:10 |    \U0001f40b UNH: bullish 100% conv, $11811K wprem, spot=$586.62 @ 16:05
+01:19:10 |       \u274c No Polygon pricing for UNH250418P00570000 / UNH250418P00560000
+01:19:10 |    \U0001f40b SMH: bullish 100% conv, $5086K wprem, spot=$193.70 @ 16:05
+01:19:10 |       \u274c No Polygon pricing for SMH250418P00187500 / SMH250418P00185000
+01:19:10 |    \U0001f40b SHOP: bullish 100% conv, $830K wprem, spot=$82.60 @ 16:05
+01:19:10 |       \u274c No Polygon pricing for SHOP250418P00080000 / SHOP250418P00077500
+01:19:10 |    \U0001f40b GOOGL: bearish 100% conv, $809K wprem, spot=$152.13 @ 16:05
+01:19:10 |       \u274c No Polygon pricing for GOOGL250418C00157500 / GOOGL250418C00160000
+01:19:10 |    \U0001f40b COIN: bearish 100% conv, $650K wprem, spot=$165.03 @ 16:05
+01:19:10 |       \u274c No Polygon pricing for COIN250418C00170000 / COIN250418C00172500
+01:19:10 |    \U0001f40b BAC: bearish 100% conv, $600K wprem, spot=$35.34 @ 16:05
+01:19:10 |       \u274c No Polygon pricing for BAC250418C00036000 / BAC250418C00039000
+01:19:10 |    \U0001f40b XOM: bullish 100% conv, $518K wprem, spot=$99.86 @ 16:05
+01:19:10 |       \u274c No Polygon pricing for XOM250418P00097500 / XOM250418P00095000
+01:19:10 |    \U0001f40b UNH: bullish 100% conv, $8863K wprem, spot=$586.62 @ 16:10
+01:19:10 |       \u274c No Polygon pricing for UNH250418P00570000 / UNH250418P00560000
+01:19:10 |    \U0001f40b XLI: bullish 100% conv, $7467K wprem, spot=$121.83 @ 16:10
+01:19:10 |       \u274c No Polygon pricing for XLI250418P00117500 / XLI250418P00115000
+01:19:10 |    \U0001f40b COST: bearish 100% conv, $1690K wprem, spot=$966.66 @ 16:10
+01:19:10 |       \u274c No Polygon pricing for COST250418C01000000 / COST250418C01010000
+01:19:10 |    \U0001f40b PDD: bearish 100% conv, $1047K wprem, spot=$89.52 @ 16:10
+01:19:10 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+01:19:10 |    \U0001f40b TLT: bearish 100% conv, $852K wprem, spot=$86.91 @ 16:10
+01:19:10 |       \u274c No Polygon pricing for TLT250418C00090000 / TLT250418C00092500
+01:19:10 |    \U0001f40b GOOGL: bearish 100% conv, $583K wprem, spot=$152.13 @ 16:10
+01:19:10 |       \u274c No Polygon pricing for GOOGL250418C00157500 / GOOGL250418C00160000
+01:19:10 |    \U0001f40b CVX: bullish 100% conv, $513K wprem, spot=$136.59 @ 16:10
+01:19:10 |       \u274c No Polygon pricing for CVX250418P00132500 / CVX250418P00130000
+01:19:10 |    \U0001f40b PLTR: bearish 100% conv, $503K wprem, spot=$86.96 @ 16:10
+01:19:10 |       \u274c No Polygon pricing for PLTR250418C00090000 / PLTR250418C00092500
+01:19:10 |    \U0001f40b UNH: bullish 100% conv, $6324K wprem, spot=$586.62 @ 16:15
+01:19:10 |       \u274c No Polygon pricing for UNH250418P00570000 / UNH250418P00560000
+01:19:10 |    \U0001f40b XLI: bullish 100% conv, $6133K wprem, spot=$121.83 @ 16:15
+01:19:10 |       \u274c No Polygon pricing for XLI250418P00117500 / XLI250418P00115000
+01:19:10 |    \U0001f40b COST: bearish 100% conv, $1303K wprem, spot=$961.53 @ 16:15
+01:19:10 |       \u274c No Polygon pricing for COST250418C00990000 / COST250418C01000000
+01:19:10 |    \U0001f40b PDD: bearish 100% conv, $859K wprem, spot=$89.52 @ 16:15
+01:19:10 |       \u274c No Polygon pricing for PDD250418C00092500 / PDD250418C00095000
+01:19:10 |    \U0001f40b SBUX: bearish 100% conv, $841K wprem, spot=$82.42 @ 16:15
+01:19:10 |       \u274c No Polygon pricing for SBUX250418C00085000 / SBUX250418C00087500
+01:19:10 |    \U0001f40b TLT: bearish 100% conv, $701K wprem, spot=$86.91 @ 16:15
+01:19:10 |       \u274c No Polygon pricing for TLT250418C00090000 / TLT250418C00092500
+01:19:10 |    \U0001f40b BA: bearish 100% conv, $573K wprem, spot=$152.77 @ 16:15
+01:19:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+01:19:23 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...

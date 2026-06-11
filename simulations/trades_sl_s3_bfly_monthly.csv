@@ -1,0 +1,12 @@
+strategy,symbol,structure,entry_date,entry_time_et,expiration,dte,legs,deltas,spot,sigma,credit,debit,qty,slip_leg,n_aligned_bars,exit_date,exit_time_et,exit_cost,exit_reason,pnl
+spy_bfly_monthly,SPY,iron_condor,2025-03-24,11:00,2025-04-17,24,SP575 / LP545 / SC575 / LC605,,573.55,0.211,16.27,,1,0.05,54,2025-04-17,16:00,30.0,expiration_intrinsic,-1375.6
+spy_bfly_monthly,SPY,iron_condor,2025-04-21,11:00,2025-05-16,25,SP515 / LP490 / SC515 / LC540,,514.6,0.2759,19.31,,1,0.05,30,2025-05-16,16:00,25.0,expiration_intrinsic,-571.6
+spy_bfly_monthly,SPY,iron_condor,2025-05-19,11:00,2025-06-20,32,SP590 / LP560 / SC590 / LC620,,592.01,0.1678,18.025,,1,0.05,29,2025-06-20,16:00,4.28,expiration_intrinsic,1371.9
+spy_bfly_monthly,SPY,iron_condor,2025-06-23,11:00,2025-07-18,25,SP595 / LP565 / SC595 / LC625,,596.47,0.1777,16.82,,1,0.05,64,2025-07-18,16:00,30.0,expiration_intrinsic,-1320.6
+spy_bfly_monthly,SPY,iron_condor,2025-07-21,11:05,2025-08-15,25,SP630 / LP600 / SC630 / LC660,,631.02,0.156,15.22,,1,0.05,58,2025-08-15,16:00,13.44,expiration_intrinsic,175.4
+spy_bfly_monthly,SPY,iron_condor,2025-08-18,11:00,2025-09-19,32,SP645 / LP615 / SC645 / LC675,,643.23,0.1508,15.0,,1,0.05,27,2025-09-19,16:00,18.7,expiration_intrinsic,-372.6
+spy_bfly_monthly,SPY,iron_condor,2025-09-22,11:00,2025-10-17,25,SP665 / LP630 / SC665 / LC700,,665.02,0.1454,15.51,,1,0.05,56,2025-10-17,16:00,0.61,expiration_intrinsic,1487.4
+spy_bfly_monthly,SPY,iron_condor,2025-10-20,11:00,2025-11-21,32,SP670 / LP635 / SC670 / LC705,,671.21,0.2041,19.42,,1,0.05,40,2025-11-21,16:00,10.97,expiration_intrinsic,842.4
+spy_bfly_monthly,SPY,iron_condor,2025-11-24,11:00,2025-12-19,25,SP665 / LP630 / SC665 / LC700,,666.53,0.2091,20.33,,1,0.05,71,2025-12-19,16:00,15.59,expiration_intrinsic,471.4
+spy_bfly_monthly,SPY,iron_condor,2025-12-22,11:00,2026-01-16,25,SP685 / LP650 / SC685 / LC720,,683.65,0.1426,14.34,,1,0.05,47,2026-01-16,16:00,6.66,expiration_intrinsic,765.4
+spy_bfly_monthly,SPY,iron_condor,2026-01-20,11:00,2026-02-20,31,SP685 / LP650 / SC685 / LC720,,683.8,0.1437,19.48,,1,0.05,77,2026-02-20,16:00,4.43,expiration_intrinsic,1502.4

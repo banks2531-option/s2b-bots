@@ -1,0 +1,2 @@
+strategy,symbol,structure,entry_date,entry_time_et,expiration,dte,legs,deltas,spot,sigma,credit,debit,qty,slip_leg,n_aligned_bars,exit_date,exit_time_et,exit_cost,exit_reason,pnl
+spy_bfly_monthly,SPY,iron_condor,2025-06-23,11:00,2025-07-18,25,SP595 / LP565 / SC595 / LC625,,596.47,0.1777,16.82,,1,0.05,64,2025-07-18,16:00,30.0,expiration_intrinsic,-1320.6

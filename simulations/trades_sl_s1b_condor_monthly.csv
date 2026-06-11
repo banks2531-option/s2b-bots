@@ -1,0 +1,12 @@
+strategy,symbol,structure,entry_date,entry_time_et,expiration,dte,legs,deltas,spot,sigma,credit,debit,qty,slip_leg,n_aligned_bars,exit_date,exit_time_et,exit_cost,exit_reason,pnl
+spy_condor_monthly,SPY,iron_condor,2025-03-24,11:50,2025-04-17,24,SP550 / LP525 / SC605 / LC630,put_short=-0.196 call_short=0.183,573.55,0.211,2.22,,1,0.05,19,2025-04-17,16:00,23.59,expiration_intrinsic,-2139.6
+spy_condor_monthly,SPY,iron_condor,2025-04-21,11:00,2025-05-16,25,SP485 / LP460 / SC550 / LC575,put_short=-0.184 call_short=0.200,514.6,0.2759,5.8,,1,0.05,63,2025-05-16,16:00,25.0,expiration_intrinsic,-1922.6
+spy_condor_monthly,SPY,iron_condor,2025-05-19,11:15,2025-06-20,32,SP570 / LP550 / SC620 / LC645,put_short=-0.193 call_short=0.205,592.01,0.1678,3.645,,1,0.05,14,2025-06-20,16:00,0.0,expiration_intrinsic,361.9
+spy_condor_monthly,SPY,iron_condor,2025-06-23,11:20,2025-07-18,25,SP575 / LP555 / SC625 / LC645,put_short=-0.190 call_short=0.180,596.47,0.1777,2.67,,1,0.05,18,2025-07-18,16:00,2.58,expiration_intrinsic,6.4
+spy_condor_monthly,SPY,iron_condor,2025-07-21,11:30,2025-08-15,25,SP610 / LP590 / SC655 / LC680,put_short=-0.177 call_short=0.207,631.02,0.156,2.64,,1,0.05,19,2025-08-15,16:00,0.0,expiration_intrinsic,261.4
+spy_condor_monthly,SPY,iron_condor,2025-08-18,11:15,2025-09-19,32,SP620 / LP600 / SC670 / LC695,put_short=-0.175 call_short=0.211,643.23,0.1508,2.44,,1,0.05,8,2025-09-19,16:00,0.0,expiration_intrinsic,241.4
+spy_condor_monthly,SPY,iron_condor,2025-09-22,11:10,2025-10-17,25,SP645 / LP625 / SC690 / LC710,put_short=-0.183 call_short=0.192,665.02,0.1454,2.45,,1,0.05,11,2025-10-17,16:00,0.0,expiration_intrinsic,242.4
+spy_condor_monthly,SPY,iron_condor,2025-10-20,11:35,2025-11-21,32,SP640 / LP610 / SC710 / LC745,put_short=-0.189 call_short=0.202,671.21,0.2041,2.73,,1,0.05,2,2025-11-21,16:00,0.0,expiration_intrinsic,270.4
+spy_condor_monthly,SPY,iron_condor,2025-11-24,11:15,2025-12-19,25,SP640 / LP610 / SC700 / LC735,put_short=-0.204 call_short=0.209,666.53,0.2091,3.6,,1,0.05,9,2025-12-19,16:00,0.0,expiration_intrinsic,357.4
+spy_condor_monthly,SPY,iron_condor,2025-12-22,11:05,2026-01-16,25,SP665 / LP645 / SC710 / LC730,put_short=-0.200 call_short=0.181,683.65,0.1426,1.95,,1,0.05,17,2026-01-16,16:00,0.0,expiration_intrinsic,192.4
+spy_condor_monthly,SPY,iron_condor,2026-01-20,11:05,2026-02-20,31,SP665 / LP640 / SC710 / LC735,put_short=-0.218 call_short=0.216,683.8,0.1437,4.79,,1,0.05,34,2026-02-20,16:00,0.0,expiration_intrinsic,476.4

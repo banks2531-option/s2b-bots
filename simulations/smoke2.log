@@ -1,0 +1,29 @@
+[smoke_cacheonly] cfg={'start': '2025-06-02', 'end': '2025-06-30', 'stop_mult': 1.0, 'tp_pct': 0.5, 'delta_cap': 0.3, 'use_regime_gate': True, 'use_iv_filter': True}
+slippage model (half-spread/leg): {'AAPL': 0.05, 'AMZN': 0.05, 'GOOGL': 0.05, 'IWM': 0.05, 'META': 0.075, 'MSFT': 0.05, 'NVDA': 0.05, 'QQQ': 0.05, 'SPY': 0.05, 'TSLA': 0.05}
+!! CACHE_ONLY mode: no Polygon API calls
+  .. 2025-06-02 (0/20) bal=10000 trades=0
+  .. 2025-06-09 (5/20) bal=10000 trades=0
+  .. 2025-06-16 (10/20) bal=10000 trades=0
+  .. 2025-06-24 (15/20) bal=10000 trades=0
+{
+  "n_trades": 0,
+  "wins": 0,
+  "losses": 0,
+  "win_rate": 0.0,
+  "avg_win": 0.0,
+  "avg_loss": 0.0,
+  "profit_factor": 0.0,
+  "total_pnl": 0,
+  "end_balance": 10000.0,
+  "max_drawdown": 0.0,
+  "monthly": {},
+  "by_regime": {},
+  "rejects": {
+    "universe": 4739,
+    "no_pricing": 93,
+    "ivr_below_35": 952,
+    "credit_lt_25pct": 84,
+    "regime_bcs_gate": 1082
+  }
+}
+cache: 301 hits (234 from archive), 77 misses (80% hit rate) | polygon api calls: 0

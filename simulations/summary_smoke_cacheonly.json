@@ -1,0 +1,32 @@
+{
+  "cfg": {
+    "start": "2025-06-02",
+    "end": "2025-06-30",
+    "stop_mult": 1.0,
+    "tp_pct": 0.5,
+    "delta_cap": 0.3,
+    "use_regime_gate": true,
+    "use_iv_filter": true
+  },
+  "summary": {
+    "n_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "win_rate": 0.0,
+    "avg_win": 0.0,
+    "avg_loss": 0.0,
+    "profit_factor": 0.0,
+    "total_pnl": 0,
+    "end_balance": 10000.0,
+    "max_drawdown": 0.0,
+    "monthly": {},
+    "by_regime": {},
+    "rejects": {
+      "universe": 4739,
+      "no_pricing": 93,
+      "ivr_below_35": 952,
+      "credit_lt_25pct": 84,
+      "regime_bcs_gate": 1082
+    }
+  }
+}

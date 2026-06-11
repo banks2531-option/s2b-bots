@@ -1,0 +1,26 @@
+11:24:30 | prefetch start: ['SPY', 'QQQ'] 2025-03-03..2026-02-27 (250 sessions, 12 months, overlay=C:\Users\FixUser123\Documents\fable options\simulations\api_cache_overlay_batch.db)
+11:24:32 | SPY 2025-03: fetched 4010 bars -> stored 21 session keys (4010 RTH+ext bars), api_calls=1
+11:24:33 | SPY 2025-04: fetched 4020 bars -> stored 21 session keys (4020 RTH+ext bars), api_calls=2
+11:24:34 | SPY 2025-05: fetched 4016 bars -> stored 21 session keys (4016 RTH+ext bars), api_calls=3
+11:24:35 | SPY 2025-06: fetched 3828 bars -> stored 20 session keys (3828 RTH+ext bars), api_calls=4
+11:24:37 | SPY 2025-07: fetched 4108 bars -> stored 22 session keys (4108 RTH+ext bars), api_calls=5
+11:25:03 | SPY 2025-08: fetched 3994 bars -> stored 21 session keys (3994 RTH+ext bars), api_calls=6
+11:25:04 | SPY 2025-09: fetched 3973 bars -> stored 21 session keys (3973 RTH+ext bars), api_calls=7
+11:25:06 | SPY 2025-10: fetched 4374 bars -> stored 23 session keys (4374 RTH+ext bars), api_calls=8
+11:25:08 | SPY 2025-11: fetched 3578 bars -> stored 19 session keys (3578 RTH+ext bars), api_calls=9
+11:25:09 | SPY 2025-12: fetched 4147 bars -> stored 22 session keys (4147 RTH+ext bars), api_calls=10
+11:26:12 | SPY 2026-01: fetched 3837 bars -> stored 20 session keys (3837 RTH+ext bars), api_calls=11
+11:26:13 | SPY 2026-02: fetched 3647 bars -> stored 19 session keys (3647 RTH+ext bars), api_calls=12
+11:26:14 | QQQ 2025-03: fetched 4025 bars -> stored 21 session keys (4025 RTH+ext bars), api_calls=13
+11:26:16 | QQQ 2025-04: fetched 4025 bars -> stored 21 session keys (4025 RTH+ext bars), api_calls=14
+11:26:17 | QQQ 2025-05: fetched 4017 bars -> stored 21 session keys (4017 RTH+ext bars), api_calls=15
+11:27:07 | QQQ 2025-06: fetched 3831 bars -> stored 20 session keys (3831 RTH+ext bars), api_calls=16
+11:27:08 | QQQ 2025-07: fetched 4128 bars -> stored 22 session keys (4128 RTH+ext bars), api_calls=17
+11:27:10 | QQQ 2025-08: fetched 4019 bars -> stored 21 session keys (4019 RTH+ext bars), api_calls=18
+11:27:11 | QQQ 2025-09: fetched 4010 bars -> stored 21 session keys (4010 RTH+ext bars), api_calls=19
+11:27:12 | QQQ 2025-10: fetched 4405 bars -> stored 23 session keys (4405 RTH+ext bars), api_calls=20
+11:28:02 | QQQ 2025-11: fetched 3577 bars -> stored 19 session keys (3577 RTH+ext bars), api_calls=21
+11:28:04 | QQQ 2025-12: fetched 4149 bars -> stored 22 session keys (4149 RTH+ext bars), api_calls=22
+11:28:13 | QQQ 2026-01: fetched 3838 bars -> stored 20 session keys (3838 RTH+ext bars), api_calls=23
+11:28:14 | QQQ 2026-02: fetched 3648 bars -> stored 19 session keys (3648 RTH+ext bars), api_calls=24
+11:28:14 | prefetch done: 24 fresh API calls | cache 0 hits (0 from archive), 500 misses (0% hit rate)

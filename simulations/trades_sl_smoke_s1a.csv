@@ -1,0 +1,6 @@
+strategy,symbol,structure,entry_date,entry_time_et,expiration,dte,legs,deltas,spot,sigma,credit,debit,qty,slip_leg,n_aligned_bars,exit_date,exit_time_et,exit_cost,exit_reason,pnl
+spy_condor_weekly,SPY,iron_condor,2025-06-02,11:00,2025-06-06,4,SP580 / LP572 / SC599 / LC608,put_short=-0.191 call_short=0.206,589.33,0.1816,2.025,,1,0.05,24,2025-06-06,16:00,0.14,expiration_intrinsic,185.9
+spy_condor_weekly,SPY,iron_condor,2025-06-09,11:00,2025-06-13,4,SP592 / LP585 / SC607 / LC615,put_short=-0.189 call_short=0.215,599.51,0.1431,1.81,,1,0.05,31,2025-06-13,16:00,0.0,expiration_intrinsic,178.4
+spy_condor_weekly,SPY,iron_condor,2025-06-16,11:00,2025-06-20,4,SP595 / LP585 / SC614 / LC624,put_short=-0.211 call_short=0.207,603.92,0.1855,1.255,,1,0.05,8,2025-06-20,16:00,0.72,expiration_intrinsic,50.9
+spy_condor_weekly,SPY,iron_condor,2025-06-23,11:00,2025-06-27,4,SP588 / LP579 / SC606 / LC615,put_short=-0.211 call_short=0.207,596.47,0.1777,1.495,,1,0.05,29,2025-06-27,16:00,8.91,expiration_intrinsic,-744.1
+spy_condor_weekly,SPY,iron_condor,2025-06-30,11:00,2025-07-03,3,SP609 / LP603 / SC623 / LC630,put_short=-0.192 call_short=0.215,616.01,0.1511,1.105,,1,0.05,30,2025-07-03,16:00,2.34,expiration_intrinsic,-126.1

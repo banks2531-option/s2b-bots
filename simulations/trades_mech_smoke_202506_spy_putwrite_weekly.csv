@@ -1,0 +1,6 @@
+strategy,symbol,structure,entry_date,entry_time_et,expiration,dte,legs,deltas,spot,sigma,credit,debit,qty,slip_leg,n_aligned_bars,exit_date,exit_time_et,exit_cost,exit_reason,pnl
+spy_putwrite_weekly,SPY,bull_put,2025-06-02,10:00,2025-06-06,4,SP581 / LP576,put_short=-0.287,586.85,0.1816,1.1,,1,0.05,247,2025-06-02,15:55,0.62,tp,46.7
+spy_putwrite_weekly,SPY,bull_put,2025-06-09,10:00,2025-06-13,4,SP595 / LP590,put_short=-0.317,598.89,0.1431,1.07,,1,0.05,203,2025-06-11,09:30,0.48,tp,57.7
+spy_putwrite_weekly,SPY,bull_put,2025-06-16,10:00,2025-06-20,4,SP597 / LP592,put_short=-0.290,603.05,0.1855,0.87,,1,0.05,313,2025-06-20,09:30,0.92,time_exit_1dte,-6.3
+spy_putwrite_weekly,SPY,bull_put,2025-06-23,10:00,2025-06-27,4,SP591 / LP586,put_short=-0.292,596.65,0.1777,0.84,,1,0.05,201,2025-06-24,09:30,0.34,tp,48.7
+spy_putwrite_weekly,SPY,bull_put,2025-06-30,10:00,2025-07-03,3,SP612 / LP607,put_short=-0.287,616.43,0.1511,0.78,,1,0.05,264,2025-07-01,13:50,0.46,tp,30.7

@@ -1,0 +1,1352 @@
+
+=== s2a_putspread_weekly (spy_putspread_weekly) 2025-03-03..2026-02-27 kwargs={} budget_remaining=5976 ===
+  .. 2025-03-03 (1/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-04 (2/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-05 (3/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-06 (4/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-07 (5/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-10 (6/250) bal=10000 trades=0 fresh_api=0
+12:17:07 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:17:19 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:17:31 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:17:44 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:17:56 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-03-11 (7/250) bal=10000 trades=0 fresh_api=10
+  .. 2025-03-12 (8/250) bal=10000 trades=0 fresh_api=10
+  .. 2025-03-13 (9/250) bal=10000 trades=0 fresh_api=10
+  .. 2025-03-14 (10/250) bal=10000 trades=0 fresh_api=10
+  .. 2025-03-17 (11/250) bal=10211 trades=1 fresh_api=10
+12:18:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:18:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:18:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:18:50 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:19:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:19:17 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:19:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:19:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:19:54 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-03-18 (12/250) bal=10211 trades=1 fresh_api=20
+  .. 2025-03-19 (13/250) bal=10211 trades=1 fresh_api=20
+  .. 2025-03-20 (14/250) bal=10211 trades=1 fresh_api=20
+  .. 2025-03-21 (15/250) bal=10211 trades=1 fresh_api=20
+  .. 2025-03-24 (16/250) bal=10513 trades=2 fresh_api=20
+  .. 2025-03-25 (17/250) bal=10513 trades=2 fresh_api=20
+  .. 2025-03-26 (18/250) bal=10513 trades=2 fresh_api=20
+  .. 2025-03-27 (19/250) bal=10513 trades=2 fresh_api=20
+  .. 2025-03-28 (20/250) bal=10513 trades=2 fresh_api=20
+  .. 2025-03-31 (21/250) bal=9729 trades=3 fresh_api=20
+12:20:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:20:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:20:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:20:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:20:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:21:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:21:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:21:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:21:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-04-01 (22/250) bal=9729 trades=3 fresh_api=30
+  .. 2025-04-02 (23/250) bal=9729 trades=3 fresh_api=30
+  .. 2025-04-03 (24/250) bal=9729 trades=3 fresh_api=30
+  .. 2025-04-04 (25/250) bal=9729 trades=3 fresh_api=30
+  .. 2025-04-07 (26/250) bal=9022 trades=4 fresh_api=30
+12:22:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:22:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:22:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:22:43 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:22:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:23:10 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:23:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:23:35 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:23:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:24:00 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-04-08 (27/250) bal=9022 trades=4 fresh_api=40
+  .. 2025-04-09 (28/250) bal=9022 trades=4 fresh_api=40
+  .. 2025-04-10 (29/250) bal=9022 trades=4 fresh_api=40
+  .. 2025-04-11 (30/250) bal=9022 trades=4 fresh_api=40
+  .. 2025-04-14 (31/250) bal=9394 trades=5 fresh_api=40
+12:24:17 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:24:29 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:24:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:24:54 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:25:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:25:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:25:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:25:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:25:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-04-15 (32/250) bal=9394 trades=5 fresh_api=48
+  .. 2025-04-16 (33/250) bal=9394 trades=5 fresh_api=48
+  .. 2025-04-17 (34/250) bal=9394 trades=5 fresh_api=48
+  .. 2025-04-21 (35/250) bal=8648 trades=6 fresh_api=48
+12:26:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:26:25 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:26:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:26:50 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:27:04 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:27:17 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:27:29 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:27:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:27:54 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-04-22 (36/250) bal=8648 trades=6 fresh_api=58
+  .. 2025-04-23 (37/250) bal=8648 trades=6 fresh_api=58
+  .. 2025-04-24 (38/250) bal=8648 trades=6 fresh_api=58
+  .. 2025-04-25 (39/250) bal=8648 trades=6 fresh_api=58
+  .. 2025-04-28 (40/250) bal=8956 trades=7 fresh_api=58
+12:28:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:28:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:28:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:28:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:28:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:29:13 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:29:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:29:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:29:50 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-04-29 (41/250) bal=8956 trades=7 fresh_api=68
+  .. 2025-04-30 (42/250) bal=8956 trades=7 fresh_api=68
+  .. 2025-05-01 (43/250) bal=8956 trades=7 fresh_api=68
+  .. 2025-05-02 (44/250) bal=8956 trades=7 fresh_api=68
+  .. 2025-05-05 (45/250) bal=9183 trades=8 fresh_api=68
+  .. 2025-05-06 (46/250) bal=9183 trades=8 fresh_api=68
+  .. 2025-05-07 (47/250) bal=9183 trades=8 fresh_api=68
+  .. 2025-05-08 (48/250) bal=9183 trades=8 fresh_api=68
+  .. 2025-05-09 (49/250) bal=9183 trades=8 fresh_api=68
+  .. 2025-05-12 (50/250) bal=9405 trades=9 fresh_api=68
+12:30:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:30:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:30:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:30:42 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:30:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:31:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:31:23 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:31:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:31:48 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-05-13 (51/250) bal=9405 trades=9 fresh_api=78
+  .. 2025-05-14 (52/250) bal=9405 trades=9 fresh_api=78
+  .. 2025-05-15 (53/250) bal=9405 trades=9 fresh_api=78
+  .. 2025-05-16 (54/250) bal=9405 trades=9 fresh_api=78
+  .. 2025-05-19 (55/250) bal=9610 trades=10 fresh_api=78
+12:32:04 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:32:16 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:32:28 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:32:41 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:32:53 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:33:08 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:33:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:33:33 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:33:45 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:33:58 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-05-20 (56/250) bal=9610 trades=10 fresh_api=88
+  .. 2025-05-21 (57/250) bal=9610 trades=10 fresh_api=88
+  .. 2025-05-22 (58/250) bal=9610 trades=10 fresh_api=88
+  .. 2025-05-23 (59/250) bal=9610 trades=10 fresh_api=88
+  .. 2025-05-27 (60/250) bal=8831 trades=11 fresh_api=88
+  .. 2025-05-28 (61/250) bal=8831 trades=11 fresh_api=88
+  .. 2025-05-29 (62/250) bal=8831 trades=11 fresh_api=88
+  .. 2025-05-30 (63/250) bal=8831 trades=11 fresh_api=88
+  .. 2025-06-02 (64/250) bal=8831 trades=11 fresh_api=88
+12:34:19 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:34:31 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:34:43 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:34:56 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:35:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:35:23 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:35:35 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:35:48 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-06-03 (65/250) bal=8831 trades=11 fresh_api=98
+  .. 2025-06-04 (66/250) bal=8831 trades=11 fresh_api=98
+  .. 2025-06-05 (67/250) bal=8831 trades=11 fresh_api=98
+  .. 2025-06-06 (68/250) bal=8831 trades=11 fresh_api=98
+  .. 2025-06-09 (69/250) bal=9079 trades=12 fresh_api=98
+12:36:08 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:36:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:36:33 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:36:45 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:36:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:37:12 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:37:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:37:37 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:37:49 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-06-10 (70/250) bal=9079 trades=12 fresh_api=108
+  .. 2025-06-11 (71/250) bal=9079 trades=12 fresh_api=108
+  .. 2025-06-12 (72/250) bal=9079 trades=12 fresh_api=108
+  .. 2025-06-13 (73/250) bal=9079 trades=12 fresh_api=108
+  .. 2025-06-16 (74/250) bal=9299 trades=13 fresh_api=108
+  .. 2025-06-17 (75/250) bal=9299 trades=13 fresh_api=108
+  .. 2025-06-18 (76/250) bal=9299 trades=13 fresh_api=108
+  .. 2025-06-20 (77/250) bal=9299 trades=13 fresh_api=108
+  .. 2025-06-23 (78/250) bal=8929 trades=14 fresh_api=108
+12:38:04 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:38:16 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:38:28 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:38:41 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:38:53 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:39:07 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:39:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:39:32 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:39:44 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:39:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-06-24 (79/250) bal=8929 trades=14 fresh_api=118
+  .. 2025-06-25 (80/250) bal=8929 trades=14 fresh_api=118
+  .. 2025-06-26 (81/250) bal=8929 trades=14 fresh_api=118
+  .. 2025-06-27 (82/250) bal=8929 trades=14 fresh_api=118
+  .. 2025-06-30 (83/250) bal=9110 trades=15 fresh_api=118
+  .. 2025-07-01 (84/250) bal=9110 trades=15 fresh_api=118
+  .. 2025-07-02 (85/250) bal=9110 trades=15 fresh_api=118
+  .. 2025-07-03 (86/250) bal=9110 trades=15 fresh_api=118
+  .. 2025-07-07 (87/250) bal=9296 trades=16 fresh_api=118
+12:40:12 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:40:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:40:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:40:49 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:41:03 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:41:15 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:41:28 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:41:40 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:41:52 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-07-08 (88/250) bal=9296 trades=16 fresh_api=128
+  .. 2025-07-09 (89/250) bal=9296 trades=16 fresh_api=128
+  .. 2025-07-10 (90/250) bal=9296 trades=16 fresh_api=128
+  .. 2025-07-11 (91/250) bal=9296 trades=16 fresh_api=128
+  .. 2025-07-14 (92/250) bal=9494 trades=17 fresh_api=128
+12:42:10 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:42:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:42:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:42:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:42:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:43:17 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:43:29 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:43:41 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:43:54 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-07-15 (93/250) bal=9494 trades=17 fresh_api=138
+  .. 2025-07-16 (94/250) bal=9494 trades=17 fresh_api=138
+  .. 2025-07-17 (95/250) bal=9494 trades=17 fresh_api=138
+  .. 2025-07-18 (96/250) bal=9494 trades=17 fresh_api=138
+  .. 2025-07-21 (97/250) bal=9691 trades=18 fresh_api=138
+12:44:08 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:44:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:44:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:44:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:44:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:45:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:45:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:45:40 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:45:52 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-07-22 (98/250) bal=9691 trades=18 fresh_api=148
+  .. 2025-07-23 (99/250) bal=9691 trades=18 fresh_api=148
+  .. 2025-07-24 (100/250) bal=9691 trades=18 fresh_api=148
+  .. 2025-07-25 (101/250) bal=9691 trades=18 fresh_api=148
+  .. 2025-07-28 (102/250) bal=9829 trades=19 fresh_api=148
+  .. 2025-07-29 (103/250) bal=9829 trades=19 fresh_api=148
+  .. 2025-07-30 (104/250) bal=9829 trades=19 fresh_api=148
+  .. 2025-07-31 (105/250) bal=9829 trades=19 fresh_api=148
+  .. 2025-08-01 (106/250) bal=9829 trades=19 fresh_api=148
+  .. 2025-08-04 (107/250) bal=9023 trades=20 fresh_api=148
+12:46:44 |    \u274c Polygon request failed: The read operation timed out
+12:46:44 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:46:56 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:47:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:47:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-08-05 (108/250) bal=9023 trades=20 fresh_api=158
+  .. 2025-08-06 (109/250) bal=9023 trades=20 fresh_api=158
+  .. 2025-08-07 (110/250) bal=9023 trades=20 fresh_api=158
+  .. 2025-08-08 (111/250) bal=9023 trades=20 fresh_api=158
+  .. 2025-08-11 (112/250) bal=9221 trades=21 fresh_api=158
+12:48:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:48:26 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:48:38 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:48:51 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:49:05 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:49:18 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:49:30 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:49:43 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:49:55 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-08-12 (113/250) bal=9221 trades=21 fresh_api=168
+  .. 2025-08-13 (114/250) bal=9221 trades=21 fresh_api=168
+  .. 2025-08-14 (115/250) bal=9221 trades=21 fresh_api=168
+  .. 2025-08-15 (116/250) bal=9221 trades=21 fresh_api=168
+  .. 2025-08-18 (117/250) bal=9411 trades=22 fresh_api=168
+12:50:10 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:50:22 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:50:35 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:50:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:51:00 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:51:28 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:51:41 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:51:53 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-08-19 (118/250) bal=9411 trades=22 fresh_api=178
+  .. 2025-08-20 (119/250) bal=9411 trades=22 fresh_api=178
+  .. 2025-08-21 (120/250) bal=9411 trades=22 fresh_api=178
+  .. 2025-08-22 (121/250) bal=9411 trades=22 fresh_api=178
+  .. 2025-08-25 (122/250) bal=9584 trades=23 fresh_api=178
+12:52:08 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:52:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:52:32 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:52:45 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:52:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:53:12 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:53:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:53:37 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:53:49 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-08-26 (123/250) bal=9584 trades=23 fresh_api=188
+  .. 2025-08-27 (124/250) bal=9584 trades=23 fresh_api=188
+  .. 2025-08-28 (125/250) bal=9584 trades=23 fresh_api=188
+  .. 2025-08-29 (126/250) bal=9584 trades=23 fresh_api=188
+  .. 2025-09-02 (127/250) bal=9766 trades=24 fresh_api=188
+  .. 2025-09-03 (128/250) bal=9766 trades=24 fresh_api=188
+  .. 2025-09-04 (129/250) bal=9766 trades=24 fresh_api=188
+  .. 2025-09-05 (130/250) bal=9766 trades=24 fresh_api=188
+  .. 2025-09-08 (131/250) bal=9766 trades=24 fresh_api=188
+12:54:07 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:54:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:54:32 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:54:47 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:54:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:55:15 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:55:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:55:40 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:55:52 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-09-09 (132/250) bal=9766 trades=24 fresh_api=198
+  .. 2025-09-10 (133/250) bal=9766 trades=24 fresh_api=198
+  .. 2025-09-11 (134/250) bal=9766 trades=24 fresh_api=198
+  .. 2025-09-12 (135/250) bal=9766 trades=24 fresh_api=198
+  .. 2025-09-15 (136/250) bal=9933 trades=25 fresh_api=198
+12:56:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:56:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:56:39 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:56:52 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:57:06 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:57:19 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:57:31 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:57:44 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:57:56 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-09-16 (137/250) bal=9933 trades=25 fresh_api=208
+  .. 2025-09-17 (138/250) bal=9933 trades=25 fresh_api=208
+  .. 2025-09-18 (139/250) bal=9933 trades=25 fresh_api=208
+  .. 2025-09-19 (140/250) bal=9933 trades=25 fresh_api=208
+  .. 2025-09-22 (141/250) bal=10138 trades=26 fresh_api=208
+12:58:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:58:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:58:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:58:49 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:59:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:59:32 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:59:45 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+12:59:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-09-23 (142/250) bal=10138 trades=26 fresh_api=218
+  .. 2025-09-24 (143/250) bal=10138 trades=26 fresh_api=218
+  .. 2025-09-25 (144/250) bal=10138 trades=26 fresh_api=218
+  .. 2025-09-26 (145/250) bal=10138 trades=26 fresh_api=218
+  .. 2025-09-29 (146/250) bal=10287 trades=27 fresh_api=218
+13:00:15 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:00:28 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:00:40 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:00:53 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:01:07 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:01:20 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:01:32 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:01:45 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:01:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-09-30 (147/250) bal=10287 trades=27 fresh_api=228
+  .. 2025-10-01 (148/250) bal=10287 trades=27 fresh_api=228
+  .. 2025-10-02 (149/250) bal=10287 trades=27 fresh_api=228
+  .. 2025-10-03 (150/250) bal=10287 trades=27 fresh_api=228
+  .. 2025-10-06 (151/250) bal=10456 trades=28 fresh_api=228
+13:02:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:02:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:02:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:02:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:03:14 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:03:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:03:39 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:03:52 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-10-07 (152/250) bal=10456 trades=28 fresh_api=238
+  .. 2025-10-08 (153/250) bal=10456 trades=28 fresh_api=238
+  .. 2025-10-09 (154/250) bal=10456 trades=28 fresh_api=238
+  .. 2025-10-10 (155/250) bal=10456 trades=28 fresh_api=238
+  .. 2025-10-13 (156/250) bal=9612 trades=29 fresh_api=238
+  .. 2025-10-14 (157/250) bal=9612 trades=29 fresh_api=238
+  .. 2025-10-15 (158/250) bal=9612 trades=29 fresh_api=238
+  .. 2025-10-16 (159/250) bal=9612 trades=29 fresh_api=238
+  .. 2025-10-17 (160/250) bal=9612 trades=29 fresh_api=238
+  .. 2025-10-20 (161/250) bal=9820 trades=30 fresh_api=238
+13:04:06 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:04:19 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:04:31 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:04:43 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:04:56 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:05:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:05:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:05:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:05:57 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-10-21 (162/250) bal=9820 trades=30 fresh_api=248
+  .. 2025-10-22 (163/250) bal=9820 trades=30 fresh_api=248
+  .. 2025-10-23 (164/250) bal=9820 trades=30 fresh_api=248
+  .. 2025-10-24 (165/250) bal=9820 trades=30 fresh_api=248
+  .. 2025-10-27 (166/250) bal=9994 trades=31 fresh_api=248
+13:06:11 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:06:24 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:06:36 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:06:48 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:07:03 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:07:15 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:07:27 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:07:40 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:07:52 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-10-28 (167/250) bal=9994 trades=31 fresh_api=258
+  .. 2025-10-29 (168/250) bal=9994 trades=31 fresh_api=258
+  .. 2025-10-30 (169/250) bal=9994 trades=31 fresh_api=258
+  .. 2025-10-31 (170/250) bal=9994 trades=31 fresh_api=258
+  .. 2025-11-03 (171/250) bal=10175 trades=32 fresh_api=258
+  .. 2025-11-04 (172/250) bal=10175 trades=32 fresh_api=258
+  .. 2025-11-05 (173/250) bal=10175 trades=32 fresh_api=258
+  .. 2025-11-06 (174/250) bal=10175 trades=32 fresh_api=258
+  .. 2025-11-07 (175/250) bal=10175 trades=32 fresh_api=258
+  .. 2025-11-10 (176/250) bal=9471 trades=33 fresh_api=258
+13:08:09 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:08:21 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:08:34 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:08:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+13:08:59 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-11-11 (177/250) bal=9471 trades=33 fresh_api=268
+  .. 2025-11-12 (178/250) bal=9471 trades=33 fresh_api=268
+  .. 2025-11-13 (179/250) bal=9471 trades=33 fresh_api=268
+  .. 2025-11-14 (180/250) bal=9471 trades=33 fresh_api=268
+  .. 2025-11-17 (181/250) bal=9265 trades=34 fresh_api=268
+  .. 2025-11-18 (182/250) bal=9265 trades=34 fresh_api=268
+  .. 2025-11-19 (183/250) bal=9265 trades=34 fresh_api=268
+  .. 2025-11-20 (184/250) bal=9265 trades=34 fresh_api=268
+  .. 2025-11-21 (185/250) bal=9265 trades=34 fresh_api=268
+  .. 2025-11-24 (186/250) bal=8522 trades=35 fresh_api=268
+  .. 2025-11-25 (187/250) bal=8522 trades=35 fresh_api=276
+  .. 2025-11-26 (188/250) bal=8522 trades=35 fresh_api=276
+  .. 2025-11-28 (189/250) bal=8522 trades=35 fresh_api=276
+  .. 2025-12-01 (190/250) bal=8708 trades=36 fresh_api=276
+  .. 2025-12-02 (191/250) bal=8708 trades=36 fresh_api=286
+  .. 2025-12-03 (192/250) bal=8708 trades=36 fresh_api=286
+  .. 2025-12-04 (193/250) bal=8708 trades=36 fresh_api=286
+  .. 2025-12-05 (194/250) bal=8708 trades=36 fresh_api=286
+  .. 2025-12-08 (195/250) bal=8907 trades=37 fresh_api=286
+  .. 2025-12-09 (196/250) bal=8907 trades=37 fresh_api=296
+  .. 2025-12-10 (197/250) bal=8907 trades=37 fresh_api=296
+  .. 2025-12-11 (198/250) bal=8907 trades=37 fresh_api=296
+  .. 2025-12-12 (199/250) bal=8907 trades=37 fresh_api=296
+  .. 2025-12-15 (200/250) bal=8989 trades=38 fresh_api=296
+  .. 2025-12-16 (201/250) bal=8989 trades=38 fresh_api=296
+  .. 2025-12-17 (202/250) bal=8989 trades=38 fresh_api=296
+  .. 2025-12-18 (203/250) bal=8989 trades=38 fresh_api=296
+  .. 2025-12-19 (204/250) bal=8989 trades=38 fresh_api=296
+  .. 2025-12-22 (205/250) bal=9266 trades=39 fresh_api=296
+13:09:46 |    \u26a0\ufe0f Polygon rate limited, waiting 12s...
+  .. 2025-12-23 (206/250) bal=9266 trades=39 fresh_api=304
+  .. 2025-12-24 (207/250) bal=9266 trades=39 fresh_api=304
+  .. 2025-12-26 (208/250) bal=9266 trades=39 fresh_api=304
+  .. 2025-12-29 (209/250) bal=9399 trades=40 fresh_api=304
+  .. 2025-12-30 (210/250) bal=9399 trades=40 fresh_api=312
+  .. 2025-12-31 (211/250) bal=9399 trades=40 fresh_api=312
+  .. 2026-01-02 (212/250) bal=9399 trades=40 fresh_api=312
+  .. 2026-01-05 (213/250) bal=9273 trades=41 fresh_api=312
+  .. 2026-01-06 (214/250) bal=9273 trades=41 fresh_api=312
+  .. 2026-01-07 (215/250) bal=9273 trades=41 fresh_api=312
+  .. 2026-01-08 (216/250) bal=9273 trades=41 fresh_api=312
+  .. 2026-01-09 (217/250) bal=9273 trades=41 fresh_api=312
+  .. 2026-01-12 (218/250) bal=9448 trades=42 fresh_api=312
+  .. 2026-01-13 (219/250) bal=9448 trades=42 fresh_api=322
+  .. 2026-01-14 (220/250) bal=9448 trades=42 fresh_api=322
+  .. 2026-01-15 (221/250) bal=9448 trades=42 fresh_api=322
+  .. 2026-01-16 (222/250) bal=9448 trades=42 fresh_api=322
+  .. 2026-01-20 (223/250) bal=9623 trades=43 fresh_api=322
+  .. 2026-01-21 (224/250) bal=9623 trades=43 fresh_api=322
+  .. 2026-01-22 (225/250) bal=9623 trades=43 fresh_api=322
+  .. 2026-01-23 (226/250) bal=9623 trades=43 fresh_api=322
+  .. 2026-01-26 (227/250) bal=9623 trades=43 fresh_api=322
+  .. 2026-01-27 (228/250) bal=9623 trades=43 fresh_api=322
+  .. 2026-01-28 (229/250) bal=9623 trades=43 fresh_api=322
+  .. 2026-01-29 (230/250) bal=9623 trades=43 fresh_api=322
+  .. 2026-01-30 (231/250) bal=9623 trades=43 fresh_api=322
+  .. 2026-02-02 (232/250) bal=9823 trades=44 fresh_api=322
+  .. 2026-02-03 (233/250) bal=9823 trades=44 fresh_api=322
+  .. 2026-02-04 (234/250) bal=9823 trades=44 fresh_api=322
+  .. 2026-02-05 (235/250) bal=9823 trades=44 fresh_api=322
+  .. 2026-02-06 (236/250) bal=9823 trades=44 fresh_api=322
+  .. 2026-02-09 (237/250) bal=10007 trades=45 fresh_api=322
+  .. 2026-02-10 (238/250) bal=10007 trades=45 fresh_api=332
+  .. 2026-02-11 (239/250) bal=10007 trades=45 fresh_api=332
+  .. 2026-02-12 (240/250) bal=10007 trades=45 fresh_api=332
+  .. 2026-02-13 (241/250) bal=10007 trades=45 fresh_api=332
+  .. 2026-02-17 (242/250) bal=9561 trades=46 fresh_api=332
+  .. 2026-02-18 (243/250) bal=9561 trades=46 fresh_api=332
+  .. 2026-02-19 (244/250) bal=9561 trades=46 fresh_api=332
+  .. 2026-02-20 (245/250) bal=9561 trades=46 fresh_api=332
+  .. 2026-02-23 (246/250) bal=9561 trades=46 fresh_api=332
+  .. 2026-02-24 (247/250) bal=9561 trades=46 fresh_api=342
+  .. 2026-02-25 (248/250) bal=9561 trades=46 fresh_api=342
+  .. 2026-02-26 (249/250) bal=9561 trades=46 fresh_api=342
+  .. 2026-02-27 (250/250) bal=9561 trades=46 fresh_api=342
+--- s2a_putspread_weekly: n=47 WR=0.745 PF=0.974 P&L=-186.11 maxDD=1990.9 fresh_api=342 (cum 366/6000)
+
+=== s2a_putspread_weekly_slip2x (spy_putspread_weekly) 2025-03-03..2026-02-27 kwargs={'slip_scale': 2.0} budget_remaining=5634 ===
+  .. 2025-03-03 (1/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-04 (2/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-05 (3/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-06 (4/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-07 (5/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-10 (6/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-11 (7/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-12 (8/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-13 (9/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-14 (10/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-17 (11/250) bal=10201 trades=1 fresh_api=0
+  .. 2025-03-18 (12/250) bal=10201 trades=1 fresh_api=0
+  .. 2025-03-19 (13/250) bal=10201 trades=1 fresh_api=0
+  .. 2025-03-20 (14/250) bal=10201 trades=1 fresh_api=0
+  .. 2025-03-21 (15/250) bal=10201 trades=1 fresh_api=0
+  .. 2025-03-24 (16/250) bal=10493 trades=2 fresh_api=0
+  .. 2025-03-25 (17/250) bal=10493 trades=2 fresh_api=0
+  .. 2025-03-26 (18/250) bal=10493 trades=2 fresh_api=0
+  .. 2025-03-27 (19/250) bal=10493 trades=2 fresh_api=0
+  .. 2025-03-28 (20/250) bal=10493 trades=2 fresh_api=0
+  .. 2025-03-31 (21/250) bal=9699 trades=3 fresh_api=0
+  .. 2025-04-01 (22/250) bal=9699 trades=3 fresh_api=0
+  .. 2025-04-02 (23/250) bal=9699 trades=3 fresh_api=0
+  .. 2025-04-03 (24/250) bal=9699 trades=3 fresh_api=0
+  .. 2025-04-04 (25/250) bal=9699 trades=3 fresh_api=0
+  .. 2025-04-07 (26/250) bal=8982 trades=4 fresh_api=0
+  .. 2025-04-08 (27/250) bal=8982 trades=4 fresh_api=0
+  .. 2025-04-09 (28/250) bal=8982 trades=4 fresh_api=0
+  .. 2025-04-10 (29/250) bal=8982 trades=4 fresh_api=0
+  .. 2025-04-11 (30/250) bal=8982 trades=4 fresh_api=0
+  .. 2025-04-14 (31/250) bal=9344 trades=5 fresh_api=0
+  .. 2025-04-15 (32/250) bal=9344 trades=5 fresh_api=0
+  .. 2025-04-16 (33/250) bal=9344 trades=5 fresh_api=0
+  .. 2025-04-17 (34/250) bal=9344 trades=5 fresh_api=0
+  .. 2025-04-21 (35/250) bal=8588 trades=6 fresh_api=0
+  .. 2025-04-22 (36/250) bal=8588 trades=6 fresh_api=0
+  .. 2025-04-23 (37/250) bal=8588 trades=6 fresh_api=0
+  .. 2025-04-24 (38/250) bal=8588 trades=6 fresh_api=0
+  .. 2025-04-25 (39/250) bal=8588 trades=6 fresh_api=0
+  .. 2025-04-28 (40/250) bal=8886 trades=7 fresh_api=0
+  .. 2025-04-29 (41/250) bal=8886 trades=7 fresh_api=0
+  .. 2025-04-30 (42/250) bal=8886 trades=7 fresh_api=0
+  .. 2025-05-01 (43/250) bal=8886 trades=7 fresh_api=0
+  .. 2025-05-02 (44/250) bal=8886 trades=7 fresh_api=0
+  .. 2025-05-05 (45/250) bal=9103 trades=8 fresh_api=0
+  .. 2025-05-06 (46/250) bal=9103 trades=8 fresh_api=0
+  .. 2025-05-07 (47/250) bal=9103 trades=8 fresh_api=0
+  .. 2025-05-08 (48/250) bal=9103 trades=8 fresh_api=0
+  .. 2025-05-09 (49/250) bal=9103 trades=8 fresh_api=0
+  .. 2025-05-12 (50/250) bal=9315 trades=9 fresh_api=0
+  .. 2025-05-13 (51/250) bal=9315 trades=9 fresh_api=0
+  .. 2025-05-14 (52/250) bal=9315 trades=9 fresh_api=0
+  .. 2025-05-15 (53/250) bal=9315 trades=9 fresh_api=0
+  .. 2025-05-16 (54/250) bal=9315 trades=9 fresh_api=0
+  .. 2025-05-19 (55/250) bal=9510 trades=10 fresh_api=0
+  .. 2025-05-20 (56/250) bal=9510 trades=10 fresh_api=0
+  .. 2025-05-21 (57/250) bal=9510 trades=10 fresh_api=0
+  .. 2025-05-22 (58/250) bal=9510 trades=10 fresh_api=0
+  .. 2025-05-23 (59/250) bal=9510 trades=10 fresh_api=0
+  .. 2025-05-27 (60/250) bal=8721 trades=11 fresh_api=0
+  .. 2025-05-28 (61/250) bal=8721 trades=11 fresh_api=0
+  .. 2025-05-29 (62/250) bal=8721 trades=11 fresh_api=0
+  .. 2025-05-30 (63/250) bal=8721 trades=11 fresh_api=0
+  .. 2025-06-02 (64/250) bal=8721 trades=11 fresh_api=0
+  .. 2025-06-03 (65/250) bal=8721 trades=11 fresh_api=0
+  .. 2025-06-04 (66/250) bal=8721 trades=11 fresh_api=0
+  .. 2025-06-05 (67/250) bal=8721 trades=11 fresh_api=0
+  .. 2025-06-06 (68/250) bal=8721 trades=11 fresh_api=0
+  .. 2025-06-09 (69/250) bal=8959 trades=12 fresh_api=0
+  .. 2025-06-10 (70/250) bal=8959 trades=12 fresh_api=0
+  .. 2025-06-11 (71/250) bal=8959 trades=12 fresh_api=0
+  .. 2025-06-12 (72/250) bal=8959 trades=12 fresh_api=0
+  .. 2025-06-13 (73/250) bal=8959 trades=12 fresh_api=0
+  .. 2025-06-16 (74/250) bal=9169 trades=13 fresh_api=0
+  .. 2025-06-17 (75/250) bal=9169 trades=13 fresh_api=0
+  .. 2025-06-18 (76/250) bal=9169 trades=13 fresh_api=0
+  .. 2025-06-20 (77/250) bal=9169 trades=13 fresh_api=0
+  .. 2025-06-23 (78/250) bal=8789 trades=14 fresh_api=0
+  .. 2025-06-24 (79/250) bal=8789 trades=14 fresh_api=0
+  .. 2025-06-25 (80/250) bal=8789 trades=14 fresh_api=0
+  .. 2025-06-26 (81/250) bal=8789 trades=14 fresh_api=0
+  .. 2025-06-27 (82/250) bal=8789 trades=14 fresh_api=0
+  .. 2025-06-30 (83/250) bal=8960 trades=15 fresh_api=0
+  .. 2025-07-01 (84/250) bal=8960 trades=15 fresh_api=0
+  .. 2025-07-02 (85/250) bal=8960 trades=15 fresh_api=0
+  .. 2025-07-03 (86/250) bal=8960 trades=15 fresh_api=0
+  .. 2025-07-07 (87/250) bal=9136 trades=16 fresh_api=0
+  .. 2025-07-08 (88/250) bal=9136 trades=16 fresh_api=0
+  .. 2025-07-09 (89/250) bal=9136 trades=16 fresh_api=0
+  .. 2025-07-10 (90/250) bal=9136 trades=16 fresh_api=0
+  .. 2025-07-11 (91/250) bal=9136 trades=16 fresh_api=0
+  .. 2025-07-14 (92/250) bal=9324 trades=17 fresh_api=0
+  .. 2025-07-15 (93/250) bal=9324 trades=17 fresh_api=0
+  .. 2025-07-16 (94/250) bal=9324 trades=17 fresh_api=0
+  .. 2025-07-17 (95/250) bal=9324 trades=17 fresh_api=0
+  .. 2025-07-18 (96/250) bal=9324 trades=17 fresh_api=0
+  .. 2025-07-21 (97/250) bal=9511 trades=18 fresh_api=0
+  .. 2025-07-22 (98/250) bal=9511 trades=18 fresh_api=0
+  .. 2025-07-23 (99/250) bal=9511 trades=18 fresh_api=0
+  .. 2025-07-24 (100/250) bal=9511 trades=18 fresh_api=0
+  .. 2025-07-25 (101/250) bal=9511 trades=18 fresh_api=0
+  .. 2025-07-28 (102/250) bal=9639 trades=19 fresh_api=0
+  .. 2025-07-29 (103/250) bal=9639 trades=19 fresh_api=0
+  .. 2025-07-30 (104/250) bal=9639 trades=19 fresh_api=0
+  .. 2025-07-31 (105/250) bal=9639 trades=19 fresh_api=0
+  .. 2025-08-01 (106/250) bal=9639 trades=19 fresh_api=0
+  .. 2025-08-04 (107/250) bal=8823 trades=20 fresh_api=0
+  .. 2025-08-05 (108/250) bal=8823 trades=20 fresh_api=0
+  .. 2025-08-06 (109/250) bal=8823 trades=20 fresh_api=0
+  .. 2025-08-07 (110/250) bal=8823 trades=20 fresh_api=0
+  .. 2025-08-08 (111/250) bal=8823 trades=20 fresh_api=0
+  .. 2025-08-11 (112/250) bal=9011 trades=21 fresh_api=0
+  .. 2025-08-12 (113/250) bal=9011 trades=21 fresh_api=0
+  .. 2025-08-13 (114/250) bal=9011 trades=21 fresh_api=0
+  .. 2025-08-14 (115/250) bal=9011 trades=21 fresh_api=0
+  .. 2025-08-15 (116/250) bal=9011 trades=21 fresh_api=0
+  .. 2025-08-18 (117/250) bal=9191 trades=22 fresh_api=0
+  .. 2025-08-19 (118/250) bal=9191 trades=22 fresh_api=0
+  .. 2025-08-20 (119/250) bal=9191 trades=22 fresh_api=0
+  .. 2025-08-21 (120/250) bal=9191 trades=22 fresh_api=0
+  .. 2025-08-22 (121/250) bal=9191 trades=22 fresh_api=0
+  .. 2025-08-25 (122/250) bal=9354 trades=23 fresh_api=0
+  .. 2025-08-26 (123/250) bal=9354 trades=23 fresh_api=0
+  .. 2025-08-27 (124/250) bal=9354 trades=23 fresh_api=0
+  .. 2025-08-28 (125/250) bal=9354 trades=23 fresh_api=0
+  .. 2025-08-29 (126/250) bal=9354 trades=23 fresh_api=0
+  .. 2025-09-02 (127/250) bal=9526 trades=24 fresh_api=0
+  .. 2025-09-03 (128/250) bal=9526 trades=24 fresh_api=0
+  .. 2025-09-04 (129/250) bal=9526 trades=24 fresh_api=0
+  .. 2025-09-05 (130/250) bal=9526 trades=24 fresh_api=0
+  .. 2025-09-08 (131/250) bal=9526 trades=24 fresh_api=0
+  .. 2025-09-09 (132/250) bal=9526 trades=24 fresh_api=0
+  .. 2025-09-10 (133/250) bal=9526 trades=24 fresh_api=0
+  .. 2025-09-11 (134/250) bal=9526 trades=24 fresh_api=0
+  .. 2025-09-12 (135/250) bal=9526 trades=24 fresh_api=0
+  .. 2025-09-15 (136/250) bal=9683 trades=25 fresh_api=0
+  .. 2025-09-16 (137/250) bal=9683 trades=25 fresh_api=0
+  .. 2025-09-17 (138/250) bal=9683 trades=25 fresh_api=0
+  .. 2025-09-18 (139/250) bal=9683 trades=25 fresh_api=0
+  .. 2025-09-19 (140/250) bal=9683 trades=25 fresh_api=0
+  .. 2025-09-22 (141/250) bal=9878 trades=26 fresh_api=0
+  .. 2025-09-23 (142/250) bal=9878 trades=26 fresh_api=0
+  .. 2025-09-24 (143/250) bal=9878 trades=26 fresh_api=0
+  .. 2025-09-25 (144/250) bal=9878 trades=26 fresh_api=0
+  .. 2025-09-26 (145/250) bal=9878 trades=26 fresh_api=0
+  .. 2025-09-29 (146/250) bal=10017 trades=27 fresh_api=0
+  .. 2025-09-30 (147/250) bal=10017 trades=27 fresh_api=0
+  .. 2025-10-01 (148/250) bal=10017 trades=27 fresh_api=0
+  .. 2025-10-02 (149/250) bal=10017 trades=27 fresh_api=0
+  .. 2025-10-03 (150/250) bal=10017 trades=27 fresh_api=0
+  .. 2025-10-06 (151/250) bal=10176 trades=28 fresh_api=0
+  .. 2025-10-07 (152/250) bal=10176 trades=28 fresh_api=0
+  .. 2025-10-08 (153/250) bal=10176 trades=28 fresh_api=0
+  .. 2025-10-09 (154/250) bal=10176 trades=28 fresh_api=0
+  .. 2025-10-10 (155/250) bal=10176 trades=28 fresh_api=0
+  .. 2025-10-13 (156/250) bal=9322 trades=29 fresh_api=0
+  .. 2025-10-14 (157/250) bal=9322 trades=29 fresh_api=0
+  .. 2025-10-15 (158/250) bal=9322 trades=29 fresh_api=0
+  .. 2025-10-16 (159/250) bal=9322 trades=29 fresh_api=0
+  .. 2025-10-17 (160/250) bal=9322 trades=29 fresh_api=0
+  .. 2025-10-20 (161/250) bal=9520 trades=30 fresh_api=0
+  .. 2025-10-21 (162/250) bal=9520 trades=30 fresh_api=0
+  .. 2025-10-22 (163/250) bal=9520 trades=30 fresh_api=0
+  .. 2025-10-23 (164/250) bal=9520 trades=30 fresh_api=0
+  .. 2025-10-24 (165/250) bal=9520 trades=30 fresh_api=0
+  .. 2025-10-27 (166/250) bal=9684 trades=31 fresh_api=0
+  .. 2025-10-28 (167/250) bal=9684 trades=31 fresh_api=0
+  .. 2025-10-29 (168/250) bal=9684 trades=31 fresh_api=0
+  .. 2025-10-30 (169/250) bal=9684 trades=31 fresh_api=0
+  .. 2025-10-31 (170/250) bal=9684 trades=31 fresh_api=0
+  .. 2025-11-03 (171/250) bal=9855 trades=32 fresh_api=0
+  .. 2025-11-04 (172/250) bal=9855 trades=32 fresh_api=0
+  .. 2025-11-05 (173/250) bal=9855 trades=32 fresh_api=0
+  .. 2025-11-06 (174/250) bal=9855 trades=32 fresh_api=0
+  .. 2025-11-07 (175/250) bal=9855 trades=32 fresh_api=0
+  .. 2025-11-10 (176/250) bal=9141 trades=33 fresh_api=0
+  .. 2025-11-11 (177/250) bal=9141 trades=33 fresh_api=0
+  .. 2025-11-12 (178/250) bal=9141 trades=33 fresh_api=0
+  .. 2025-11-13 (179/250) bal=9141 trades=33 fresh_api=0
+  .. 2025-11-14 (180/250) bal=9141 trades=33 fresh_api=0
+  .. 2025-11-17 (181/250) bal=8925 trades=34 fresh_api=0
+  .. 2025-11-18 (182/250) bal=8925 trades=34 fresh_api=0
+  .. 2025-11-19 (183/250) bal=8925 trades=34 fresh_api=0
+  .. 2025-11-20 (184/250) bal=8925 trades=34 fresh_api=0
+  .. 2025-11-21 (185/250) bal=8925 trades=34 fresh_api=0
+  .. 2025-11-24 (186/250) bal=8172 trades=35 fresh_api=0
+  .. 2025-11-25 (187/250) bal=8172 trades=35 fresh_api=0
+  .. 2025-11-26 (188/250) bal=8172 trades=35 fresh_api=0
+  .. 2025-11-28 (189/250) bal=8172 trades=35 fresh_api=0
+  .. 2025-12-01 (190/250) bal=8348 trades=36 fresh_api=0
+  .. 2025-12-02 (191/250) bal=8348 trades=36 fresh_api=0
+  .. 2025-12-03 (192/250) bal=8348 trades=36 fresh_api=0
+  .. 2025-12-04 (193/250) bal=8348 trades=36 fresh_api=0
+  .. 2025-12-05 (194/250) bal=8348 trades=36 fresh_api=0
+  .. 2025-12-08 (195/250) bal=8537 trades=37 fresh_api=0
+  .. 2025-12-09 (196/250) bal=8537 trades=37 fresh_api=0
+  .. 2025-12-10 (197/250) bal=8537 trades=37 fresh_api=0
+  .. 2025-12-11 (198/250) bal=8537 trades=37 fresh_api=0
+  .. 2025-12-12 (199/250) bal=8537 trades=37 fresh_api=0
+  .. 2025-12-15 (200/250) bal=8609 trades=38 fresh_api=0
+  .. 2025-12-16 (201/250) bal=8609 trades=38 fresh_api=0
+  .. 2025-12-17 (202/250) bal=8609 trades=38 fresh_api=0
+  .. 2025-12-18 (203/250) bal=8609 trades=38 fresh_api=0
+  .. 2025-12-19 (204/250) bal=8609 trades=38 fresh_api=0
+  .. 2025-12-22 (205/250) bal=8876 trades=39 fresh_api=0
+  .. 2025-12-23 (206/250) bal=8876 trades=39 fresh_api=0
+  .. 2025-12-24 (207/250) bal=8876 trades=39 fresh_api=0
+  .. 2025-12-26 (208/250) bal=8876 trades=39 fresh_api=0
+  .. 2025-12-29 (209/250) bal=8999 trades=40 fresh_api=0
+  .. 2025-12-30 (210/250) bal=8999 trades=40 fresh_api=0
+  .. 2025-12-31 (211/250) bal=8999 trades=40 fresh_api=0
+  .. 2026-01-02 (212/250) bal=8999 trades=40 fresh_api=0
+  .. 2026-01-05 (213/250) bal=8863 trades=41 fresh_api=0
+  .. 2026-01-06 (214/250) bal=8863 trades=41 fresh_api=0
+  .. 2026-01-07 (215/250) bal=8863 trades=41 fresh_api=0
+  .. 2026-01-08 (216/250) bal=8863 trades=41 fresh_api=0
+  .. 2026-01-09 (217/250) bal=8863 trades=41 fresh_api=0
+  .. 2026-01-12 (218/250) bal=9028 trades=42 fresh_api=0
+  .. 2026-01-13 (219/250) bal=9028 trades=42 fresh_api=0
+  .. 2026-01-14 (220/250) bal=9028 trades=42 fresh_api=0
+  .. 2026-01-15 (221/250) bal=9028 trades=42 fresh_api=0
+  .. 2026-01-16 (222/250) bal=9028 trades=42 fresh_api=0
+  .. 2026-01-20 (223/250) bal=9193 trades=43 fresh_api=0
+  .. 2026-01-21 (224/250) bal=9193 trades=43 fresh_api=0
+  .. 2026-01-22 (225/250) bal=9193 trades=43 fresh_api=0
+  .. 2026-01-23 (226/250) bal=9193 trades=43 fresh_api=0
+  .. 2026-01-26 (227/250) bal=9193 trades=43 fresh_api=0
+  .. 2026-01-27 (228/250) bal=9193 trades=43 fresh_api=0
+  .. 2026-01-28 (229/250) bal=9193 trades=43 fresh_api=0
+  .. 2026-01-29 (230/250) bal=9193 trades=43 fresh_api=0
+  .. 2026-01-30 (231/250) bal=9193 trades=43 fresh_api=0
+  .. 2026-02-02 (232/250) bal=9383 trades=44 fresh_api=0
+  .. 2026-02-03 (233/250) bal=9383 trades=44 fresh_api=0
+  .. 2026-02-04 (234/250) bal=9383 trades=44 fresh_api=0
+  .. 2026-02-05 (235/250) bal=9383 trades=44 fresh_api=0
+  .. 2026-02-06 (236/250) bal=9383 trades=44 fresh_api=0
+  .. 2026-02-09 (237/250) bal=9557 trades=45 fresh_api=0
+  .. 2026-02-10 (238/250) bal=9557 trades=45 fresh_api=0
+  .. 2026-02-11 (239/250) bal=9557 trades=45 fresh_api=0
+  .. 2026-02-12 (240/250) bal=9557 trades=45 fresh_api=0
+  .. 2026-02-13 (241/250) bal=9557 trades=45 fresh_api=0
+  .. 2026-02-17 (242/250) bal=9101 trades=46 fresh_api=0
+  .. 2026-02-18 (243/250) bal=9101 trades=46 fresh_api=0
+  .. 2026-02-19 (244/250) bal=9101 trades=46 fresh_api=0
+  .. 2026-02-20 (245/250) bal=9101 trades=46 fresh_api=0
+  .. 2026-02-23 (246/250) bal=9101 trades=46 fresh_api=0
+  .. 2026-02-24 (247/250) bal=9101 trades=46 fresh_api=0
+  .. 2026-02-25 (248/250) bal=9101 trades=46 fresh_api=0
+  .. 2026-02-26 (249/250) bal=9101 trades=46 fresh_api=0
+  .. 2026-02-27 (250/250) bal=9101 trades=46 fresh_api=0
+--- s2a_putspread_weekly_slip2x: n=47 WR=0.745 PF=0.911 P&L=-656.11 maxDD=2320.9 fresh_api=0 (cum 366/6000)
+
+=== s2b_putspread_managed (spy_putspread_weekly_managed) 2025-03-03..2026-02-27 kwargs={} budget_remaining=5634 ===
+  .. 2025-03-03 (1/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-04 (2/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-05 (3/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-06 (4/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-07 (5/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-10 (6/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-11 (7/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-12 (8/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-13 (9/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-14 (10/250) bal=9788 trades=1 fresh_api=0
+  .. 2025-03-17 (11/250) bal=9788 trades=1 fresh_api=0
+  .. 2025-03-18 (12/250) bal=9788 trades=1 fresh_api=0
+  .. 2025-03-19 (13/250) bal=9788 trades=1 fresh_api=0
+  .. 2025-03-20 (14/250) bal=9955 trades=2 fresh_api=0
+  .. 2025-03-21 (15/250) bal=9955 trades=2 fresh_api=0
+  .. 2025-03-24 (16/250) bal=9955 trades=2 fresh_api=0
+  .. 2025-03-25 (17/250) bal=9955 trades=2 fresh_api=0
+  .. 2025-03-26 (18/250) bal=9955 trades=2 fresh_api=0
+  .. 2025-03-27 (19/250) bal=10065 trades=3 fresh_api=0
+  .. 2025-03-28 (20/250) bal=10065 trades=3 fresh_api=0
+  .. 2025-03-31 (21/250) bal=10065 trades=3 fresh_api=0
+  .. 2025-04-01 (22/250) bal=10202 trades=4 fresh_api=0
+  .. 2025-04-02 (23/250) bal=10202 trades=4 fresh_api=0
+  .. 2025-04-03 (24/250) bal=10202 trades=4 fresh_api=0
+  .. 2025-04-04 (25/250) bal=10202 trades=4 fresh_api=0
+  .. 2025-04-07 (26/250) bal=10202 trades=4 fresh_api=0
+  .. 2025-04-08 (27/250) bal=10383 trades=5 fresh_api=0
+  .. 2025-04-09 (28/250) bal=10383 trades=5 fresh_api=0
+  .. 2025-04-10 (29/250) bal=10383 trades=5 fresh_api=0
+  .. 2025-04-11 (30/250) bal=10383 trades=5 fresh_api=0
+  .. 2025-04-14 (31/250) bal=10383 trades=5 fresh_api=0
+  .. 2025-04-15 (32/250) bal=10383 trades=5 fresh_api=0
+  .. 2025-04-16 (33/250) bal=10383 trades=5 fresh_api=0
+  .. 2025-04-17 (34/250) bal=10205 trades=6 fresh_api=0
+  .. 2025-04-21 (35/250) bal=10205 trades=6 fresh_api=0
+  .. 2025-04-22 (36/250) bal=10205 trades=6 fresh_api=0
+  .. 2025-04-23 (37/250) bal=10352 trades=7 fresh_api=0
+  .. 2025-04-24 (38/250) bal=10352 trades=7 fresh_api=0
+  .. 2025-04-25 (39/250) bal=10352 trades=7 fresh_api=0
+  .. 2025-04-28 (40/250) bal=10352 trades=7 fresh_api=0
+  .. 2025-04-29 (41/250) bal=10352 trades=7 fresh_api=0
+  .. 2025-04-30 (42/250) bal=10352 trades=7 fresh_api=0
+  .. 2025-05-01 (43/250) bal=10352 trades=7 fresh_api=0
+  .. 2025-05-02 (44/250) bal=10493 trades=8 fresh_api=0
+  .. 2025-05-05 (45/250) bal=10493 trades=8 fresh_api=0
+  .. 2025-05-06 (46/250) bal=10493 trades=8 fresh_api=0
+  .. 2025-05-07 (47/250) bal=10493 trades=8 fresh_api=0
+  .. 2025-05-08 (48/250) bal=10493 trades=8 fresh_api=0
+  .. 2025-05-09 (49/250) bal=10574 trades=9 fresh_api=0
+  .. 2025-05-12 (50/250) bal=10574 trades=9 fresh_api=0
+  .. 2025-05-13 (51/250) bal=10574 trades=9 fresh_api=0
+  .. 2025-05-14 (52/250) bal=10674 trades=10 fresh_api=0
+  .. 2025-05-15 (53/250) bal=10674 trades=10 fresh_api=0
+  .. 2025-05-16 (54/250) bal=10674 trades=10 fresh_api=0
+  .. 2025-05-19 (55/250) bal=10674 trades=10 fresh_api=0
+  .. 2025-05-20 (56/250) bal=10674 trades=10 fresh_api=0
+  .. 2025-05-21 (57/250) bal=10674 trades=10 fresh_api=0
+  .. 2025-05-22 (58/250) bal=10674 trades=10 fresh_api=0
+  .. 2025-05-23 (59/250) bal=10306 trades=11 fresh_api=0
+  .. 2025-05-27 (60/250) bal=10306 trades=11 fresh_api=0
+  .. 2025-05-28 (61/250) bal=10306 trades=11 fresh_api=0
+  .. 2025-05-29 (62/250) bal=10306 trades=11 fresh_api=0
+  .. 2025-05-30 (63/250) bal=10306 trades=11 fresh_api=0
+  .. 2025-06-02 (64/250) bal=10306 trades=11 fresh_api=0
+  .. 2025-06-03 (65/250) bal=10423 trades=12 fresh_api=0
+  .. 2025-06-04 (66/250) bal=10423 trades=12 fresh_api=0
+  .. 2025-06-05 (67/250) bal=10423 trades=12 fresh_api=0
+  .. 2025-06-06 (68/250) bal=10423 trades=12 fresh_api=0
+  .. 2025-06-09 (69/250) bal=10423 trades=12 fresh_api=0
+  .. 2025-06-10 (70/250) bal=10423 trades=12 fresh_api=0
+  .. 2025-06-11 (71/250) bal=10526 trades=13 fresh_api=0
+  .. 2025-06-12 (72/250) bal=10526 trades=13 fresh_api=0
+  .. 2025-06-13 (73/250) bal=10526 trades=13 fresh_api=0
+  .. 2025-06-16 (74/250) bal=10526 trades=13 fresh_api=0
+  .. 2025-06-17 (75/250) bal=10526 trades=13 fresh_api=0
+  .. 2025-06-18 (76/250) bal=10526 trades=13 fresh_api=0
+  .. 2025-06-20 (77/250) bal=10526 trades=13 fresh_api=0
+  .. 2025-06-23 (78/250) bal=10446 trades=14 fresh_api=0
+  .. 2025-06-24 (79/250) bal=10446 trades=14 fresh_api=0
+  .. 2025-06-25 (80/250) bal=10566 trades=15 fresh_api=0
+  .. 2025-06-26 (81/250) bal=10566 trades=15 fresh_api=0
+  .. 2025-06-27 (82/250) bal=10566 trades=15 fresh_api=0
+  .. 2025-06-30 (83/250) bal=10566 trades=15 fresh_api=0
+  .. 2025-07-01 (84/250) bal=10566 trades=15 fresh_api=0
+  .. 2025-07-02 (85/250) bal=10566 trades=15 fresh_api=0
+  .. 2025-07-03 (86/250) bal=10613 trades=16 fresh_api=0
+  .. 2025-07-07 (87/250) bal=10613 trades=16 fresh_api=0
+  .. 2025-07-08 (88/250) bal=10613 trades=16 fresh_api=0
+  .. 2025-07-09 (89/250) bal=10613 trades=16 fresh_api=0
+  .. 2025-07-10 (90/250) bal=10705 trades=17 fresh_api=0
+  .. 2025-07-11 (91/250) bal=10705 trades=17 fresh_api=0
+  .. 2025-07-14 (92/250) bal=10705 trades=17 fresh_api=0
+  .. 2025-07-15 (93/250) bal=10705 trades=17 fresh_api=0
+  .. 2025-07-16 (94/250) bal=10807 trades=18 fresh_api=0
+  .. 2025-07-17 (95/250) bal=10807 trades=18 fresh_api=0
+  .. 2025-07-18 (96/250) bal=10807 trades=18 fresh_api=0
+  .. 2025-07-21 (97/250) bal=10807 trades=18 fresh_api=0
+  .. 2025-07-22 (98/250) bal=10807 trades=18 fresh_api=0
+  .. 2025-07-23 (99/250) bal=10807 trades=18 fresh_api=0
+  .. 2025-07-24 (100/250) bal=10868 trades=19 fresh_api=0
+  .. 2025-07-25 (101/250) bal=10868 trades=19 fresh_api=0
+  .. 2025-07-28 (102/250) bal=10868 trades=19 fresh_api=0
+  .. 2025-07-29 (103/250) bal=10868 trades=19 fresh_api=0
+  .. 2025-07-30 (104/250) bal=10868 trades=19 fresh_api=0
+  .. 2025-07-31 (105/250) bal=10868 trades=19 fresh_api=0
+  .. 2025-08-01 (106/250) bal=10962 trades=20 fresh_api=0
+  .. 2025-08-04 (107/250) bal=10962 trades=20 fresh_api=0
+  .. 2025-08-05 (108/250) bal=10962 trades=20 fresh_api=0
+  .. 2025-08-06 (109/250) bal=10962 trades=20 fresh_api=0
+  .. 2025-08-07 (110/250) bal=11051 trades=21 fresh_api=0
+  .. 2025-08-08 (111/250) bal=11051 trades=21 fresh_api=0
+  .. 2025-08-11 (112/250) bal=11051 trades=21 fresh_api=0
+  .. 2025-08-12 (113/250) bal=11051 trades=21 fresh_api=0
+  .. 2025-08-13 (114/250) bal=11140 trades=22 fresh_api=0
+  .. 2025-08-14 (115/250) bal=11140 trades=22 fresh_api=0
+  .. 2025-08-15 (116/250) bal=11140 trades=22 fresh_api=0
+  .. 2025-08-18 (117/250) bal=11140 trades=22 fresh_api=0
+  .. 2025-08-19 (118/250) bal=11140 trades=22 fresh_api=0
+  .. 2025-08-20 (119/250) bal=11140 trades=22 fresh_api=0
+  .. 2025-08-21 (120/250) bal=10781 trades=23 fresh_api=0
+  .. 2025-08-22 (121/250) bal=10781 trades=23 fresh_api=0
+  .. 2025-08-25 (122/250) bal=10781 trades=23 fresh_api=0
+  .. 2025-08-26 (123/250) bal=10781 trades=23 fresh_api=0
+  .. 2025-08-27 (124/250) bal=10781 trades=23 fresh_api=0
+  .. 2025-08-28 (125/250) bal=10781 trades=23 fresh_api=0
+  .. 2025-08-29 (126/250) bal=10919 trades=24 fresh_api=0
+  .. 2025-09-02 (127/250) bal=10919 trades=24 fresh_api=0
+  .. 2025-09-03 (128/250) bal=10919 trades=24 fresh_api=0
+  .. 2025-09-04 (129/250) bal=10919 trades=24 fresh_api=0
+  .. 2025-09-05 (130/250) bal=10919 trades=24 fresh_api=0
+  .. 2025-09-08 (131/250) bal=10919 trades=24 fresh_api=0
+  .. 2025-09-09 (132/250) bal=10919 trades=24 fresh_api=0
+  .. 2025-09-10 (133/250) bal=10919 trades=24 fresh_api=0
+  .. 2025-09-11 (134/250) bal=11032 trades=25 fresh_api=0
+  .. 2025-09-12 (135/250) bal=11032 trades=25 fresh_api=0
+  .. 2025-09-15 (136/250) bal=11032 trades=25 fresh_api=0
+  .. 2025-09-16 (137/250) bal=11032 trades=25 fresh_api=0
+  .. 2025-09-17 (138/250) bal=11032 trades=25 fresh_api=0
+  .. 2025-09-18 (139/250) bal=11032 trades=25 fresh_api=0
+  .. 2025-09-19 (140/250) bal=11110 trades=26 fresh_api=0
+  .. 2025-09-22 (141/250) bal=11110 trades=26 fresh_api=0
+  .. 2025-09-23 (142/250) bal=11110 trades=26 fresh_api=0
+  .. 2025-09-24 (143/250) bal=11173 trades=27 fresh_api=0
+  .. 2025-09-25 (144/250) bal=11173 trades=27 fresh_api=0
+  .. 2025-09-26 (145/250) bal=11173 trades=27 fresh_api=0
+  .. 2025-09-29 (146/250) bal=11173 trades=27 fresh_api=0
+  .. 2025-09-30 (147/250) bal=11173 trades=27 fresh_api=0
+  .. 2025-10-01 (148/250) bal=11173 trades=27 fresh_api=0
+  .. 2025-10-02 (149/250) bal=11250 trades=28 fresh_api=0
+  .. 2025-10-03 (150/250) bal=11250 trades=28 fresh_api=0
+  .. 2025-10-06 (151/250) bal=11250 trades=28 fresh_api=0
+  .. 2025-10-07 (152/250) bal=11250 trades=28 fresh_api=0
+  .. 2025-10-08 (153/250) bal=11250 trades=28 fresh_api=0
+  .. 2025-10-09 (154/250) bal=11319 trades=29 fresh_api=0
+  .. 2025-10-10 (155/250) bal=11319 trades=29 fresh_api=0
+  .. 2025-10-13 (156/250) bal=11319 trades=29 fresh_api=0
+  .. 2025-10-14 (157/250) bal=11319 trades=29 fresh_api=0
+  .. 2025-10-15 (158/250) bal=11319 trades=29 fresh_api=0
+  .. 2025-10-16 (159/250) bal=11417 trades=30 fresh_api=0
+  .. 2025-10-17 (160/250) bal=11417 trades=30 fresh_api=0
+  .. 2025-10-20 (161/250) bal=11417 trades=30 fresh_api=0
+  .. 2025-10-21 (162/250) bal=11417 trades=30 fresh_api=0
+  .. 2025-10-22 (163/250) bal=11495 trades=31 fresh_api=0
+  .. 2025-10-23 (164/250) bal=11495 trades=31 fresh_api=0
+  .. 2025-10-24 (165/250) bal=11495 trades=31 fresh_api=0
+  .. 2025-10-27 (166/250) bal=11495 trades=31 fresh_api=0
+  .. 2025-10-28 (167/250) bal=11495 trades=31 fresh_api=0
+  .. 2025-10-29 (168/250) bal=11495 trades=31 fresh_api=0
+  .. 2025-10-30 (169/250) bal=11495 trades=31 fresh_api=0
+  .. 2025-10-31 (170/250) bal=11496 trades=32 fresh_api=0
+  .. 2025-11-03 (171/250) bal=11496 trades=32 fresh_api=0
+  .. 2025-11-04 (172/250) bal=11496 trades=32 fresh_api=0
+  .. 2025-11-05 (173/250) bal=11496 trades=32 fresh_api=0
+  .. 2025-11-06 (174/250) bal=11496 trades=32 fresh_api=0
+  .. 2025-11-07 (175/250) bal=11351 trades=33 fresh_api=0
+  .. 2025-11-10 (176/250) bal=11351 trades=33 fresh_api=0
+  .. 2025-11-11 (177/250) bal=11351 trades=33 fresh_api=0
+  .. 2025-11-12 (178/250) bal=11443 trades=34 fresh_api=0
+  .. 2025-11-13 (179/250) bal=11443 trades=34 fresh_api=0
+  .. 2025-11-14 (180/250) bal=11443 trades=34 fresh_api=0
+  .. 2025-11-17 (181/250) bal=11443 trades=34 fresh_api=0
+  .. 2025-11-18 (182/250) bal=11443 trades=34 fresh_api=0
+  .. 2025-11-19 (183/250) bal=11443 trades=34 fresh_api=0
+  .. 2025-11-20 (184/250) bal=11443 trades=34 fresh_api=0
+  .. 2025-11-21 (185/250) bal=11530 trades=35 fresh_api=0
+  .. 2025-11-24 (186/250) bal=11530 trades=35 fresh_api=0
+  .. 2025-11-25 (187/250) bal=11530 trades=35 fresh_api=0
+  .. 2025-11-26 (188/250) bal=11619 trades=36 fresh_api=0
+  .. 2025-11-28 (189/250) bal=11619 trades=36 fresh_api=0
+  .. 2025-12-01 (190/250) bal=11619 trades=36 fresh_api=0
+  .. 2025-12-02 (191/250) bal=11619 trades=36 fresh_api=0
+  .. 2025-12-03 (192/250) bal=11619 trades=36 fresh_api=0
+  .. 2025-12-04 (193/250) bal=11708 trades=37 fresh_api=0
+  .. 2025-12-05 (194/250) bal=11708 trades=37 fresh_api=0
+  .. 2025-12-08 (195/250) bal=11708 trades=37 fresh_api=0
+  .. 2025-12-09 (196/250) bal=11708 trades=37 fresh_api=0
+  .. 2025-12-10 (197/250) bal=11708 trades=37 fresh_api=0
+  .. 2025-12-11 (198/250) bal=11806 trades=38 fresh_api=0
+  .. 2025-12-12 (199/250) bal=11806 trades=38 fresh_api=0
+  .. 2025-12-15 (200/250) bal=11806 trades=38 fresh_api=0
+  .. 2025-12-16 (201/250) bal=11806 trades=38 fresh_api=0
+  .. 2025-12-17 (202/250) bal=11806 trades=38 fresh_api=0
+  .. 2025-12-18 (203/250) bal=11806 trades=38 fresh_api=0
+  .. 2025-12-19 (204/250) bal=11676 trades=39 fresh_api=0
+  .. 2025-12-22 (205/250) bal=11676 trades=39 fresh_api=0
+  .. 2025-12-23 (206/250) bal=11676 trades=39 fresh_api=0
+  .. 2025-12-24 (207/250) bal=11737 trades=40 fresh_api=0
+  .. 2025-12-26 (208/250) bal=11737 trades=40 fresh_api=0
+  .. 2025-12-29 (209/250) bal=11737 trades=40 fresh_api=0
+  .. 2025-12-30 (210/250) bal=11737 trades=40 fresh_api=0
+  .. 2025-12-31 (211/250) bal=11737 trades=40 fresh_api=0
+  .. 2026-01-02 (212/250) bal=11737 trades=40 fresh_api=0
+  .. 2026-01-05 (213/250) bal=11700 trades=41 fresh_api=0
+  .. 2026-01-06 (214/250) bal=11700 trades=41 fresh_api=0
+  .. 2026-01-07 (215/250) bal=11700 trades=41 fresh_api=0
+  .. 2026-01-08 (216/250) bal=11800 trades=42 fresh_api=0
+  .. 2026-01-09 (217/250) bal=11800 trades=42 fresh_api=0
+  .. 2026-01-12 (218/250) bal=11800 trades=42 fresh_api=0
+  .. 2026-01-13 (219/250) bal=11800 trades=42 fresh_api=0
+  .. 2026-01-14 (220/250) bal=11800 trades=42 fresh_api=0
+  .. 2026-01-15 (221/250) bal=11800 trades=42 fresh_api=0
+  .. 2026-01-16 (222/250) bal=11886 trades=43 fresh_api=0
+  .. 2026-01-20 (223/250) bal=11886 trades=43 fresh_api=0
+  .. 2026-01-21 (224/250) bal=11886 trades=43 fresh_api=0
+  .. 2026-01-22 (225/250) bal=11886 trades=43 fresh_api=0
+  .. 2026-01-23 (226/250) bal=11886 trades=43 fresh_api=0
+  .. 2026-01-26 (227/250) bal=11886 trades=43 fresh_api=0
+  .. 2026-01-27 (228/250) bal=11886 trades=43 fresh_api=0
+  .. 2026-01-28 (229/250) bal=11886 trades=43 fresh_api=0
+  .. 2026-01-29 (230/250) bal=11983 trades=44 fresh_api=0
+  .. 2026-01-30 (231/250) bal=11983 trades=44 fresh_api=0
+  .. 2026-02-02 (232/250) bal=11983 trades=44 fresh_api=0
+  .. 2026-02-03 (233/250) bal=11983 trades=44 fresh_api=0
+  .. 2026-02-04 (234/250) bal=11983 trades=44 fresh_api=0
+  .. 2026-02-05 (235/250) bal=11983 trades=44 fresh_api=0
+  .. 2026-02-06 (236/250) bal=11502 trades=45 fresh_api=0
+  .. 2026-02-09 (237/250) bal=11502 trades=45 fresh_api=0
+  .. 2026-02-10 (238/250) bal=11502 trades=45 fresh_api=0
+  .. 2026-02-11 (239/250) bal=11502 trades=45 fresh_api=0
+  .. 2026-02-12 (240/250) bal=11592 trades=46 fresh_api=0
+  .. 2026-02-13 (241/250) bal=11592 trades=46 fresh_api=0
+  .. 2026-02-17 (242/250) bal=11592 trades=46 fresh_api=0
+  .. 2026-02-18 (243/250) bal=11592 trades=46 fresh_api=0
+  .. 2026-02-19 (244/250) bal=11592 trades=46 fresh_api=0
+  .. 2026-02-20 (245/250) bal=11592 trades=46 fresh_api=0
+  .. 2026-02-23 (246/250) bal=11592 trades=46 fresh_api=0
+  .. 2026-02-24 (247/250) bal=11592 trades=46 fresh_api=0
+  .. 2026-02-25 (248/250) bal=11592 trades=46 fresh_api=0
+  .. 2026-02-26 (249/250) bal=11709 trades=47 fresh_api=0
+  .. 2026-02-27 (250/250) bal=11709 trades=47 fresh_api=0
+--- s2b_putspread_managed: n=47 WR=0.809 PF=1.859 P&L=1709.4 maxDD=481.3 fresh_api=0 (cum 366/6000)
+
+=== s2b_putspread_managed_slip2x (spy_putspread_weekly_managed) 2025-03-03..2026-02-27 kwargs={'slip_scale': 2.0} budget_remaining=5634 ===
+  .. 2025-03-03 (1/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-04 (2/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-05 (3/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-06 (4/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-07 (5/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-10 (6/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-11 (7/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-12 (8/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-13 (9/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-14 (10/250) bal=9768 trades=1 fresh_api=0
+  .. 2025-03-17 (11/250) bal=9768 trades=1 fresh_api=0
+  .. 2025-03-18 (12/250) bal=9768 trades=1 fresh_api=0
+  .. 2025-03-19 (13/250) bal=9768 trades=1 fresh_api=0
+  .. 2025-03-20 (14/250) bal=9915 trades=2 fresh_api=0
+  .. 2025-03-21 (15/250) bal=9915 trades=2 fresh_api=0
+  .. 2025-03-24 (16/250) bal=9915 trades=2 fresh_api=0
+  .. 2025-03-25 (17/250) bal=9915 trades=2 fresh_api=0
+  .. 2025-03-26 (18/250) bal=9915 trades=2 fresh_api=0
+  .. 2025-03-27 (19/250) bal=10005 trades=3 fresh_api=0
+  .. 2025-03-28 (20/250) bal=10005 trades=3 fresh_api=0
+  .. 2025-03-31 (21/250) bal=10005 trades=3 fresh_api=0
+  .. 2025-04-01 (22/250) bal=10132 trades=4 fresh_api=0
+  .. 2025-04-02 (23/250) bal=10132 trades=4 fresh_api=0
+  .. 2025-04-03 (24/250) bal=10132 trades=4 fresh_api=0
+  .. 2025-04-04 (25/250) bal=10132 trades=4 fresh_api=0
+  .. 2025-04-07 (26/250) bal=10132 trades=4 fresh_api=0
+  .. 2025-04-08 (27/250) bal=10132 trades=4 fresh_api=0
+  .. 2025-04-09 (28/250) bal=10358 trades=5 fresh_api=0
+  .. 2025-04-10 (29/250) bal=10358 trades=5 fresh_api=0
+  .. 2025-04-11 (30/250) bal=10358 trades=5 fresh_api=0
+  .. 2025-04-14 (31/250) bal=10358 trades=5 fresh_api=0
+  .. 2025-04-15 (32/250) bal=10358 trades=5 fresh_api=0
+  .. 2025-04-16 (33/250) bal=10358 trades=5 fresh_api=0
+  .. 2025-04-17 (34/250) bal=10160 trades=6 fresh_api=0
+  .. 2025-04-21 (35/250) bal=10160 trades=6 fresh_api=0
+  .. 2025-04-22 (36/250) bal=10160 trades=6 fresh_api=0
+  .. 2025-04-23 (37/250) bal=10293 trades=7 fresh_api=0
+  .. 2025-04-24 (38/250) bal=10293 trades=7 fresh_api=0
+  .. 2025-04-25 (39/250) bal=10293 trades=7 fresh_api=0
+  .. 2025-04-28 (40/250) bal=10293 trades=7 fresh_api=0
+  .. 2025-04-29 (41/250) bal=10293 trades=7 fresh_api=0
+  .. 2025-04-30 (42/250) bal=10293 trades=7 fresh_api=0
+  .. 2025-05-01 (43/250) bal=10293 trades=7 fresh_api=0
+  .. 2025-05-02 (44/250) bal=10414 trades=8 fresh_api=0
+  .. 2025-05-05 (45/250) bal=10414 trades=8 fresh_api=0
+  .. 2025-05-06 (46/250) bal=10414 trades=8 fresh_api=0
+  .. 2025-05-07 (47/250) bal=10414 trades=8 fresh_api=0
+  .. 2025-05-08 (48/250) bal=10414 trades=8 fresh_api=0
+  .. 2025-05-09 (49/250) bal=10475 trades=9 fresh_api=0
+  .. 2025-05-12 (50/250) bal=10475 trades=9 fresh_api=0
+  .. 2025-05-13 (51/250) bal=10475 trades=9 fresh_api=0
+  .. 2025-05-14 (52/250) bal=10555 trades=10 fresh_api=0
+  .. 2025-05-15 (53/250) bal=10555 trades=10 fresh_api=0
+  .. 2025-05-16 (54/250) bal=10555 trades=10 fresh_api=0
+  .. 2025-05-19 (55/250) bal=10555 trades=10 fresh_api=0
+  .. 2025-05-20 (56/250) bal=10555 trades=10 fresh_api=0
+  .. 2025-05-21 (57/250) bal=10555 trades=10 fresh_api=0
+  .. 2025-05-22 (58/250) bal=10555 trades=10 fresh_api=0
+  .. 2025-05-23 (59/250) bal=10167 trades=11 fresh_api=0
+  .. 2025-05-27 (60/250) bal=10167 trades=11 fresh_api=0
+  .. 2025-05-28 (61/250) bal=10167 trades=11 fresh_api=0
+  .. 2025-05-29 (62/250) bal=10167 trades=11 fresh_api=0
+  .. 2025-05-30 (63/250) bal=10167 trades=11 fresh_api=0
+  .. 2025-06-02 (64/250) bal=10167 trades=11 fresh_api=0
+  .. 2025-06-03 (65/250) bal=10271 trades=12 fresh_api=0
+  .. 2025-06-04 (66/250) bal=10271 trades=12 fresh_api=0
+  .. 2025-06-05 (67/250) bal=10271 trades=12 fresh_api=0
+  .. 2025-06-06 (68/250) bal=10271 trades=12 fresh_api=0
+  .. 2025-06-09 (69/250) bal=10271 trades=12 fresh_api=0
+  .. 2025-06-10 (70/250) bal=10271 trades=12 fresh_api=0
+  .. 2025-06-11 (71/250) bal=10358 trades=13 fresh_api=0
+  .. 2025-06-12 (72/250) bal=10358 trades=13 fresh_api=0
+  .. 2025-06-13 (73/250) bal=10358 trades=13 fresh_api=0
+  .. 2025-06-16 (74/250) bal=10358 trades=13 fresh_api=0
+  .. 2025-06-17 (75/250) bal=10358 trades=13 fresh_api=0
+  .. 2025-06-18 (76/250) bal=10358 trades=13 fresh_api=0
+  .. 2025-06-20 (77/250) bal=10358 trades=13 fresh_api=0
+  .. 2025-06-23 (78/250) bal=10258 trades=14 fresh_api=0
+  .. 2025-06-24 (79/250) bal=10258 trades=14 fresh_api=0
+  .. 2025-06-25 (80/250) bal=10358 trades=15 fresh_api=0
+  .. 2025-06-26 (81/250) bal=10358 trades=15 fresh_api=0
+  .. 2025-06-27 (82/250) bal=10358 trades=15 fresh_api=0
+  .. 2025-06-30 (83/250) bal=10358 trades=15 fresh_api=0
+  .. 2025-07-01 (84/250) bal=10358 trades=15 fresh_api=0
+  .. 2025-07-02 (85/250) bal=10358 trades=15 fresh_api=0
+  .. 2025-07-03 (86/250) bal=10385 trades=16 fresh_api=0
+  .. 2025-07-07 (87/250) bal=10385 trades=16 fresh_api=0
+  .. 2025-07-08 (88/250) bal=10385 trades=16 fresh_api=0
+  .. 2025-07-09 (89/250) bal=10385 trades=16 fresh_api=0
+  .. 2025-07-10 (90/250) bal=10461 trades=17 fresh_api=0
+  .. 2025-07-11 (91/250) bal=10461 trades=17 fresh_api=0
+  .. 2025-07-14 (92/250) bal=10461 trades=17 fresh_api=0
+  .. 2025-07-15 (93/250) bal=10461 trades=17 fresh_api=0
+  .. 2025-07-16 (94/250) bal=10543 trades=18 fresh_api=0
+  .. 2025-07-17 (95/250) bal=10543 trades=18 fresh_api=0
+  .. 2025-07-18 (96/250) bal=10543 trades=18 fresh_api=0
+  .. 2025-07-21 (97/250) bal=10543 trades=18 fresh_api=0
+  .. 2025-07-22 (98/250) bal=10543 trades=18 fresh_api=0
+  .. 2025-07-23 (99/250) bal=10543 trades=18 fresh_api=0
+  .. 2025-07-24 (100/250) bal=10587 trades=19 fresh_api=0
+  .. 2025-07-25 (101/250) bal=10587 trades=19 fresh_api=0
+  .. 2025-07-28 (102/250) bal=10587 trades=19 fresh_api=0
+  .. 2025-07-29 (103/250) bal=10587 trades=19 fresh_api=0
+  .. 2025-07-30 (104/250) bal=10587 trades=19 fresh_api=0
+  .. 2025-07-31 (105/250) bal=10587 trades=19 fresh_api=0
+  .. 2025-08-01 (106/250) bal=10661 trades=20 fresh_api=0
+  .. 2025-08-04 (107/250) bal=10661 trades=20 fresh_api=0
+  .. 2025-08-05 (108/250) bal=10661 trades=20 fresh_api=0
+  .. 2025-08-06 (109/250) bal=10661 trades=20 fresh_api=0
+  .. 2025-08-07 (110/250) bal=10734 trades=21 fresh_api=0
+  .. 2025-08-08 (111/250) bal=10734 trades=21 fresh_api=0
+  .. 2025-08-11 (112/250) bal=10734 trades=21 fresh_api=0
+  .. 2025-08-12 (113/250) bal=10734 trades=21 fresh_api=0
+  .. 2025-08-13 (114/250) bal=10807 trades=22 fresh_api=0
+  .. 2025-08-14 (115/250) bal=10807 trades=22 fresh_api=0
+  .. 2025-08-15 (116/250) bal=10807 trades=22 fresh_api=0
+  .. 2025-08-18 (117/250) bal=10807 trades=22 fresh_api=0
+  .. 2025-08-19 (118/250) bal=10807 trades=22 fresh_api=0
+  .. 2025-08-20 (119/250) bal=10807 trades=22 fresh_api=0
+  .. 2025-08-21 (120/250) bal=10428 trades=23 fresh_api=0
+  .. 2025-08-22 (121/250) bal=10428 trades=23 fresh_api=0
+  .. 2025-08-25 (122/250) bal=10428 trades=23 fresh_api=0
+  .. 2025-08-26 (123/250) bal=10428 trades=23 fresh_api=0
+  .. 2025-08-27 (124/250) bal=10428 trades=23 fresh_api=0
+  .. 2025-08-28 (125/250) bal=10428 trades=23 fresh_api=0
+  .. 2025-08-29 (126/250) bal=10546 trades=24 fresh_api=0
+  .. 2025-09-02 (127/250) bal=10546 trades=24 fresh_api=0
+  .. 2025-09-03 (128/250) bal=10546 trades=24 fresh_api=0
+  .. 2025-09-04 (129/250) bal=10546 trades=24 fresh_api=0
+  .. 2025-09-05 (130/250) bal=10546 trades=24 fresh_api=0
+  .. 2025-09-08 (131/250) bal=10546 trades=24 fresh_api=0
+  .. 2025-09-09 (132/250) bal=10546 trades=24 fresh_api=0
+  .. 2025-09-10 (133/250) bal=10546 trades=24 fresh_api=0
+  .. 2025-09-11 (134/250) bal=10639 trades=25 fresh_api=0
+  .. 2025-09-12 (135/250) bal=10639 trades=25 fresh_api=0
+  .. 2025-09-15 (136/250) bal=10639 trades=25 fresh_api=0
+  .. 2025-09-16 (137/250) bal=10639 trades=25 fresh_api=0
+  .. 2025-09-17 (138/250) bal=10639 trades=25 fresh_api=0
+  .. 2025-09-18 (139/250) bal=10639 trades=25 fresh_api=0
+  .. 2025-09-19 (140/250) bal=10697 trades=26 fresh_api=0
+  .. 2025-09-22 (141/250) bal=10697 trades=26 fresh_api=0
+  .. 2025-09-23 (142/250) bal=10697 trades=26 fresh_api=0
+  .. 2025-09-24 (143/250) bal=10745 trades=27 fresh_api=0
+  .. 2025-09-25 (144/250) bal=10745 trades=27 fresh_api=0
+  .. 2025-09-26 (145/250) bal=10745 trades=27 fresh_api=0
+  .. 2025-09-29 (146/250) bal=10745 trades=27 fresh_api=0
+  .. 2025-09-30 (147/250) bal=10745 trades=27 fresh_api=0
+  .. 2025-10-01 (148/250) bal=10745 trades=27 fresh_api=0
+  .. 2025-10-02 (149/250) bal=10810 trades=28 fresh_api=0
+  .. 2025-10-03 (150/250) bal=10810 trades=28 fresh_api=0
+  .. 2025-10-06 (151/250) bal=10810 trades=28 fresh_api=0
+  .. 2025-10-07 (152/250) bal=10810 trades=28 fresh_api=0
+  .. 2025-10-08 (153/250) bal=10810 trades=28 fresh_api=0
+  .. 2025-10-09 (154/250) bal=10868 trades=29 fresh_api=0
+  .. 2025-10-10 (155/250) bal=10868 trades=29 fresh_api=0
+  .. 2025-10-13 (156/250) bal=10868 trades=29 fresh_api=0
+  .. 2025-10-14 (157/250) bal=10868 trades=29 fresh_api=0
+  .. 2025-10-15 (158/250) bal=10868 trades=29 fresh_api=0
+  .. 2025-10-16 (159/250) bal=10951 trades=30 fresh_api=0
+  .. 2025-10-17 (160/250) bal=10951 trades=30 fresh_api=0
+  .. 2025-10-20 (161/250) bal=10951 trades=30 fresh_api=0
+  .. 2025-10-21 (162/250) bal=10951 trades=30 fresh_api=0
+  .. 2025-10-22 (163/250) bal=10951 trades=30 fresh_api=0
+  .. 2025-10-23 (164/250) bal=10951 trades=30 fresh_api=0
+  .. 2025-10-24 (165/250) bal=10946 trades=31 fresh_api=0
+  .. 2025-10-27 (166/250) bal=10946 trades=31 fresh_api=0
+  .. 2025-10-28 (167/250) bal=10946 trades=31 fresh_api=0
+  .. 2025-10-29 (168/250) bal=10946 trades=31 fresh_api=0
+  .. 2025-10-30 (169/250) bal=10946 trades=31 fresh_api=0
+  .. 2025-10-31 (170/250) bal=10927 trades=32 fresh_api=0
+  .. 2025-11-03 (171/250) bal=10927 trades=32 fresh_api=0
+  .. 2025-11-04 (172/250) bal=10927 trades=32 fresh_api=0
+  .. 2025-11-05 (173/250) bal=10927 trades=32 fresh_api=0
+  .. 2025-11-06 (174/250) bal=10927 trades=32 fresh_api=0
+  .. 2025-11-07 (175/250) bal=10762 trades=33 fresh_api=0
+  .. 2025-11-10 (176/250) bal=10762 trades=33 fresh_api=0
+  .. 2025-11-11 (177/250) bal=10762 trades=33 fresh_api=0
+  .. 2025-11-12 (178/250) bal=10840 trades=34 fresh_api=0
+  .. 2025-11-13 (179/250) bal=10840 trades=34 fresh_api=0
+  .. 2025-11-14 (180/250) bal=10840 trades=34 fresh_api=0
+  .. 2025-11-17 (181/250) bal=10840 trades=34 fresh_api=0
+  .. 2025-11-18 (182/250) bal=10840 trades=34 fresh_api=0
+  .. 2025-11-19 (183/250) bal=10840 trades=34 fresh_api=0
+  .. 2025-11-20 (184/250) bal=10840 trades=34 fresh_api=0
+  .. 2025-11-21 (185/250) bal=10907 trades=35 fresh_api=0
+  .. 2025-11-24 (186/250) bal=10907 trades=35 fresh_api=0
+  .. 2025-11-25 (187/250) bal=10907 trades=35 fresh_api=0
+  .. 2025-11-26 (188/250) bal=10976 trades=36 fresh_api=0
+  .. 2025-11-28 (189/250) bal=10976 trades=36 fresh_api=0
+  .. 2025-12-01 (190/250) bal=10976 trades=36 fresh_api=0
+  .. 2025-12-02 (191/250) bal=10976 trades=36 fresh_api=0
+  .. 2025-12-03 (192/250) bal=10976 trades=36 fresh_api=0
+  .. 2025-12-04 (193/250) bal=11049 trades=37 fresh_api=0
+  .. 2025-12-05 (194/250) bal=11049 trades=37 fresh_api=0
+  .. 2025-12-08 (195/250) bal=11049 trades=37 fresh_api=0
+  .. 2025-12-09 (196/250) bal=11049 trades=37 fresh_api=0
+  .. 2025-12-10 (197/250) bal=11049 trades=37 fresh_api=0
+  .. 2025-12-11 (198/250) bal=11127 trades=38 fresh_api=0
+  .. 2025-12-12 (199/250) bal=11127 trades=38 fresh_api=0
+  .. 2025-12-15 (200/250) bal=11127 trades=38 fresh_api=0
+  .. 2025-12-16 (201/250) bal=11127 trades=38 fresh_api=0
+  .. 2025-12-17 (202/250) bal=11127 trades=38 fresh_api=0
+  .. 2025-12-18 (203/250) bal=11127 trades=38 fresh_api=0
+  .. 2025-12-19 (204/250) bal=10977 trades=39 fresh_api=0
+  .. 2025-12-22 (205/250) bal=10977 trades=39 fresh_api=0
+  .. 2025-12-23 (206/250) bal=10977 trades=39 fresh_api=0
+  .. 2025-12-24 (207/250) bal=11026 trades=40 fresh_api=0
+  .. 2025-12-26 (208/250) bal=11026 trades=40 fresh_api=0
+  .. 2025-12-29 (209/250) bal=11026 trades=40 fresh_api=0
+  .. 2025-12-30 (210/250) bal=11026 trades=40 fresh_api=0
+  .. 2025-12-31 (211/250) bal=11026 trades=40 fresh_api=0
+  .. 2026-01-02 (212/250) bal=11026 trades=40 fresh_api=0
+  .. 2026-01-05 (213/250) bal=10969 trades=41 fresh_api=0
+  .. 2026-01-06 (214/250) bal=10969 trades=41 fresh_api=0
+  .. 2026-01-07 (215/250) bal=10969 trades=41 fresh_api=0
+  .. 2026-01-08 (216/250) bal=11049 trades=42 fresh_api=0
+  .. 2026-01-09 (217/250) bal=11049 trades=42 fresh_api=0
+  .. 2026-01-12 (218/250) bal=11049 trades=42 fresh_api=0
+  .. 2026-01-13 (219/250) bal=11049 trades=42 fresh_api=0
+  .. 2026-01-14 (220/250) bal=11049 trades=42 fresh_api=0
+  .. 2026-01-15 (221/250) bal=11049 trades=42 fresh_api=0
+  .. 2026-01-16 (222/250) bal=11115 trades=43 fresh_api=0
+  .. 2026-01-20 (223/250) bal=11115 trades=43 fresh_api=0
+  .. 2026-01-21 (224/250) bal=11115 trades=43 fresh_api=0
+  .. 2026-01-22 (225/250) bal=11115 trades=43 fresh_api=0
+  .. 2026-01-23 (226/250) bal=11115 trades=43 fresh_api=0
+  .. 2026-01-26 (227/250) bal=11115 trades=43 fresh_api=0
+  .. 2026-01-27 (228/250) bal=11115 trades=43 fresh_api=0
+  .. 2026-01-28 (229/250) bal=11115 trades=43 fresh_api=0
+  .. 2026-01-29 (230/250) bal=11192 trades=44 fresh_api=0
+  .. 2026-01-30 (231/250) bal=11192 trades=44 fresh_api=0
+  .. 2026-02-02 (232/250) bal=11192 trades=44 fresh_api=0
+  .. 2026-02-03 (233/250) bal=11192 trades=44 fresh_api=0
+  .. 2026-02-04 (234/250) bal=11192 trades=44 fresh_api=0
+  .. 2026-02-05 (235/250) bal=11192 trades=44 fresh_api=0
+  .. 2026-02-06 (236/250) bal=10691 trades=45 fresh_api=0
+  .. 2026-02-09 (237/250) bal=10691 trades=45 fresh_api=0
+  .. 2026-02-10 (238/250) bal=10691 trades=45 fresh_api=0
+  .. 2026-02-11 (239/250) bal=10691 trades=45 fresh_api=0
+  .. 2026-02-12 (240/250) bal=10761 trades=46 fresh_api=0
+  .. 2026-02-13 (241/250) bal=10761 trades=46 fresh_api=0
+  .. 2026-02-17 (242/250) bal=10761 trades=46 fresh_api=0
+  .. 2026-02-18 (243/250) bal=10761 trades=46 fresh_api=0
+  .. 2026-02-19 (244/250) bal=10761 trades=46 fresh_api=0
+  .. 2026-02-20 (245/250) bal=10761 trades=46 fresh_api=0
+  .. 2026-02-23 (246/250) bal=10761 trades=46 fresh_api=0
+  .. 2026-02-24 (247/250) bal=10761 trades=46 fresh_api=0
+  .. 2026-02-25 (248/250) bal=10761 trades=46 fresh_api=0
+  .. 2026-02-26 (249/250) bal=10861 trades=47 fresh_api=0
+  .. 2026-02-27 (250/250) bal=10861 trades=47 fresh_api=0
+--- s2b_putspread_managed_slip2x: n=47 WR=0.766 PF=1.393 P&L=861.4 maxDD=501.3 fresh_api=0 (cum 366/6000)
+
+=== s1a_condor_weekly (spy_condor_weekly) 2025-03-03..2026-02-27 kwargs={} budget_remaining=5634 ===
+  .. 2025-03-03 (1/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-04 (2/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-05 (3/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-06 (4/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-07 (5/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-10 (6/250) bal=10000 trades=0 fresh_api=0
+  .. 2025-03-11 (7/250) bal=10000 trades=0 fresh_api=4
+  .. 2025-03-12 (8/250) bal=10000 trades=0 fresh_api=4
+  .. 2025-03-13 (9/250) bal=10000 trades=0 fresh_api=4
+  .. 2025-03-14 (10/250) bal=10000 trades=0 fresh_api=4
+  .. 2025-03-17 (11/250) bal=10421 trades=1 fresh_api=4
+  .. 2025-03-18 (12/250) bal=10421 trades=1 fresh_api=7
+  .. 2025-03-19 (13/250) bal=10421 trades=1 fresh_api=7
+  .. 2025-03-20 (14/250) bal=10421 trades=1 fresh_api=7
+  .. 2025-03-21 (15/250) bal=10421 trades=1 fresh_api=7
+  .. 2025-03-24 (16/250) bal=10654 trades=2 fresh_api=7
+  .. 2025-03-25 (17/250) bal=10654 trades=2 fresh_api=10
+  .. 2025-03-26 (18/250) bal=10654 trades=2 fresh_api=10
+  .. 2025-03-27 (19/250) bal=10654 trades=2 fresh_api=10
+  .. 2025-03-28 (20/250) bal=10654 trades=2 fresh_api=10
+  .. 2025-03-31 (21/250) bal=10028 trades=3 fresh_api=10
+  .. 2025-04-01 (22/250) bal=10028 trades=3 fresh_api=14
+  .. 2025-04-02 (23/250) bal=10028 trades=3 fresh_api=14
+  .. 2025-04-03 (24/250) bal=10028 trades=3 fresh_api=14
+  .. 2025-04-04 (25/250) bal=10028 trades=3 fresh_api=14
+  .. 2025-04-07 (26/250) bal=9345 trades=4 fresh_api=14
+  .. 2025-04-08 (27/250) bal=9345 trades=4 fresh_api=18
+  .. 2025-04-09 (28/250) bal=9345 trades=4 fresh_api=18
+  .. 2025-04-10 (29/250) bal=9345 trades=4 fresh_api=18
+  .. 2025-04-11 (30/250) bal=9345 trades=4 fresh_api=18
+  .. 2025-04-14 (31/250) bal=9212 trades=5 fresh_api=18
+  .. 2025-04-15 (32/250) bal=9212 trades=5 fresh_api=22
+  .. 2025-04-16 (33/250) bal=9212 trades=5 fresh_api=22
+  .. 2025-04-17 (34/250) bal=9212 trades=5 fresh_api=22
+  .. 2025-04-21 (35/250) bal=9327 trades=6 fresh_api=22
+  .. 2025-04-22 (36/250) bal=9327 trades=6 fresh_api=25
+  .. 2025-04-23 (37/250) bal=9327 trades=6 fresh_api=25
+  .. 2025-04-24 (38/250) bal=9327 trades=6 fresh_api=25
+  .. 2025-04-25 (39/250) bal=9327 trades=6 fresh_api=25
+  .. 2025-04-28 (40/250) bal=8525 trades=7 fresh_api=25
+  .. 2025-04-29 (41/250) bal=8525 trades=7 fresh_api=28
+  .. 2025-04-30 (42/250) bal=8525 trades=7 fresh_api=28
+  .. 2025-05-01 (43/250) bal=8525 trades=7 fresh_api=28
+  .. 2025-05-02 (44/250) bal=8525 trades=7 fresh_api=28
+  .. 2025-05-05 (45/250) bal=8429 trades=8 fresh_api=28
+  .. 2025-05-06 (46/250) bal=8429 trades=8 fresh_api=32
+  .. 2025-05-07 (47/250) bal=8429 trades=8 fresh_api=32
+  .. 2025-05-08 (48/250) bal=8429 trades=8 fresh_api=32
+  .. 2025-05-09 (49/250) bal=8429 trades=8 fresh_api=32
+  .. 2025-05-12 (50/250) bal=8626 trades=9 fresh_api=32
+  .. 2025-05-13 (51/250) bal=8626 trades=9 fresh_api=35
+  .. 2025-05-14 (52/250) bal=8626 trades=9 fresh_api=35
+  .. 2025-05-15 (53/250) bal=8626 trades=9 fresh_api=35
+  .. 2025-05-16 (54/250) bal=8626 trades=9 fresh_api=35
+  .. 2025-05-19 (55/250) bal=8382 trades=10 fresh_api=35
+  .. 2025-05-20 (56/250) bal=8382 trades=10 fresh_api=38
+  .. 2025-05-21 (57/250) bal=8382 trades=10 fresh_api=38
+  .. 2025-05-22 (58/250) bal=8382 trades=10 fresh_api=38
+  .. 2025-05-23 (59/250) bal=8382 trades=10 fresh_api=38
+  .. 2025-05-27 (60/250) bal=8093 trades=11 fresh_api=38
+  .. 2025-05-28 (61/250) bal=8093 trades=11 fresh_api=38
+  .. 2025-05-29 (62/250) bal=8093 trades=11 fresh_api=38
+  .. 2025-05-30 (63/250) bal=8093 trades=11 fresh_api=38
+  .. 2025-06-02 (64/250) bal=8093 trades=11 fresh_api=38
+  .. 2025-06-03 (65/250) bal=8093 trades=11 fresh_api=38
+  .. 2025-06-04 (66/250) bal=8093 trades=11 fresh_api=38
+  .. 2025-06-05 (67/250) bal=8093 trades=11 fresh_api=38
+  .. 2025-06-06 (68/250) bal=8093 trades=11 fresh_api=38
+  .. 2025-06-09 (69/250) bal=8279 trades=12 fresh_api=38
+  .. 2025-06-10 (70/250) bal=8279 trades=12 fresh_api=38
+  .. 2025-06-11 (71/250) bal=8279 trades=12 fresh_api=38
+  .. 2025-06-12 (72/250) bal=8279 trades=12 fresh_api=38
+  .. 2025-06-13 (73/250) bal=8279 trades=12 fresh_api=38
+  .. 2025-06-16 (74/250) bal=8457 trades=13 fresh_api=38
+  .. 2025-06-17 (75/250) bal=8457 trades=13 fresh_api=38
+  .. 2025-06-18 (76/250) bal=8457 trades=13 fresh_api=38
+  .. 2025-06-20 (77/250) bal=8457 trades=13 fresh_api=38
+  .. 2025-06-23 (78/250) bal=8508 trades=14 fresh_api=38
+  .. 2025-06-24 (79/250) bal=8508 trades=14 fresh_api=38
+  .. 2025-06-25 (80/250) bal=8508 trades=14 fresh_api=38
+  .. 2025-06-26 (81/250) bal=8508 trades=14 fresh_api=38
+  .. 2025-06-27 (82/250) bal=8508 trades=14 fresh_api=38
+  .. 2025-06-30 (83/250) bal=7764 trades=15 fresh_api=38
+  .. 2025-07-01 (84/250) bal=7764 trades=15 fresh_api=38
+  .. 2025-07-02 (85/250) bal=7764 trades=15 fresh_api=38
+  .. 2025-07-03 (86/250) bal=7764 trades=15 fresh_api=38
+  .. 2025-07-07 (87/250) bal=7638 trades=16 fresh_api=38
+  .. 2025-07-08 (88/250) bal=7638 trades=16 fresh_api=41
+  .. 2025-07-09 (89/250) bal=7638 trades=16 fresh_api=41
+  .. 2025-07-10 (90/250) bal=7638 trades=16 fresh_api=41
+  .. 2025-07-11 (91/250) bal=7638 trades=16 fresh_api=41
+  .. 2025-07-14 (92/250) bal=7785 trades=17 fresh_api=41
+  .. 2025-07-15 (93/250) bal=7785 trades=17 fresh_api=45
+  .. 2025-07-16 (94/250) bal=7785 trades=17 fresh_api=45
+  .. 2025-07-17 (95/250) bal=7785 trades=17 fresh_api=45
+  .. 2025-07-18 (96/250) bal=7785 trades=17 fresh_api=45
+  .. 2025-07-21 (97/250) bal=7892 trades=18 fresh_api=45
+  .. 2025-07-22 (98/250) bal=7892 trades=18 fresh_api=47
+  .. 2025-07-23 (99/250) bal=7892 trades=18 fresh_api=47
+  .. 2025-07-24 (100/250) bal=7892 trades=18 fresh_api=47
+  .. 2025-07-25 (101/250) bal=7892 trades=18 fresh_api=47
+  .. 2025-07-28 (102/250) bal=7892 trades=18 fresh_api=47
+  .. 2025-07-29 (103/250) bal=7892 trades=18 fresh_api=50
+  .. 2025-07-30 (104/250) bal=7892 trades=18 fresh_api=50
+  .. 2025-07-31 (105/250) bal=7892 trades=18 fresh_api=50
+  .. 2025-08-01 (106/250) bal=7892 trades=18 fresh_api=50
+  .. 2025-08-04 (107/250) bal=7892 trades=18 fresh_api=50

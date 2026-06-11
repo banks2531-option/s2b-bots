@@ -1,0 +1,35 @@
+{
+  "n_trades": 11,
+  "wins": 7,
+  "losses": 4,
+  "win_rate": 0.636,
+  "avg_win": 925.19,
+  "avg_loss": -930.1,
+  "profit_factor": 1.741,
+  "total_pnl": 2755.9,
+  "end_balance": 12755.9,
+  "max_drawdown": 2213.1,
+  "by_exit_reason": {
+    "expiration_intrinsic": [
+      11,
+      2755.9
+    ]
+  },
+  "rejects": {},
+  "coverage": {
+    "day_keys_requested": 44,
+    "overlay": 42,
+    "archive": 2,
+    "fresh_api_calls": 0,
+    "pct_archive": 4.5,
+    "pct_overlay": 95.5,
+    "pct_fresh": 0.0
+  },
+  "sim_kwargs": {
+    "slip_scale": 2.0
+  },
+  "window": [
+    "2025-03-03",
+    "2026-02-27"
+  ]
+}

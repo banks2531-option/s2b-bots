@@ -1,0 +1,138 @@
+{
+  "used": 366,
+  "runs": {
+    "smoke_s1a": {
+      "fresh_calls": 0,
+      "n_trades": 5,
+      "pnl": -455.0,
+      "pf": 0.477,
+      "finished": "2026-06-11T12:16:26"
+    },
+    "smoke_s1b": {
+      "fresh_calls": 0,
+      "n_trades": 1,
+      "pnl": 6.4,
+      "pf": Infinity,
+      "finished": "2026-06-11T12:16:26"
+    },
+    "smoke_s3": {
+      "fresh_calls": 3,
+      "n_trades": 1,
+      "pnl": -1320.6,
+      "pf": 0.0,
+      "finished": "2026-06-11T12:16:28"
+    },
+    "s2a_putspread_weekly": {
+      "fresh_calls": 342,
+      "n_trades": 47,
+      "pnl": -186.11,
+      "pf": 0.974,
+      "finished": "2026-06-11T13:10:34"
+    },
+    "s2a_putspread_weekly_slip2x": {
+      "fresh_calls": 0,
+      "n_trades": 47,
+      "pnl": -656.11,
+      "pf": 0.911,
+      "finished": "2026-06-11T13:10:34"
+    },
+    "s2b_putspread_managed": {
+      "fresh_calls": 0,
+      "n_trades": 47,
+      "pnl": 1709.4,
+      "pf": 1.859,
+      "finished": "2026-06-11T13:10:34"
+    },
+    "s2b_putspread_managed_slip2x": {
+      "fresh_calls": 0,
+      "n_trades": 47,
+      "pnl": 861.4,
+      "pf": 1.393,
+      "finished": "2026-06-11T13:10:35"
+    },
+    "s1a_condor_weekly": {
+      "fresh_calls": 0,
+      "n_trades": 39,
+      "pnl": -857.41,
+      "pf": 0.819,
+      "finished": "2026-06-11T14:08:11"
+    },
+    "s1a_condor_weekly_slip2x": {
+      "fresh_calls": 0,
+      "n_trades": 39,
+      "pnl": -1637.41,
+      "pf": 0.671,
+      "finished": "2026-06-11T14:08:11"
+    },
+    "s1b_condor_monthly": {
+      "fresh_calls": 0,
+      "n_trades": 11,
+      "pnl": -1652.1,
+      "pf": 0.593,
+      "finished": "2026-06-11T14:08:11"
+    },
+    "s1b_condor_monthly_slip2x": {
+      "fresh_calls": 0,
+      "n_trades": 11,
+      "pnl": -1872.1,
+      "pf": 0.545,
+      "finished": "2026-06-11T14:08:11"
+    },
+    "s3_bfly_monthly": {
+      "fresh_calls": 0,
+      "n_trades": 11,
+      "pnl": 2975.9,
+      "pf": 1.817,
+      "finished": "2026-06-11T14:08:11"
+    },
+    "s3_bfly_monthly_slip2x": {
+      "fresh_calls": 0,
+      "n_trades": 11,
+      "pnl": 2755.9,
+      "pf": 1.741,
+      "finished": "2026-06-11T14:08:11"
+    },
+    "s5_0dte_putspread": {
+      "fresh_calls": 0,
+      "n_trades": 241,
+      "pnl": -4023.3,
+      "pf": 0.372,
+      "finished": "2026-06-11T14:08:12"
+    },
+    "s5_0dte_putspread_slip2x": {
+      "fresh_calls": 0,
+      "n_trades": 180,
+      "pnl": -6723.4,
+      "pf": 0.093,
+      "finished": "2026-06-11T14:08:13"
+    },
+    "s5_0dte_putspread_slip5pct": {
+      "fresh_calls": 0,
+      "n_trades": 249,
+      "pnl": 441.78,
+      "pf": 1.078,
+      "finished": "2026-06-11T14:08:13"
+    },
+    "s5q_0dte_putspread_qqq": {
+      "fresh_calls": 0,
+      "n_trades": 242,
+      "pnl": -4936.8,
+      "pf": 0.356,
+      "finished": "2026-06-11T14:08:14"
+    },
+    "s5q_0dte_putspread_qqq_slip2x": {
+      "fresh_calls": 0,
+      "n_trades": 186,
+      "pnl": -8518.7,
+      "pf": 0.081,
+      "finished": "2026-06-11T14:08:15"
+    },
+    "s5q_0dte_putspread_qqq_slip5pct": {
+      "fresh_calls": 0,
+      "n_trades": 248,
+      "pnl": -632.4,
+      "pf": 0.911,
+      "finished": "2026-06-11T14:08:15"
+    }
+  }
+}

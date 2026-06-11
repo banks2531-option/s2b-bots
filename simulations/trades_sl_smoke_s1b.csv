@@ -1,0 +1,2 @@
+strategy,symbol,structure,entry_date,entry_time_et,expiration,dte,legs,deltas,spot,sigma,credit,debit,qty,slip_leg,n_aligned_bars,exit_date,exit_time_et,exit_cost,exit_reason,pnl
+spy_condor_monthly,SPY,iron_condor,2025-06-23,11:20,2025-07-18,25,SP575 / LP555 / SC625 / LC645,put_short=-0.190 call_short=0.180,596.47,0.1777,2.67,,1,0.05,18,2025-07-18,16:00,2.58,expiration_intrinsic,6.4

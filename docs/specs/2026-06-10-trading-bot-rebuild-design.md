@@ -93,7 +93,7 @@ One function in one module through which every order passes:
 Defined-risk verticals on a liquid whitelist (SPY, QQQ, IWM + ~10 mega-caps with penny-wide weeklies).
 - **Bull put spread** only when: regime ≠ DOWN, **and** underlying IV rank ≥ 35% (legacy: 79% vs 46% WR), and short strike ≤ 30-delta, DTE 7–21.
 - **Bear call spread** only when: regime = DOWN **and** DEFENSIVE_LED (legacy: tactical tool, not daily default).
-- **Flow corroboration (pending UW study):** if the edge study validates specific slices, matching UW flow within the session adds conviction/size; it never originates a trade alone. If the study finds nothing robust, UW is dropped and the subscription cancelled.
+- **Flow corroboration: DROPPED (resolved 2026-06-11).** The empirical edge study (`research/2026-06-10-uw-flow-edge-study.md`; 696k deduped UW alerts Mar–Jun 2026 + 1.03M independent whalestream alerts Mar 2025–Feb 2026) found no out-of-sample-consistent directional edge in any flow slice: all 5 pre-registered hypotheses failed OOS, 3 with opposite sign; the in-sample "winners" were semiconductor-rally concentration. Entries are originated by daily regime+IV scans of the whitelist chains. UW subscription: recommend cancel (Shawn's call; retains only discretionary value).
 - Credit ≥ 25% of width. **Stop-loss enabled:** close at loss = 1.0× credit received (kills the 1:6.5 realized reward/risk of the legacy bot). TP at 50% of credit. Time exit at 2 DTE, no exceptions, no rolling (legacy rolling masked losers).
 - Geometry sanity: at 30-delta/~70% win odds with 1.0× credit stop and 0.5× credit target, expectancy is positive at ≥67% realized WR; the regime+IV filters exist precisely to buy those extra points over the unconditional ~55–65%. This claim is validated in backtest before paper (C4).
 
@@ -136,6 +136,6 @@ Experiment journal (`journal/`) records every config change with date + reason; 
 
 ## 8. Open items
 
-1. UW flow edge study (running) → determines the flow-corroboration component and the subscription decision.
+1. ~~UW flow edge study~~ RESOLVED 2026-06-11: no robust edge; flow corroboration dropped from §4.1; cancellation recommended. Future flow strategies must pass the study's gates (sign-consistent time-thirds, sector-concentration exclusion, pre-registered hold-out) before risking a dollar.
 2. Prop firm selection (Topstep vs Apex vs Tradeify et al.) — research due before Stage 3, criteria: MES allowed, automation policy, trailing-DD type, payout terms.
 3. Telegram vs email for paging — default Telegram bot unless Shawn objects.

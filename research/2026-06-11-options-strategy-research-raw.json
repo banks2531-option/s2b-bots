@@ -1,0 +1,313 @@
+{
+  "summary": "Deep research harness — fan-out web searches, fetch sources, adversarially verify claims, synthesize a cited report.",
+  "agentCount": 105,
+  "logs": [
+    "Q: Which options trading strategies have credible, documented evidence of sustained…",
+    "Decomposed into 5 angles: academic-volatility-premia, exchange-benchmark-indexes, 0dte-and-earnings-research, practitioner-reproducible-backtests, skeptical-failure-modes",
+    "exchange-benchmark-indexes: 6 results",
+    "0dte-and-earnings-research: 6 results",
+    "academic-volatility-premia: 6 results",
+    "academic-volatility-premia: 3 novel (3 filtered)",
+    "practitioner-reproducible-backtests: 6 results",
+    "practitioner-reproducible-backtests: 4 novel (2 filtered)",
+    "skeptical-failure-modes: 6 results",
+    "skeptical-failure-modes: 4 novel (2 filtered)",
+    "Fetched 23 sources → 115 claims → verifying top 25",
+    "\"Systematically shorting variance swaps on the S&P …\": 3-0 ✓",
+    "\"The premium is concentrated in broad indexes, not …\": 3-0 ✓",
+    "\"The variance risk premium on major US equity index…\": 3-0 ✓",
+    "\"The negative variance risk premium is NOT explaine…\": 3-0 ✓",
+    "\"The S&P 500 variance risk premium (model-free impl…\": 1-2 ✗",
+    "\"Over June 30, 1986 – Dec 31, 2018, the CBOE PUT (P…\": 3-0 ✓",
+    "\"Failure regime is a crash, not a slow decline: eve…\": 3-0 ✓",
+    "\"The implied volatility risk premium is persistent …\": 3-0 ✓",
+    "\"The BFLY Index's mechanical rule set is: sell a mo…\": 3-0 ✓",
+    "\"The CNDR Index's mechanical rule set is: sell a mo…\": 3-0 ✓",
+    "\"The variance risk premium predicts subsequent S&P …\": 1-2 ✗",
+    "\"Over ~35 years (since 1986), the worst peak-to-tro…\": 3-0 ✓",
+    "\"Over the ~35-year period since mid-1986, Cboe's BX…\": 3-0 ✓",
+    "\"Cboe itself flags the principal failure regime: co…\": 3-0 ✓",
+    "\"Over 1990-2018, S&P 500 implied volatility average…\": 3-0 ✓",
+    "\"The four Cboe option-writing benchmark indices (BX…\": 3-0 ✓",
+    "\"The PUT Index exhibited annualized volatility of 9…\": 3-0 ✓",
+    "\"Cboe claims BFLY and CNDR delivered higher risk-ad…\": 3-0 ✓",
+    "\"Over the ~16-year period June 1, 1988 to March 31,…\": 3-0 ✓",
+    "\"Put-writing's failure regime is severe left-tail r…\": 3-0 ✓",
+    "\"Over June 30, 1986 to Dec 31, 2018, the Cboe PUT I…\": 3-0 ✓",
+    "\"The edge source of the BXM strategy is the implied…\": 3-0 ✓",
+    "\"Average daily retail losses were $241,000 over the…\": 3-0 ✓",
+    "\"Defined-risk multi-leg 0DTE structures show positi…\": 1-2 ✗",
+    "\"Retail 0DTE traders in SPX options lost over $125 …\": 3-0 ✓",
+    "Verify done: 25 claims → 22 confirmed, 3 killed"
+  ],
+  "result": {
+    "question": "Which options trading strategies have credible, documented evidence of sustained high profitability (profit factor ~2.0+ or equivalent risk-adjusted returns), are implementable algorithmically by a retail trader with a $5k–$25k account (defined-risk, US equity/index options, no portfolio-margin-only structures), and what exactly are their mechanical rules, edge sources, and failure regimes? Prioritize: peer-reviewed academic literature (volatility risk premium, variance/dispersion premia, post-earnings drift and earnings-announcement option strategies, 0DTE behavior, IV-vs-RV spread harvesting); exchange-published benchmark index data (CBOE PUT, BXM, CNDR, etc. — their long-run returns and drawdowns); reproducible practitioner research with published methodology (e.g., TastyTrade/CME/ORATS/SpotGamma studies, quant blogs with code/data); documented evidence on whether ML/pattern-recognition approaches have credibly improved options strategy returns vs simple mechanical rules. For each candidate strategy: entry/exit mechanics, required data, realistic trade frequency, claimed vs independently-verified performance, capacity/account-size fit, transaction-cost sensitivity (options spreads are wide), and the regimes in which it loses badly. Explicitly flag survivorship bias and unverifiable claims. Goal: a shortlist of 3–6 strategies worth implementing in a backtest against one year of 5-min SPY/QQQ/mega-cap options bar data (2025-03 to 2026-02) with out-of-sample validation, in pursuit of an honest PF ≥ 2.0.",
+    "summary": "The evidence base strongly confirms one durable, retail-accessible edge: the index volatility/variance risk premium (IV persistently exceeds subsequent RV on SPX-class indexes, ~129% IV/RV ratio 1990-2018; Carr & Wu's variance-swap log premium exceeded -50%/month 1996-2003), and it confirms this premium is structural risk compensation concentrated in broad indexes, not single names. However, no exchange-published or peer-reviewed benchmark of harvesting it mechanically achieves anything close to PF 2.0: the best long-run results (CBOE PUT/BXMD) are equity-like returns at ~two-thirds volatility, Sharpe ~0.6, with -35% to -47% crash drawdowns and skew near -2.1 — the failure regime is volatility jumps, not slow declines. For a $5k-$25k defined-risk account, the credible shortlist for the 2025-03 to 2026-02 backtest is: (1) CNDR-style 20Δ/5Δ index iron condors (fully specified mechanics, shallowest documented drawdown at 19%, implementable on XSP/SPY); (2) BFLY-style monthly ATM iron butterfly with 5% wings (specified but with near-equity drawdowns); (3) cash-secured/spread-converted short ATM-to-OTM puts on XSP/SPY (PUT-index analog with a long wing for defined risk); (4) an IV-RV filtered variant of (1)/(3) that only sells when the implied-vs-realized spread is wide, since the static premium averages ~4 vol points but turns sharply negative in spikes; and (5) cautiously, 0DTE defined-risk credit spreads — but the academic 0DTE evidence shows retail loses ~70% of $125M aggregate losses to transaction costs, the claim that 0DTE credit spreads earn positive median returns failed verification, and long-premium single-leg 0DTE buying is a documented failure mode to be excluded outright. An honest PF ≥ 2.0 is not supported by any verified evidence here; expect Sharpe 0.5-1.0 gross of costs with severe left tails, and treat any backtest reaching PF 2.0 on one year of data as overfit until proven otherwise.",
+    "findings": [
+      {
+        "claim": "Edge source confirmed: the index volatility/variance risk premium is large, persistent, and documented across independent methodologies and periods — Carr & Wu (RFS 2009) found the log excess return to long variance swaps was below -50%/month on SPX/OEX/DJX (1996-2003); VIX exceeded subsequent 30-day realized vol every year 1990-2018 except 2008, averaging 129% of realized (19.3 vs 15.1-15.5 vol points, a ~4.2-point premium); and the BXM-era study found 16.5% IV vs 14.9% RV with 1.69%/month call premium (1988-2004). This IV-vs-RV spread is the legitimate economic basis for every short-premium candidate strategy.",
+        "confidence": "high",
+        "sources": [
+          "https://engineering.nyu.edu/sites/default/files/2019-01/CarrReviewofFinStudiesMarch2009-a.pdf",
+          "https://cdn.cboe.com/resources/spx/wilshire-options-based-benchmark-indexes-2019.pdf",
+          "https://www.cboe.com/insights/posts/white-paper-shows-volatility-risk-premium-facilitated-higher-risk-adjusted-returns-for-put-index/",
+          "https://cdn.cboe.com/resources/education/research_publications/IbbotsonAug30final.pdf"
+        ],
+        "evidence": "Carr & Wu Table 5: mean LRP -0.594 (SPX), -0.509 (OEX), -0.525 (DJX), t-stats -7 to -9.5. Wilshire Exhibit 9a: IV/RV ratio 102%-161% in every year 1990-2018 except 2008 (89%). Bondarenko 2019: VRP of 4.2 percentage points 1990-2018. Ibbotson: 16.5% IV vs 14.9% RV over 190 months. Four independent primary sources, all verified verbatim, unanimous 3-0 votes (claims 0, 5, 14, 19). Caveats embedded in verification: VIX-minus-RV overstates tradable edge due to variance-swap convexity; harvestable magnitude post-2010 is materially smaller (Chicago Fed WP 2025-17).",
+        "vote": "12-0 across 4 merged claims"
+      },
+      {
+        "claim": "The premium is structural risk compensation, not an inefficiency, and it lives in indexes, not single names: VRP alpha survives CAPM, Fama-French, term/default, and momentum controls (losses concentrate in volatility-jump regimes), and mean variance risk premia were statistically insignificant for 32 of 35 individual stocks, scaling only with each stock's variance-beta to SPX variance. Implementation implication for the backtest: sell SPY/QQQ/XSP-class index volatility, not mega-cap single-name volatility — the single-name legs of the proposed backtest universe carry materially weaker documented edge.",
+        "confidence": "high",
+        "sources": [
+          "https://engineering.nyu.edu/sites/default/files/2019-01/CarrReviewofFinStudiesMarch2009-a.pdf"
+        ],
+        "evidence": "Verified verbatim against the primary RFS paper: 'neither the original capital asset pricing model nor the Fama-French factors can fully account for the negative variance risk premia'; 'the mean variance risk premia (RP) are insignificant for all but three of the 35 individual stocks'; variance-beta regression LRPj = 0.0201 + 0.2675*betaV_j (t=2.72, R²=15.9%). Both claims 2 and 3 passed 3-0. Because the premium is compensation for crash/jump risk rather than mispricing, it cannot be hedged away — the strategy MUST eat the tail to earn the carry. Nasdaq-100 premium notably weaker (LRP -0.207), relevant for the QQQ leg of the backtest.",
+        "vote": "6-0 across 2 merged claims"
+      },
+      {
+        "claim": "In-sample risk-adjusted returns to raw short variance were spectacular but misleading: annualized information ratios above 3.0 for shorting SPX/DJX variance swaps (1996-2003), with the paper's own authors cautioning that Sharpe-type ratios overstate attractiveness for nonlinear crash-exposed payoffs because jump risk is not captured by the IR. This is the ceiling-case for the edge, not an expectation — and it predates the post-2010 premium compression.",
+        "confidence": "high",
+        "sources": [
+          "https://engineering.nyu.edu/sites/default/files/2019-01/CarrReviewofFinStudiesMarch2009-a.pdf"
+        ],
+        "evidence": "Verified verbatim (Section 6.1/6.2): 'we obtain very high raw information ratios (over three)... given the nonlinear payoff structure, caution should be applied when interpreting Sharpe ratios on derivative trading strategies'; jump/crash risks 'are not well measured by the information ratio.' 3-0 vote. The -50%/month figure is a log return on variance-swap notional, not return on capital, and the log transform dampens RV spikes — both flatter the headline.",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Realistic long-run performance of mechanical index option selling, from exchange-published benchmarks: PUT (cash-secured ATM SPX put-write) returned 9.54%/yr at 9.9% vol vs S&P 500's 9.80% at 14.9% (Sharpe 0.64 vs 0.45) over Jun 1986-Dec 2018, +1835% cumulative vs +708% for protective puts, beta 0.56, monthly alpha 0.2%; BXM compounded 12.39% vs 12.20% for the S&P at two-thirds the vol (1988-2004); BXMD/PUT/CMBO beat the S&P 500 on Sharpe and Sortino over ~35 years but ALL four writing indices had lower absolute returns than the S&P over that window. Bottom line: the documented edge is volatility reduction at equity-like returns — Sharpe ~0.5-0.65 — which is nowhere near what an honest PF ≥ 2.0 implies; the research question's profitability bar exceeds every verified benchmark.",
+        "confidence": "high",
+        "sources": [
+          "https://cdn.cboe.com/resources/spx/wilshire-options-based-benchmark-indexes-2019.pdf",
+          "https://res.cboe.com/insights/posts/benchmark-indices-series-income-generation-and-smoother-returns-with-cboes-bxm-bxmd-put-and-cmbo-indices/",
+          "https://www.cboe.com/insights/posts/white-paper-shows-volatility-risk-premium-facilitated-higher-risk-adjusted-returns-for-put-index/",
+          "https://cdn.cboe.com/resources/education/research_publications/IbbotsonAug30final.pdf"
+        ],
+        "evidence": "Six merged claims (4, 11, 12, 15, 16, 18), all 3-0, all verified against primary PDFs/exhibits: Wilshire Exhibit 8 (PUT Sharpe 0.64), Bondarenko 2019 (alpha 0.2%/mo, beta 0.56, +1835% vs +708%), Ibbotson (12.39% vs 12.20%, 190 months), Cboe 2021 (Sharpe/Sortino winners but lower absolute returns). Key qualifications carried by verifiers: PUT/BXMD/PPUT histories are largely BACKFILLED pre-launch (hypothetical, frictionless, bid-ask midpoint marks); studies are Cboe-commissioned though academically authored and reproducible; BXM's risk-adjusted edge decayed post-2012; absolute-return rankings flip with endpoint choice.",
+        "vote": "18-0 across 6 merged claims"
+      },
+      {
+        "claim": "Failure regime, precisely characterized: short-premium index strategies fail in crashes, not slow declines. PUT drew down -35.53%, BXM -35.81%, CMBO -38.13%, BXMD -42.73% peak-to-trough in 2007-09 (vs S&P -50.95%), with return distributions far more left-tailed than the index (PUT skew -2.10/-2.09, kurtosis 9.72 vs S&P -0.81, 2.53). Cboe itself flags the second failure regime for call-selling structures: sustained bull markets, where capped upside causes systematic underperformance. Any backtest PF must be stress-interpreted against the fact that the 2025-03 to 2026-02 window may contain neither regime.",
+        "confidence": "high",
+        "sources": [
+          "https://cdn.cboe.com/resources/spx/wilshire-options-based-benchmark-indexes-2019.pdf",
+          "https://www.cboe.com/insights/posts/white-paper-shows-volatility-risk-premium-facilitated-higher-risk-adjusted-returns-for-put-index/",
+          "https://res.cboe.com/insights/posts/benchmark-indices-series-income-generation-and-smoother-returns-with-cboes-bxm-bxmd-put-and-cmbo-indices/"
+        ],
+        "evidence": "Claims 6, 13, 17 all 3-0, verified against Wilshire Exhibits 6/8 (drawdown table with Jun-08 to Feb-09 dates; skew/kurtosis table), Bondarenko skew figures, and Cboe's own admission-against-interest: 'the S&P 500 Index has often outgained the covered option writing indices during bull markets.' Ennis Knupp independently found PUT skew -2.72/kurtosis 13.15 over 1986-2008. Drawdowns computed on monthly data, so intramonth severity is understated. PUT outperformed in the slow 2000-2006 decline (+6.63%/yr) — confirming crash-vs-grind asymmetry.",
+        "vote": "9-0 across 3 merged claims"
+      },
+      {
+        "claim": "Two fully specified, defined-risk, retail-implementable benchmark rule sets exist with exchange-published methodology and long-run drawdown data. CNDR (iron condor): sell monthly ~0.20-delta OTM SPX put + call, buy ~0.05-delta wings, T-bill collateral sized at 10x max loss, AM-settled, strikes set before 11:00 ET on monthly roll day, one unit each — worst peak-to-trough drawdown only 19% since 1986. BFLY (iron butterfly): sell monthly ATM SPX straddle (first strike above spot), buy 5% OTM fixed-percentage wings, monthly roll — worst drawdown 47.1%, nearly as bad as the S&P's 51%. Tellingly, Cboe's promotional piece claims risk-adjusted outperformance for these only vs MSCI EAFE and commodities, NOT vs the S&P 500 (and Cboe's 2016 fact sheet implies CNDR ~7.2%/yr, skew -2.08) — the exchange's own framing does not support a PF~2.0 edge. For a $5k-$25k account, full-size SPX condors are too large ($20k-$40k max loss per unit at SPX ~6000); use XSP or SPY equivalents, and copy the deleveraging rule.",
+        "confidence": "high",
+        "sources": [
+          "https://www.cboe.com/insights/posts/benchmark-indices-series-volatility-management-with-cboes-bfly-and-cndr-indices/",
+          "https://cdn.cboe.com/api/global/us_indices/governance/CNDR_Methodology.pdf",
+          "https://cdn.cboe.com/api/global/us_indices/governance/BFLY_Methodology.pdf",
+          "https://cdn.cboe.com/resources/indices/documents/cboe-smile-index-fact-sheet.pdf"
+        ],
+        "evidence": "Claims 7, 8, 9, 10 all 3-0, verified against official Cboe methodology PDFs (delta specs, wing specs, T-bill sizing, roll mechanics verbatim) and the live Cboe insights article ('worst peak-to-trough monthly drawdown losses were 19% for the CNDR Index and 47.1% for the BFLY Index, compared to 51% for the S&P 500'). The omission of Sharpe-vs-SPX figures in Cboe's own marketing was independently corroborated by the SMILE fact sheet (CNDR mean 0.58%/mo ≈ 7.2%/yr, monthly Sharpe ~0.15). Pre-launch (~2015) index history is backfilled and frictionless. CNDR's 19% max drawdown makes the 20Δ/5Δ condor the best documented survival profile of all verified short-premium structures.",
+        "vote": "12-0 across 4 merged claims"
+      },
+      {
+        "claim": "0DTE for retail is dominated by transaction costs, and long-premium buying is a documented failure mode: identified retail SPX 0DTE traders lost >$125M aggregate Feb 2021-Sep 2023, with >$90M (~72%) from transaction costs alone; daily losses averaged $241k, rising to $350k/day after daily expirations launched May 16, 2022; ~60% of losses came from 0DTE puts; retail debit (long-premium) orders lost $364k/day net while credit orders were net positive +$122k/day, with effective spreads of 5-6%. The companion claim that defined-risk 0DTE credit spreads earn positive median margin-adjusted returns (3-3.3%) FAILED adversarial verification (1-2 vote) — so 0DTE credit spreads remain a hypothesis to test, not a verified edge, and any 5-min-bar backtest must model effective spreads at several percent of premium, not midpoint fills.",
+        "confidence": "high",
+        "sources": [
+          "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4404704",
+          "https://wp.lancs.ac.uk/fofi2024/files/2024/04/FoFI-2024-146-Leander-Gayda.pdf"
+        ],
+        "evidence": "Claims 20 and 21 both 3-0, quotes verified verbatim against the Dec 2023 draft of Beckmeyer, Branger & Gayda using Cboe trade-level data: '$125 million... More than $90 million of these losses are the result of the transaction costs'; '$241,000... grown to $350,000... 60% of daily losses are the result of transaction costs.' Working paper (not yet peer-review-published); retail identification via price-improvement mechanisms critiqued by a 2024 Cboe paper, but loss findings persisted after the authors added multi-leg (MLAT) data. The credit-vs-debit asymmetry ($+122k vs -$364k/day) weakly supports short-premium 0DTE structures but the specific positive-median-spread claim was refuted, leaving this the weakest-evidenced shortlist candidate.",
+        "vote": "6-0 on confirmed claims; companion spread-profitability claim refuted 1-2"
+      },
+      {
+        "claim": "Shortlist for the 2025-03 to 2026-02 backtest, ranked by evidence quality: (1) XSP/SPY 20Δ-short/5Δ-long monthly-to-weekly iron condor (CNDR mechanics; best drawdown profile; fully specified); (2) defined-risk ATM put-spread writing on XSP/SPY (PUT-index analog with bought wing; strongest long-run benchmark record); (3) monthly ATM iron butterfly with ~5% wings (BFLY mechanics; specified but worst drawdowns — include mainly as a comparison arm); (4) IV-RV regime filter overlaid on (1)/(2) — sell only when implied-minus-trailing-realized spread is positive/wide, motivated by the 129% average IV/RV ratio and its 2008 inversion (note: the claim that the VRP level is a tradable TIMING signal was refuted 1-2, so the filter is a hypothesis, not verified); (5) 0DTE/short-DTE defined-risk credit spreads at low delta, entered only as credit (never debit), with realistic 5-6% effective-spread cost modeling. Explicitly excluded by evidence: single-name short vol (insignificant premia in 32/35 stocks), long-premium single-leg 0DTE buying (documented retail failure mode), and any undefined-risk structure (account constraint). ML/pattern-recognition uplift over simple mechanical rules: no verified claim on this survived — treat as unanswered, default to mechanical rules.",
+        "confidence": "medium",
+        "sources": [
+          "https://cdn.cboe.com/api/global/us_indices/governance/CNDR_Methodology.pdf",
+          "https://cdn.cboe.com/api/global/us_indices/governance/BFLY_Methodology.pdf",
+          "https://cdn.cboe.com/resources/spx/wilshire-options-based-benchmark-indexes-2019.pdf",
+          "https://engineering.nyu.edu/sites/default/files/2019-01/CarrReviewofFinStudiesMarch2009-a.pdf",
+          "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4404704"
+        ],
+        "evidence": "Synthesis finding: each component traces to a 3-0 verified claim above, but the RANKING and the regime-filter design are inferences, and two relevant supporting claims were refuted (VRP-as-timing-signal, 1-2; positive-median 0DTE spreads, 1-2) — hence medium confidence for the composite recommendation despite high confidence in each ingredient. Required data per strategy: underlying 5-min bars, option chain with deltas (or IV surface to compute them), trailing realized vol, and per-leg bid/ask for cost modeling. Realistic trade frequency: monthly (1-2 structures/mo) for CNDR/BFLY/PUT analogs — meaning ~12-24 trades in the one-year window, statistically too few for PF significance; weekly or 0DTE variants are the only way to get trade counts adequate for out-of-sample validation, at the cost of entering the regime where transaction costs demonstrably destroy retail returns.",
+        "vote": "synthesis"
+      }
+    ],
+    "caveats": "Five cross-cutting caveats. (1) Backfill/survivorship: PUT (launched 2007), BXMD, PPUT, CNDR and BFLY (~2015) have most of their 1986+ 'history' backfilled — hypothetical, frictionless, marked at bid-ask midpoints with no transaction costs; live-traded replication would be materially worse, especially in small size. (2) Sponsor bias: nearly all benchmark performance studies (Wilshire, Ibbotson, Bondarenko, Callan) were Cboe-commissioned; figures are reproducible from published index data and the unflattering numbers were reported, but framing favors option selling. (3) Time decay of the edge: the canonical VRP estimates are from 1996-2003 (Carr & Wu) and 1990-2018; verifiers cited Chicago Fed WP 2025-17 finding traded-option alphas converged toward zero post-2010, and BXM's risk-adjusted edge flipped negative after 2012 — the harvestable premium in the 2025-2026 backtest window is likely much smaller than historical headlines. (4) Metric mismatch: Sharpe/Sortino and log-variance-premium metrics systematically flatter negatively skewed short-vol strategies; the authors of the strongest result (IR > 3) explicitly warn against this. No verified source documents any strategy at PF ~2.0; the research goal's bar exceeds all credible evidence, so a one-year backtest hitting it should be presumed overfit (12-24 monthly trades give almost no statistical power; only higher-frequency variants are testable, and those sit in the cost-dominated 0DTE regime). (5) Three refuted claims matter: the Bollerslev-Tauchen-Zhou VRP magnitude/predictability claims and the positive-median 0DTE-spread claim all failed verification, so both the timing-filter idea and the 0DTE-credit-spread idea rest on unverified ground. The 0DTE paper remains a working paper with a contested retail-identification proxy. No verified evidence at all was obtained on ML/pattern-recognition improving options returns, on post-earnings-drift option strategies, or on dispersion trading — those parts of the research question are unanswered, not negative.",
+    "openQuestions": [
+      "Does the variance risk premium remain economically harvestable post-2010 at retail scale? The Chicago Fed (WP 2025-17) decline finding and intermediary-constraint explanations (Chen-Joslin-Ni) suggest the 1990-2018 magnitudes overstate the current edge — this needs direct measurement on the 2025-03 to 2026-02 data before any strategy is trusted.",
+      "Are defined-risk 0DTE credit spreads net-profitable for retail after realistic 5-6% effective spreads? The aggregate retail-loss evidence is solid but the only claim asserting positive median spread returns was refuted; this is the highest-value question the 5-min-bar backtest can actually answer with adequate trade count.",
+      "Is the IV-RV spread a usable entry timing signal (conditional edge) or only a static premium? The predictability claim (quarterly R² ~6.8%) failed verification, so whether a realized-vol filter improves condor/put-write PF is open and directly testable.",
+      "Do ML/pattern-recognition overlays credibly beat simple mechanical delta/percentage rules in options selling? No claim on this survived verification in either direction — the literature reviewed was silent, and the question should be treated as unexplored rather than answered."
+    ],
+    "refuted": [
+      {
+        "claim": "The S&P 500 variance risk premium (model-free implied variance minus realized variance) was persistently positive over 1990-2007, averaging 18.30 in annualized percentage-squared units (mean IV 33.23 vs mean RV 14.93) — the structural edge underlying short-volatility / IV-vs-RV harvesting strategies.",
+        "vote": "1-2",
+        "source": "https://public.econ.duke.edu/~boller/Published_Papers/rfs_09.pdf"
+      },
+      {
+        "claim": "The variance risk premium predicts subsequent S&P 500 excess returns, with peak predictive power at the quarterly horizon: adjusted R-squared of 6.82% and robust t-statistic of 2.86, with high (low) IV-RV predicting high (low) future returns — i.e., a wide IV-RV spread is a tradable timing signal, not just a static premium.",
+        "vote": "1-2",
+        "source": "https://public.econ.duke.edu/~boller/Published_Papers/rfs_09.pdf"
+      },
+      {
+        "claim": "Defined-risk multi-leg 0DTE structures show positive margin-adjusted returns: the median put spread returned 3% and median call spread 3.3% (per trade, margin-adjusted, holding period under one day), versus negative median returns for single-leg positions — supporting defined-risk spread strategies as the retail-implementable 0DTE candidates.",
+        "vote": "1-2",
+        "source": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4404704"
+      }
+    ],
+    "sources": [
+      {
+        "url": "https://engineering.nyu.edu/sites/default/files/2019-01/CarrReviewofFinStudiesMarch2009-a.pdf",
+        "quality": "primary",
+        "angle": "academic-volatility-premia",
+        "claimCount": 5
+      },
+      {
+        "url": "https://thehedgefundjournal.com/harvesting-the-volatility-risk-premium-globally/",
+        "quality": "secondary",
+        "angle": "academic-volatility-premia",
+        "claimCount": 5
+      },
+      {
+        "url": "https://public.econ.duke.edu/~boller/Published_Papers/rfs_09.pdf",
+        "quality": "primary",
+        "angle": "academic-volatility-premia",
+        "claimCount": 5
+      },
+      {
+        "url": "https://cdn.cboe.com/resources/spx/wilshire-options-based-benchmark-indexes-2019.pdf",
+        "quality": "primary",
+        "angle": "exchange-benchmark-indexes",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.cboe.com/insights/posts/benchmark-indices-series-volatility-management-with-cboes-bflys-and-cndr-indices/",
+        "quality": "primary",
+        "angle": "exchange-benchmark-indexes",
+        "claimCount": 5
+      },
+      {
+        "url": "https://res.cboe.com/insights/posts/benchmark-indices-series-income-generation-and-smoother-returns-with-cboes-bxm-bxmd-put-and-cmbo-indices/",
+        "quality": "primary",
+        "angle": "exchange-benchmark-indexes",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.cboe.com/insights/posts/white-paper-shows-volatility-risk-premium-facilitated-higher-risk-adjusted-returns-for-put-index/",
+        "quality": "primary",
+        "angle": "exchange-benchmark-indexes",
+        "claimCount": 5
+      },
+      {
+        "url": "https://quantpedia.com/putwrite-vs-buywrite-index-differences/",
+        "quality": "secondary",
+        "angle": "exchange-benchmark-indexes",
+        "claimCount": 5
+      },
+      {
+        "url": "https://cdn.cboe.com/resources/education/research_publications/IbbotsonAug30final.pdf",
+        "quality": "primary",
+        "angle": "exchange-benchmark-indexes",
+        "claimCount": 5
+      },
+      {
+        "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4404704",
+        "quality": "primary",
+        "angle": "0dte-and-earnings-research",
+        "claimCount": 5
+      },
+      {
+        "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2204549",
+        "quality": "primary",
+        "angle": "0dte-and-earnings-research",
+        "claimCount": 5
+      },
+      {
+        "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4832160",
+        "quality": "primary",
+        "angle": "0dte-and-earnings-research",
+        "claimCount": 5
+      },
+      {
+        "url": "https://research-api.cbs.dk/ws/portalfiles/portal/105671291/1775874_O._Khalil_Zero_Day_to_Expiry_Options_Trading_and_Variance_Risk_Premium.pdf",
+        "quality": "primary",
+        "angle": "0dte-and-earnings-research",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.timdesilva.me/files/papers/losing_optional.pdf",
+        "quality": "primary",
+        "angle": "0dte-and-earnings-research",
+        "claimCount": 5
+      },
+      {
+        "url": "https://optionalpha.com/blog/0dte-options-strategy-performance",
+        "quality": "blog",
+        "angle": "0dte-and-earnings-research",
+        "claimCount": 5
+      },
+      {
+        "url": "https://spintwig.com/all-backtests/",
+        "quality": "blog",
+        "angle": "practitioner-reproducible-backtests",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.thetaprofits.com/my-most-profitable-options-trading-strategy-0dte-breakeven-iron-condor/",
+        "quality": "blog",
+        "angle": "practitioner-reproducible-backtests",
+        "claimCount": 5
+      },
+      {
+        "url": "https://orats.com/blog/optimizing-options-backtests-days-to-expiry-deltas-and-technical-indicators",
+        "quality": "blog",
+        "angle": "practitioner-reproducible-backtests",
+        "claimCount": 5
+      },
+      {
+        "url": "https://optionalpha.com/blog/spy-put-credit-spread-backtest",
+        "quality": "blog",
+        "angle": "practitioner-reproducible-backtests",
+        "claimCount": 5
+      },
+      {
+        "url": "https://orats.com/university/backtesting-methodology",
+        "quality": "primary",
+        "angle": "skeptical-failure-modes",
+        "claimCount": 5
+      },
+      {
+        "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4641356",
+        "quality": "primary",
+        "angle": "skeptical-failure-modes",
+        "claimCount": 5
+      },
+      {
+        "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551",
+        "quality": "primary",
+        "angle": "skeptical-failure-modes",
+        "claimCount": 5
+      },
+      {
+        "url": "https://quantpedia.com/strategies/volatility-risk-premium-effect",
+        "quality": "secondary",
+        "angle": "skeptical-failure-modes",
+        "claimCount": 5
+      }
+    ],
+    "stats": {
+      "angles": 5,
+      "sourcesFetched": 23,
+      "claimsExtracted": 115,
+      "claimsVerified": 25,
+      "confirmed": 22,
+      "killed": 3,
+      "afterSynthesis": 8,
+      "urlDupes": 3,
+      "budgetDropped": 4,
+      "agentCalls": 105
+    }
+  }
+}

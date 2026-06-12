@@ -1,0 +1,56 @@
+2026-06-11 14:29:07 | enumerated v2_mwf: requested=1687 new_misses=943 cum=943
+2026-06-11 14:29:07 | enumerated v3_qqq_mon: requested=458 new_misses=309 cum=1252
+2026-06-11 14:29:07 | ENUMERATION DONE: 1252 contract-day misses (224 contracts). WALL-CLOCK ESTIMATE @ ~5 successful calls/min: 250.4 min = 4.17 h (12h cap -> OK)
+2026-06-11 14:30:00 | FETCH START: 1252 of 1252 keys still missing; ETA @5/min ~ 4.17 h
+2026-06-11 14:30:09 |   25/1252 ok=25 empty=0 failed=0 rate=169.5/min eta=0.12h
+2026-06-11 14:30:17 |   50/1252 ok=50 empty=0 failed=0 rate=169.9/min eta=0.12h
+2026-06-11 14:30:27 |   75/1252 ok=75 empty=0 failed=0 rate=167.7/min eta=0.12h
+2026-06-11 14:30:37 |   100/1252 ok=100 empty=0 failed=0 rate=162.3/min eta=0.12h
+2026-06-11 14:30:47 |   125/1252 ok=125 empty=0 failed=0 rate=159.2/min eta=0.12h
+2026-06-11 14:30:58 |   150/1252 ok=150 empty=0 failed=0 rate=155.8/min eta=0.12h
+2026-06-11 14:31:07 |   175/1252 ok=175 empty=0 failed=0 rate=155.8/min eta=0.12h
+2026-06-11 14:31:20 |   200/1252 ok=200 empty=0 failed=0 rate=149.3/min eta=0.12h
+2026-06-11 14:31:31 |   225/1252 ok=225 empty=0 failed=0 rate=147.4/min eta=0.12h
+2026-06-11 14:31:46 |   250/1252 ok=250 empty=0 failed=0 rate=140.9/min eta=0.12h
+2026-06-11 14:31:59 |   275/1252 ok=275 empty=0 failed=0 rate=138.9/min eta=0.12h
+2026-06-11 14:32:08 |   300/1252 ok=300 empty=0 failed=0 rate=140.9/min eta=0.11h
+2026-06-11 14:32:17 |   325/1252 ok=325 empty=0 failed=0 rate=142.5/min eta=0.11h
+2026-06-11 14:32:25 |   350/1252 ok=350 empty=0 failed=0 rate=144.2/min eta=0.10h
+2026-06-11 14:32:35 |   375/1252 ok=375 empty=0 failed=0 rate=145.2/min eta=0.10h
+2026-06-11 14:32:46 |   400/1252 ok=400 empty=0 failed=0 rate=144.5/min eta=0.10h
+2026-06-11 14:32:56 |   425/1252 ok=425 empty=0 failed=0 rate=144.8/min eta=0.10h
+2026-06-11 14:33:09 |   450/1252 ok=450 empty=0 failed=0 rate=142.9/min eta=0.09h
+2026-06-11 14:33:20 |   475/1252 ok=475 empty=0 failed=0 rate=142.6/min eta=0.09h
+2026-06-11 14:33:30 |   500/1252 ok=500 empty=0 failed=0 rate=143.1/min eta=0.09h
+2026-06-11 14:33:40 |   525/1252 ok=525 empty=0 failed=0 rate=143.1/min eta=0.08h
+2026-06-11 14:33:53 |   550/1252 ok=550 empty=0 failed=0 rate=141.2/min eta=0.08h
+2026-06-11 14:34:02 |   575/1252 ok=575 empty=0 failed=0 rate=142.5/min eta=0.08h
+2026-06-11 14:34:11 |   600/1252 ok=600 empty=0 failed=0 rate=143.4/min eta=0.08h
+2026-06-11 14:34:20 |   625/1252 ok=625 empty=0 failed=0 rate=144.0/min eta=0.07h
+2026-06-11 14:34:31 |   650/1252 ok=650 empty=0 failed=0 rate=143.9/min eta=0.07h
+2026-06-11 14:34:41 |   675/1252 ok=675 empty=0 failed=0 rate=144.3/min eta=0.07h
+2026-06-11 14:34:50 |   700/1252 ok=700 empty=0 failed=0 rate=144.6/min eta=0.06h
+2026-06-11 14:34:59 |   725/1252 ok=725 empty=0 failed=0 rate=145.3/min eta=0.06h
+2026-06-11 14:35:13 |   750/1252 ok=750 empty=0 failed=0 rate=143.6/min eta=0.06h
+2026-06-11 14:35:30 |   775/1252 ok=775 empty=0 failed=0 rate=140.7/min eta=0.06h
+2026-06-11 14:35:42 |   800/1252 ok=800 empty=0 failed=0 rate=140.2/min eta=0.05h
+2026-06-11 14:35:52 |   825/1252 ok=825 empty=0 failed=0 rate=140.7/min eta=0.05h
+2026-06-11 14:36:03 |   850/1252 ok=850 empty=0 failed=0 rate=140.4/min eta=0.05h
+2026-06-11 14:36:29 |   875/1252 ok=875 empty=0 failed=0 rate=135.0/min eta=0.05h
+2026-06-11 14:36:38 |   900/1252 ok=900 empty=0 failed=0 rate=135.7/min eta=0.04h
+2026-06-11 14:36:52 |   925/1252 ok=925 empty=0 failed=0 rate=134.8/min eta=0.04h
+2026-06-11 14:37:01 |   950/1252 ok=950 empty=0 failed=0 rate=135.4/min eta=0.04h
+2026-06-11 14:37:14 |   975/1252 ok=975 empty=0 failed=0 rate=134.6/min eta=0.03h
+2026-06-11 14:37:24 |   1000/1252 ok=1000 empty=0 failed=0 rate=135.0/min eta=0.03h
+2026-06-11 14:37:34 |   1025/1252 ok=1025 empty=0 failed=0 rate=135.4/min eta=0.03h
+2026-06-11 14:37:49 |   1050/1252 ok=1050 empty=0 failed=0 rate=134.3/min eta=0.03h
+2026-06-11 14:37:59 |   1075/1252 ok=1075 empty=0 failed=0 rate=134.5/min eta=0.02h
+2026-06-11 14:38:09 |   1100/1252 ok=1100 empty=0 failed=0 rate=134.9/min eta=0.02h
+2026-06-11 14:38:19 |   1125/1252 ok=1125 empty=0 failed=0 rate=135.1/min eta=0.02h
+2026-06-11 14:38:31 |   1150/1252 ok=1150 empty=0 failed=0 rate=135.1/min eta=0.01h
+2026-06-11 14:38:41 |   1175/1252 ok=1175 empty=0 failed=0 rate=135.3/min eta=0.01h
+2026-06-11 14:38:52 |   1200/1252 ok=1200 empty=0 failed=0 rate=135.3/min eta=0.01h
+2026-06-11 14:39:01 |   1225/1252 ok=1225 empty=0 failed=0 rate=135.7/min eta=0.00h
+2026-06-11 14:39:14 |   1250/1252 ok=1250 empty=0 failed=0 rate=135.5/min eta=0.00h
+2026-06-11 14:39:14 |   1252/1252 ok=1252 empty=0 failed=0 rate=135.5/min eta=0.00h
+2026-06-11 14:39:14 | FETCH DONE: ok=1252 empty=0 failed=0 elapsed=9.2 min

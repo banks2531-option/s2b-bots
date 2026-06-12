@@ -1,0 +1,225 @@
+{
+  "tag": "v1_wed",
+  "account": 20000.0,
+  "risk_pct_equity": 0.05,
+  "slip_scale": 1.0,
+  "max_concurrent": 3,
+  "sizing": "pct_of_current_equity_vs_max_loss_min1",
+  "window": [
+    "2025-03-03",
+    "2026-02-27"
+  ],
+  "h1_end": "2025-08-28",
+  "full": {
+    "n": 49,
+    "wr": 0.776,
+    "pf": 1.076,
+    "pnl": 310.8
+  },
+  "h1": {
+    "n": 24,
+    "wr": 0.833,
+    "pf": 1.623,
+    "pnl": 963.3
+  },
+  "h2": {
+    "n": 25,
+    "wr": 0.72,
+    "pf": 0.742,
+    "pnl": -652.5
+  },
+  "total_pnl": 310.8,
+  "pnl_per_month": 26.21,
+  "end_balance": 20310.8,
+  "max_drawdown_dollars": 1117.8,
+  "max_drawdown_pct_of_peak_equity": 5.16,
+  "worst_week_losses_only": {
+    "week": "2025-W14",
+    "sum_losses": -542.3
+  },
+  "worst_week_net": {
+    "week": "2025-W14",
+    "net": -542.3
+  },
+  "longest_losing_streak": 1,
+  "weekly_pnl": {
+    "2025-W12": {
+      "net": 146.7,
+      "losses": 0.0
+    },
+    "2025-W13": {
+      "net": 141.7,
+      "losses": 0.0
+    },
+    "2025-W14": {
+      "net": -542.3,
+      "losses": -542.3
+    },
+    "2025-W15": {
+      "net": 234.7,
+      "losses": 0.0
+    },
+    "2025-W17": {
+      "net": 183.7,
+      "losses": 0.0
+    },
+    "2025-W18": {
+      "net": 288.4,
+      "losses": 0.0
+    },
+    "2025-W20": {
+      "net": 338.4,
+      "losses": 0.0
+    },
+    "2025-W22": {
+      "net": 114.7,
+      "losses": 0.0
+    },
+    "2025-W23": {
+      "net": 108.7,
+      "losses": 0.0
+    },
+    "2025-W24": {
+      "net": 114.7,
+      "losses": 0.0
+    },
+    "2025-W25": {
+      "net": -102.3,
+      "losses": -102.3
+    },
+    "2025-W26": {
+      "net": 245.9,
+      "losses": 0.0
+    },
+    "2025-W27": {
+      "net": 91.7,
+      "losses": 0.0
+    },
+    "2025-W29": {
+      "net": 181.4,
+      "losses": 0.0
+    },
+    "2025-W30": {
+      "net": 105.7,
+      "losses": 0.0
+    },
+    "2025-W31": {
+      "net": -473.3,
+      "losses": -473.3
+    },
+    "2025-W32": {
+      "net": 80.7,
+      "losses": 0.0
+    },
+    "2025-W34": {
+      "net": -332.6,
+      "losses": -427.3
+    },
+    "2025-W36": {
+      "net": 126.4,
+      "losses": 0.0
+    },
+    "2025-W38": {
+      "net": 221.4,
+      "losses": 0.0
+    },
+    "2025-W40": {
+      "net": 199.4,
+      "losses": 0.0
+    },
+    "2025-W41": {
+      "net": -333.3,
+      "losses": -333.3
+    },
+    "2025-W43": {
+      "net": 87.7,
+      "losses": 0.0
+    },
+    "2025-W44": {
+      "net": 138.7,
+      "losses": 0.0
+    },
+    "2025-W45": {
+      "net": -447.3,
+      "losses": -447.3
+    },
+    "2025-W46": {
+      "net": -385.6,
+      "losses": -488.3
+    },
+    "2025-W47": {
+      "net": 111.7,
+      "losses": 0.0
+    },
+    "2025-W49": {
+      "net": 80.7,
+      "losses": 0.0
+    },
+    "2025-W50": {
+      "net": 216.4,
+      "losses": 0.0
+    },
+    "2026-W01": {
+      "net": -51.3,
+      "losses": -51.3
+    },
+    "2026-W02": {
+      "net": 89.7,
+      "losses": 0.0
+    },
+    "2026-W03": {
+      "net": 224.4,
+      "losses": 0.0
+    },
+    "2026-W04": {
+      "net": 114.7,
+      "losses": 0.0
+    },
+    "2026-W06": {
+      "net": -479.3,
+      "losses": -479.3
+    },
+    "2026-W07": {
+      "net": 103.7,
+      "losses": 0.0
+    },
+    "2026-W08": {
+      "net": -252.3,
+      "losses": -252.3
+    },
+    "2026-W09": {
+      "net": 97.7,
+      "losses": 0.0
+    },
+    "2026-W10": {
+      "net": -479.3,
+      "losses": -479.3
+    }
+  },
+  "by_exit_reason": {
+    "stop": [
+      7,
+      -3223.1
+    ],
+    "time_exit_1dte": [
+      6,
+      -701.8
+    ],
+    "tp": [
+      36,
+      4235.7
+    ]
+  },
+  "rejects": {
+    "no_pricing": 3
+  },
+  "coverage": {
+    "day_keys_requested": 800,
+    "overlay": 710,
+    "archive": 90,
+    "fresh_api_calls": 0,
+    "pct_archive": 11.2,
+    "pct_overlay": 88.8,
+    "pct_fresh": 0.0
+  }
+}

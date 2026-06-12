@@ -1,0 +1,23 @@
+2026-06-11 18:45:41 | PANEL ENUMERATION DONE: 966 contract-day misses (152 contracts); coverage={'miss_queued': 966, 'overlay': 1426, 'archive': 555, 'api_fresh': 0, 'api_empty': 0}; est @5/min = 3.22 h (OK)
+2026-06-11 18:45:52 | PANEL FETCH START: 966 of 966 keys still missing
+2026-06-11 18:46:09 |   50/966 ok=50 empty=0 failed=0 rate=171.8/min eta=0.09h
+2026-06-11 18:46:26 |   100/966 ok=100 empty=0 failed=0 rate=172.2/min eta=0.08h
+2026-06-11 18:46:44 |   150/966 ok=150 empty=0 failed=0 rate=173.0/min eta=0.08h
+2026-06-11 18:47:01 |   200/966 ok=200 empty=0 failed=0 rate=171.9/min eta=0.07h
+2026-06-11 18:47:20 |   250/966 ok=250 empty=0 failed=0 rate=170.4/min eta=0.07h
+2026-06-11 18:47:37 |   300/966 ok=300 empty=0 failed=0 rate=171.0/min eta=0.06h
+2026-06-11 18:47:54 |   350/966 ok=350 empty=0 failed=0 rate=171.0/min eta=0.06h
+2026-06-11 18:48:13 |   400/966 ok=400 empty=0 failed=0 rate=170.3/min eta=0.06h
+2026-06-11 18:48:30 |   450/966 ok=450 empty=0 failed=0 rate=170.3/min eta=0.05h
+2026-06-11 18:48:48 |   500/966 ok=500 empty=0 failed=0 rate=170.5/min eta=0.05h
+2026-06-11 18:49:05 |   550/966 ok=550 empty=0 failed=0 rate=170.9/min eta=0.04h
+2026-06-11 18:49:22 |   600/966 ok=600 empty=0 failed=0 rate=171.2/min eta=0.04h
+2026-06-11 18:49:39 |   650/966 ok=650 empty=0 failed=0 rate=171.6/min eta=0.03h
+2026-06-11 18:49:56 |   700/966 ok=700 empty=0 failed=0 rate=171.8/min eta=0.03h
+2026-06-11 18:50:14 |   750/966 ok=750 empty=0 failed=0 rate=171.7/min eta=0.02h
+2026-06-11 18:50:31 |   800/966 ok=800 empty=0 failed=0 rate=171.8/min eta=0.02h
+2026-06-11 18:50:48 |   850/966 ok=850 empty=0 failed=0 rate=171.9/min eta=0.01h
+2026-06-11 18:51:05 |   900/966 ok=900 empty=0 failed=0 rate=172.0/min eta=0.01h
+2026-06-11 18:51:24 |   950/966 ok=950 empty=0 failed=0 rate=171.7/min eta=0.00h
+2026-06-11 18:51:29 |   966/966 ok=966 empty=0 failed=0 rate=171.7/min eta=0.00h
+2026-06-11 18:51:29 | PANEL FETCH DONE: ok=966 empty=0 failed=0 elapsed=5.6 min

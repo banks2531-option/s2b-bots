@@ -1,0 +1,42 @@
+{
+  "n_trades": 246,
+  "wins": 183,
+  "losses": 63,
+  "win_rate": 0.744,
+  "avg_win": 96.58,
+  "avg_loss": -368.13,
+  "profit_factor": 0.762,
+  "total_pnl": -5518.8,
+  "end_balance": 14481.2,
+  "max_drawdown": 5548.9,
+  "by_exit_reason": {
+    "stop": [
+      37,
+      -16620.6
+    ],
+    "time_exit_1dte": [
+      46,
+      -4736.3
+    ],
+    "tp": [
+      163,
+      15838.1
+    ]
+  },
+  "rejects": {
+    "no_iv": 1,
+    "no_pricing": 3
+  },
+  "coverage": {
+    "day_keys_requested": 2947,
+    "overlay": 2392,
+    "archive": 555,
+    "fresh_api_calls": 0,
+    "pct_archive": 18.8,
+    "pct_overlay": 81.2,
+    "pct_fresh": 0.0
+  },
+  "slip_scale": 2.0,
+  "max_concurrent": 20,
+  "risk_dollars": 1000.0
+}

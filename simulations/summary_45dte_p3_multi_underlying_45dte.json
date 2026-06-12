@@ -1,0 +1,137 @@
+{
+  "tag": "p3_multi_underlying_45dte",
+  "account": 20000.0,
+  "risk_pct_equity": 0.05,
+  "slip_scale": 1.0,
+  "max_concurrent": 3,
+  "window": [
+    "2025-03-03",
+    "2026-02-27"
+  ],
+  "h1_end": "2025-08-28",
+  "full": {
+    "n": 21,
+    "wr": 0.714,
+    "pf": 1.897,
+    "pnl": 822.1
+  },
+  "h1": {
+    "n": 9,
+    "wr": 0.778,
+    "pf": 1.352,
+    "pnl": 203.9
+  },
+  "h2": {
+    "n": 12,
+    "wr": 0.667,
+    "pf": 2.83,
+    "pnl": 618.2
+  },
+  "total_pnl": 822.1,
+  "pnl_per_month": 69.32,
+  "end_balance": 20822.1,
+  "max_drawdown_dollars": 544.6,
+  "max_drawdown_pct_of_peak_equity": 2.7,
+  "worst_week_losses_only": {
+    "week": "2025-W15",
+    "sum_losses": -544.6
+  },
+  "worst_week_net": {
+    "week": "2025-W15",
+    "net": -349.2
+  },
+  "longest_losing_streak": 3,
+  "weekly_pnl": {
+    "2025-W15": {
+      "net": -349.2,
+      "losses": -544.6
+    },
+    "2025-W17": {
+      "net": 69.4,
+      "losses": 0.0
+    },
+    "2025-W20": {
+      "net": 119.4,
+      "losses": 0.0
+    },
+    "2025-W27": {
+      "net": 81.4,
+      "losses": 0.0
+    },
+    "2025-W32": {
+      "net": -34.6,
+      "losses": -34.6
+    },
+    "2025-W33": {
+      "net": 182.8,
+      "losses": 0.0
+    },
+    "2025-W38": {
+      "net": 134.7,
+      "losses": 0.0
+    },
+    "2025-W41": {
+      "net": 102.7,
+      "losses": 0.0
+    },
+    "2025-W44": {
+      "net": 483.1,
+      "losses": 0.0
+    },
+    "2025-W48": {
+      "net": 56.5,
+      "losses": -66.3
+    },
+    "2025-W52": {
+      "net": 106.7,
+      "losses": 0.0
+    },
+    "2026-W02": {
+      "net": 140.7,
+      "losses": 0.0
+    },
+    "2026-W09": {
+      "net": -271.5,
+      "losses": -271.5
+    }
+  },
+  "monthly_pnl": {
+    "2025-04": -279.8,
+    "2025-05": 119.4,
+    "2025-07": 81.4,
+    "2025-08": 148.2,
+    "2025-09": 134.7,
+    "2025-10": 585.8,
+    "2025-11": 56.5,
+    "2025-12": 106.7,
+    "2026-01": 140.7,
+    "2026-02": -271.5
+  },
+  "by_exit_reason": {
+    "stop": [
+      1,
+      -544.6
+    ],
+    "time_exit_21dte": [
+      6,
+      -341.0
+    ],
+    "tp": [
+      14,
+      1707.7
+    ]
+  },
+  "rejects": {
+    "no_pricing": 3,
+    "max_concurrent": 3
+  },
+  "coverage": {
+    "day_keys_requested": 522,
+    "overlay": 503,
+    "archive": 19,
+    "fresh_api_calls": 0,
+    "pct_archive": 3.6,
+    "pct_overlay": 96.4,
+    "pct_fresh": 0.0
+  }
+}

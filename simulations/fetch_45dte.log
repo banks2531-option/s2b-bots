@@ -1,0 +1,48 @@
+2026-06-11 20:44:48 | enumerated p1_spy_45dte_putspread: requested=428 new_misses=385 cum=385
+2026-06-11 20:44:48 | enumerated p4_spy_45dte_putspread_noivr: requested=968 new_misses=487 cum=872
+2026-06-11 20:44:49 | enumerated p2_spy_45dte_ic: requested=762 new_misses=593 cum=1465
+2026-06-11 20:44:50 | enumerated p3_multi_underlying_45dte: requested=594 new_misses=504 cum=1969
+2026-06-11 20:44:50 | ENUMERATION DONE: 1969 contract-day misses (175 contracts). WALL-CLOCK ESTIMATE @ ~5 successful calls/min: 393.8 min = 6.56 h (within 14.0h cap)
+2026-06-11 20:44:50 | cumulative by priority: {"p1_spy_45dte_putspread": {"cum_keys": 385, "cum_hours_at_5cpm": 1.28}, "p4_spy_45dte_putspread_noivr": {"cum_keys": 872, "cum_hours_at_5cpm": 2.91}, "p2_spy_45dte_ic": {"cum_keys": 1465, "cum_hours_at_5cpm": 4.88}, "p3_multi_underlying_45dte": {"cum_keys": 1969, "cum_hours_at_5cpm": 6.56}}
+2026-06-11 20:45:07 | FETCH START: 1969 of 1969 keys still missing; ETA @5/min ~ 6.56 h (cap 14.0 h; priority order p1_spy_45dte_putspread->p4_spy_45dte_putspread_noivr->p2_spy_45dte_ic->p3_multi_underlying_45dte, cut from the bottom)
+2026-06-11 20:45:26 |   50/1969 ok=50 empty=0 failed=0 rate=156.4/min eta=0.20h
+2026-06-11 20:45:48 |   100/1969 ok=96 empty=4 failed=0 rate=144.2/min eta=0.22h
+2026-06-11 20:46:06 |   150/1969 ok=146 empty=4 failed=0 rate=152.2/min eta=0.20h
+2026-06-11 20:46:29 |   200/1969 ok=194 empty=6 failed=0 rate=146.8/min eta=0.20h
+2026-06-11 20:46:47 |   250/1969 ok=242 empty=8 failed=0 rate=150.3/min eta=0.19h
+2026-06-11 20:47:10 |   300/1969 ok=292 empty=8 failed=0 rate=146.1/min eta=0.19h
+2026-06-11 20:47:30 |   350/1969 ok=342 empty=8 failed=0 rate=146.6/min eta=0.18h
+2026-06-11 20:47:50 |   400/1969 ok=392 empty=8 failed=0 rate=146.8/min eta=0.18h
+2026-06-11 20:48:16 |   450/1969 ok=442 empty=8 failed=0 rate=142.9/min eta=0.18h
+2026-06-11 20:48:34 |   500/1969 ok=488 empty=12 failed=0 rate=144.9/min eta=0.17h
+2026-06-11 20:48:55 |   550/1969 ok=538 empty=12 failed=0 rate=144.5/min eta=0.16h
+2026-06-11 20:49:14 |   600/1969 ok=588 empty=12 failed=0 rate=145.8/min eta=0.16h
+2026-06-11 20:49:37 |   650/1969 ok=634 empty=16 failed=0 rate=144.2/min eta=0.15h
+2026-06-11 20:50:01 |   700/1969 ok=680 empty=20 failed=0 rate=142.9/min eta=0.15h
+2026-06-11 20:50:19 |   750/1969 ok=726 empty=24 failed=0 rate=144.0/min eta=0.14h
+2026-06-11 20:50:37 |   800/1969 ok=774 empty=26 failed=0 rate=145.3/min eta=0.13h
+2026-06-11 20:50:56 |   850/1969 ok=822 empty=28 failed=0 rate=146.3/min eta=0.13h
+2026-06-11 20:51:13 |   900/1969 ok=872 empty=28 failed=0 rate=147.4/min eta=0.12h
+2026-06-11 20:51:32 |   950/1969 ok=915 empty=35 failed=0 rate=148.1/min eta=0.11h
+2026-06-11 20:51:49 |   1000/1969 ok=965 empty=35 failed=0 rate=149.2/min eta=0.11h
+2026-06-11 20:52:06 |   1050/1969 ok=1014 empty=36 failed=0 rate=150.2/min eta=0.10h
+2026-06-11 20:52:24 |   1100/1969 ok=1064 empty=36 failed=0 rate=151.0/min eta=0.10h
+2026-06-11 20:52:41 |   1150/1969 ok=1114 empty=36 failed=0 rate=151.9/min eta=0.09h
+2026-06-11 20:52:58 |   1200/1969 ok=1158 empty=42 failed=0 rate=152.7/min eta=0.08h
+2026-06-11 20:53:18 |   1250/1969 ok=1208 empty=42 failed=0 rate=152.7/min eta=0.08h
+2026-06-11 20:53:35 |   1300/1969 ok=1258 empty=42 failed=0 rate=153.3/min eta=0.07h
+2026-06-11 20:53:53 |   1350/1969 ok=1308 empty=42 failed=0 rate=153.9/min eta=0.07h
+2026-06-11 20:54:12 |   1400/1969 ok=1358 empty=42 failed=0 rate=154.2/min eta=0.06h
+2026-06-11 20:54:29 |   1450/1969 ok=1408 empty=42 failed=0 rate=154.7/min eta=0.06h
+2026-06-11 20:54:47 |   1500/1969 ok=1458 empty=42 failed=0 rate=155.2/min eta=0.05h
+2026-06-11 20:55:04 |   1550/1969 ok=1503 empty=47 failed=0 rate=155.6/min eta=0.04h
+2026-06-11 20:55:22 |   1600/1969 ok=1553 empty=47 failed=0 rate=156.0/min eta=0.04h
+2026-06-11 20:55:39 |   1650/1969 ok=1603 empty=47 failed=0 rate=156.5/min eta=0.03h
+2026-06-11 20:55:57 |   1700/1969 ok=1653 empty=47 failed=0 rate=156.9/min eta=0.03h
+2026-06-11 20:56:21 |   1750/1969 ok=1703 empty=47 failed=0 rate=155.8/min eta=0.02h
+2026-06-11 20:56:38 |   1800/1969 ok=1749 empty=51 failed=0 rate=156.3/min eta=0.02h
+2026-06-11 20:56:55 |   1850/1969 ok=1799 empty=51 failed=0 rate=156.6/min eta=0.01h
+2026-06-11 20:57:13 |   1900/1969 ok=1831 empty=69 failed=0 rate=157.0/min eta=0.01h
+2026-06-11 20:57:31 |   1950/1969 ok=1881 empty=69 failed=0 rate=157.2/min eta=0.00h
+2026-06-11 20:57:38 |   1969/1969 ok=1900 empty=69 failed=0 rate=157.4/min eta=0.00h
+2026-06-11 20:57:38 | FETCH DONE: ok=1900 empty=69 failed=0 elapsed=12.5 min

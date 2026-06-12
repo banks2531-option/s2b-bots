@@ -24,3 +24,17 @@
 11:28:13 | QQQ 2026-01: fetched 3838 bars -> stored 20 session keys (3838 RTH+ext bars), api_calls=23
 11:28:14 | QQQ 2026-02: fetched 3648 bars -> stored 19 session keys (3648 RTH+ext bars), api_calls=24
 11:28:14 | prefetch done: 24 fresh API calls | cache 0 hits (0 from archive), 500 misses (0% hit rate)
+20:42:00 | prefetch start: ['IWM'] 2025-03-03..2026-02-27 (250 sessions, 12 months, overlay=C:\Users\FixUser123\Documents\fable options\simulations\api_cache_overlay_batch.db)
+20:42:01 | IWM 2025-03: fetched 3923 bars -> stored 21 session keys (3923 RTH+ext bars), api_calls=1
+20:42:02 | IWM 2025-04: fetched 3928 bars -> stored 21 session keys (3928 RTH+ext bars), api_calls=2
+20:42:03 | IWM 2025-05: fetched 3890 bars -> stored 21 session keys (3890 RTH+ext bars), api_calls=3
+20:42:04 | IWM 2025-06: fetched 3751 bars -> stored 20 session keys (3751 RTH+ext bars), api_calls=4
+20:42:05 | IWM 2025-07: fetched 4025 bars -> stored 22 session keys (4025 RTH+ext bars), api_calls=5
+20:42:06 | IWM 2025-08: fetched 3944 bars -> stored 21 session keys (3944 RTH+ext bars), api_calls=6
+20:43:09 | IWM 2025-09: fetched 3913 bars -> stored 21 session keys (3913 RTH+ext bars), api_calls=7
+20:43:10 | IWM 2025-10: fetched 4338 bars -> stored 23 session keys (4338 RTH+ext bars), api_calls=8
+20:43:11 | IWM 2025-11: fetched 3513 bars -> stored 19 session keys (3513 RTH+ext bars), api_calls=9
+20:43:12 | IWM 2025-12: fetched 3968 bars -> stored 22 session keys (3968 RTH+ext bars), api_calls=10
+20:43:13 | IWM 2026-01: fetched 3756 bars -> stored 20 session keys (3756 RTH+ext bars), api_calls=11
+20:44:04 | IWM 2026-02: fetched 3552 bars -> stored 19 session keys (3552 RTH+ext bars), api_calls=12
+20:44:04 | prefetch done: 12 fresh API calls | cache 0 hits (0 from archive), 250 misses (0% hit rate)

@@ -1,0 +1,13 @@
+strategy,symbol,structure,entry_date,entry_time_et,expiration,dte,legs,deltas,spot,sigma,credit,debit,qty,slip_leg,n_aligned_bars,exit_date,exit_time_et,exit_cost,exit_reason,pnl
+p2_spy_45dte_ic,SPY,iron_condor,2025-03-31,10:00,2025-05-16,46,SP520 / LP505 / SC590 / LC605,put_short=-0.205 call_short=0.214,549.74,0.2203,3.23,,1,0.05,202,2025-04-25,11:05,2.43,time_exit_21dte,77.4
+p2_spy_45dte_ic,SPY,iron_condor,2025-04-28,10:15,2025-06-20,53,SP515 / LP500 / SC605 / LC615,put_short=-0.209 call_short=0.190,550.29,0.2504,2.59,,1,0.05,369,2025-05-30,09:30,2.02,time_exit_21dte,54.4
+p2_spy_45dte_ic,SPY,iron_condor,2025-08-04,10:00,2025-09-19,46,SP600 / LP585 / SC665 / LC680,put_short=-0.186 call_short=0.217,629.01,0.1728,2.45,,1,0.05,228,2025-08-26,09:30,1.36,tp,106.4
+p2_spy_45dte_ic,SPY,iron_condor,2025-09-29,10:05,2025-11-21,53,SP635 / LP620 / SC710 / LC725,put_short=-0.209 call_short=0.195,664.52,0.1754,2.15,,1,0.05,87,2025-10-31,09:30,1.48,time_exit_21dte,64.4
+p2_spy_45dte_ic,SPY,iron_condor,2025-10-13,10:40,2025-11-21,39,SP635 / LP620 / SC705 / LC720,put_short=-0.210 call_short=0.186,662.88,0.1881,2.54,,1,0.05,118,2025-10-31,09:30,2.11,time_exit_21dte,40.4
+p2_spy_45dte_ic,SPY,iron_condor,2025-10-27,10:00,2025-12-19,53,SP655 / LP640 / SC720 / LC735,put_short=-0.187 call_short=0.214,683.08,0.1476,2.97,,1,0.05,184,2025-11-28,11:05,1.65,time_exit_21dte,129.4
+p2_spy_45dte_ic,SPY,iron_condor,2025-11-03,10:00,2025-12-19,46,SP655 / LP640 / SC720 / LC735,put_short=-0.199 call_short=0.210,682.53,0.1614,3.52,,1,0.05,137,2025-11-28,11:05,1.65,time_exit_21dte,184.4
+p2_spy_45dte_ic,SPY,iron_condor,2025-11-10,10:15,2025-12-19,39,SP650 / LP635 / SC720 / LC735,put_short=-0.202 call_short=0.187,678.54,0.1814,2.35,,1,0.05,92,2025-11-28,11:05,1.38,time_exit_21dte,94.4
+p2_spy_45dte_ic,SPY,iron_condor,2025-12-01,10:10,2026-01-16,46,SP655 / LP640 / SC720 / LC735,put_short=-0.210 call_short=0.206,681.45,0.1637,2.94,,1,0.05,138,2025-12-19,09:50,1.65,tp,126.4
+p2_spy_45dte_ic,SPY,iron_condor,2025-12-08,10:20,2026-01-16,39,SP660 / LP645 / SC720 / LC735,put_short=-0.200 call_short=0.206,685.44,0.1601,2.57,,1,0.05,124,2025-12-22,09:50,1.39,tp,115.4
+p2_spy_45dte_ic,SPY,iron_condor,2026-02-09,10:10,2026-03-20,39,SP665 / LP650 / SC725 / LC740,put_short=-0.210 call_short=0.216,690.4,0.1659,2.95,,1,0.05,134,2026-02-27,09:50,2.71,time_exit_21dte,21.4
+p2_spy_45dte_ic,SPY,iron_condor,2026-02-02,10:00,2026-03-20,46,SP665 / LP650 / SC730 / LC745,put_short=-0.192 call_short=0.206,692.7,0.1551,2.91,,1,0.05,122,2026-02-27,10:50,2.4,time_exit_21dte,48.4

@@ -1,0 +1,145 @@
+{
+  "tag": "p3_multi_underlying_45dte_slip2x",
+  "account": 20000.0,
+  "risk_pct_equity": 0.05,
+  "slip_scale": 2.0,
+  "max_concurrent": 3,
+  "window": [
+    "2025-03-03",
+    "2026-02-27"
+  ],
+  "h1_end": "2025-08-28",
+  "full": {
+    "n": 21,
+    "wr": 0.619,
+    "pf": 0.908,
+    "pnl": -137.9
+  },
+  "h1": {
+    "n": 9,
+    "wr": 0.778,
+    "pf": 1.13,
+    "pnl": 71.9
+  },
+  "h2": {
+    "n": 12,
+    "wr": 0.5,
+    "pf": 0.777,
+    "pnl": -209.8
+  },
+  "total_pnl": -137.9,
+  "pnl_per_month": -11.63,
+  "end_balance": 19862.1,
+  "max_drawdown_dollars": 719.6,
+  "max_drawdown_pct_of_peak_equity": 3.5,
+  "worst_week_losses_only": {
+    "week": "2025-W47",
+    "sum_losses": -553.3
+  },
+  "worst_week_net": {
+    "week": "2025-W47",
+    "net": -553.3
+  },
+  "longest_losing_streak": 3,
+  "weekly_pnl": {
+    "2025-W14": {
+      "net": -480.6,
+      "losses": -480.6
+    },
+    "2025-W15": {
+      "net": 155.4,
+      "losses": 0.0
+    },
+    "2025-W18": {
+      "net": 51.4,
+      "losses": 0.0
+    },
+    "2025-W20": {
+      "net": 79.4,
+      "losses": 0.0
+    },
+    "2025-W27": {
+      "net": 83.4,
+      "losses": 0.0
+    },
+    "2025-W32": {
+      "net": -74.6,
+      "losses": -74.6
+    },
+    "2025-W33": {
+      "net": 142.8,
+      "losses": 0.0
+    },
+    "2025-W38": {
+      "net": 114.7,
+      "losses": 0.0
+    },
+    "2025-W41": {
+      "net": 86.7,
+      "losses": 0.0
+    },
+    "2025-W44": {
+      "net": 423.1,
+      "losses": 0.0
+    },
+    "2025-W47": {
+      "net": -553.3,
+      "losses": -553.3
+    },
+    "2025-W48": {
+      "net": -15.2,
+      "losses": -15.2
+    },
+    "2025-W52": {
+      "net": 93.7,
+      "losses": 0.0
+    },
+    "2026-W02": {
+      "net": 126.7,
+      "losses": 0.0
+    },
+    "2026-W09": {
+      "net": -371.5,
+      "losses": -371.5
+    }
+  },
+  "monthly_pnl": {
+    "2025-04": -273.8,
+    "2025-05": 79.4,
+    "2025-07": 83.4,
+    "2025-08": 68.2,
+    "2025-09": 114.7,
+    "2025-10": 509.8,
+    "2025-11": -568.5,
+    "2025-12": 93.7,
+    "2026-01": 126.7,
+    "2026-02": -371.5
+  },
+  "by_exit_reason": {
+    "stop": [
+      2,
+      -1033.9
+    ],
+    "time_exit_21dte": [
+      6,
+      -461.3
+    ],
+    "tp": [
+      13,
+      1357.3
+    ]
+  },
+  "rejects": {
+    "no_pricing": 4,
+    "max_concurrent": 2
+  },
+  "coverage": {
+    "day_keys_requested": 548,
+    "overlay": 529,
+    "archive": 19,
+    "fresh_api_calls": 0,
+    "pct_archive": 3.5,
+    "pct_overlay": 96.5,
+    "pct_fresh": 0.0
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "tag": "p2_spy_45dte_ic",
+  "account": 20000.0,
+  "risk_pct_equity": 0.05,
+  "slip_scale": 1.0,
+  "max_concurrent": 3,
+  "window": [
+    "2025-03-03",
+    "2026-02-27"
+  ],
+  "h1_end": "2025-08-28",
+  "full": {
+    "n": 12,
+    "wr": 1.0,
+    "pf": Infinity,
+    "pnl": 1062.8
+  },
+  "h1": {
+    "n": 3,
+    "wr": 1.0,
+    "pf": Infinity,
+    "pnl": 238.2
+  },
+  "h2": {
+    "n": 9,
+    "wr": 1.0,
+    "pf": Infinity,
+    "pnl": 824.6
+  },
+  "total_pnl": 1062.8,
+  "pnl_per_month": 89.61,
+  "end_balance": 21062.8,
+  "max_drawdown_dollars": 0.0,
+  "max_drawdown_pct_of_peak_equity": 0.0,
+  "worst_week_losses_only": {
+    "week": "2025-W17",
+    "sum_losses": 0.0
+  },
+  "worst_week_net": {
+    "week": "2025-W22",
+    "net": 54.4
+  },
+  "longest_losing_streak": 0,
+  "weekly_pnl": {
+    "2025-W17": {
+      "net": 77.4,
+      "losses": 0.0
+    },
+    "2025-W22": {
+      "net": 54.4,
+      "losses": 0.0
+    },
+    "2025-W35": {
+      "net": 106.4,
+      "losses": 0.0
+    },
+    "2025-W44": {
+      "net": 104.8,
+      "losses": 0.0
+    },
+    "2025-W48": {
+      "net": 408.2,
+      "losses": 0.0
+    },
+    "2025-W51": {
+      "net": 126.4,
+      "losses": 0.0
+    },
+    "2025-W52": {
+      "net": 115.4,
+      "losses": 0.0
+    },
+    "2026-W09": {
+      "net": 69.8,
+      "losses": 0.0
+    }
+  },
+  "monthly_pnl": {
+    "2025-04": 77.4,
+    "2025-05": 54.4,
+    "2025-08": 106.4,
+    "2025-10": 104.8,
+    "2025-11": 408.2,
+    "2025-12": 241.8,
+    "2026-02": 69.8
+  },
+  "by_exit_reason": {
+    "time_exit_21dte": [
+      9,
+      714.6
+    ],
+    "tp": [
+      3,
+      348.2
+    ]
+  },
+  "rejects": {
+    "no_long_strike": 2,
+    "no_pricing": 4,
+    "max_concurrent": 2
+  },
+  "coverage": {
+    "day_keys_requested": 666,
+    "overlay": 636,
+    "archive": 30,
+    "fresh_api_calls": 0,
+    "pct_archive": 4.5,
+    "pct_overlay": 95.5,
+    "pct_fresh": 0.0
+  }
+}

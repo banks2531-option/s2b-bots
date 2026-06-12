@@ -1,0 +1,127 @@
+{
+  "tag": "p1_spy_45dte_putspread",
+  "account": 20000.0,
+  "risk_pct_equity": 0.05,
+  "slip_scale": 1.0,
+  "max_concurrent": 3,
+  "window": [
+    "2025-03-03",
+    "2026-02-27"
+  ],
+  "h1_end": "2025-08-28",
+  "full": {
+    "n": 16,
+    "wr": 0.812,
+    "pf": 1.759,
+    "pnl": 619.2
+  },
+  "h1": {
+    "n": 6,
+    "wr": 0.833,
+    "pf": 0.985,
+    "pnl": -9.8
+  },
+  "h2": {
+    "n": 10,
+    "wr": 0.8,
+    "pf": 4.941,
+    "pnl": 629.0
+  },
+  "total_pnl": 619.2,
+  "pnl_per_month": 52.21,
+  "end_balance": 20619.2,
+  "max_drawdown_dollars": 656.3,
+  "max_drawdown_pct_of_peak_equity": 3.28,
+  "worst_week_losses_only": {
+    "week": "2025-W14",
+    "sum_losses": -656.3
+  },
+  "worst_week_net": {
+    "week": "2025-W14",
+    "net": -656.3
+  },
+  "longest_losing_streak": 2,
+  "weekly_pnl": {
+    "2025-W14": {
+      "net": -656.3,
+      "losses": -656.3
+    },
+    "2025-W15": {
+      "net": 163.7,
+      "losses": 0.0
+    },
+    "2025-W18": {
+      "net": 103.7,
+      "losses": 0.0
+    },
+    "2025-W19": {
+      "net": 155.7,
+      "losses": 0.0
+    },
+    "2025-W26": {
+      "net": 106.7,
+      "losses": 0.0
+    },
+    "2025-W33": {
+      "net": 116.7,
+      "losses": 0.0
+    },
+    "2025-W41": {
+      "net": 102.7,
+      "losses": 0.0
+    },
+    "2025-W44": {
+      "net": 290.4,
+      "losses": 0.0
+    },
+    "2025-W48": {
+      "net": 156.1,
+      "losses": 0.0
+    },
+    "2025-W52": {
+      "net": 239.4,
+      "losses": 0.0
+    },
+    "2026-W09": {
+      "net": -159.6,
+      "losses": -159.6
+    }
+  },
+  "monthly_pnl": {
+    "2025-04": -492.6,
+    "2025-05": 259.4,
+    "2025-06": 106.7,
+    "2025-08": 116.7,
+    "2025-10": 393.1,
+    "2025-11": 156.1,
+    "2025-12": 239.4,
+    "2026-02": -159.6
+  },
+  "by_exit_reason": {
+    "stop": [
+      1,
+      -656.3
+    ],
+    "time_exit_21dte": [
+      5,
+      -3.5
+    ],
+    "tp": [
+      10,
+      1279.0
+    ]
+  },
+  "rejects": {
+    "no_pricing": 2,
+    "max_concurrent": 2
+  },
+  "coverage": {
+    "day_keys_requested": 380,
+    "overlay": 359,
+    "archive": 21,
+    "fresh_api_calls": 0,
+    "pct_archive": 5.5,
+    "pct_overlay": 94.5,
+    "pct_fresh": 0.0
+  }
+}

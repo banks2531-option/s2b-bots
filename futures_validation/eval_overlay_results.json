@@ -1,0 +1,74 @@
+{
+ "f1_midpoint@1MES": {
+  "n": 231,
+  "npass": 0,
+  "nbust": 0,
+  "ncens": 231,
+  "med_days_to_pass": null,
+  "med_days_to_bust": null
+ },
+ "f1_midpoint@3MES": {
+  "n": 231,
+  "npass": 0,
+  "nbust": 193,
+  "ncens": 38,
+  "med_days_to_pass": null,
+  "med_days_to_bust": 50
+ },
+ "f1_midpoint@5MES": {
+  "n": 231,
+  "npass": 14,
+  "nbust": 195,
+  "ncens": 22,
+  "med_days_to_pass": 58,
+  "med_days_to_bust": 22
+ },
+ "f2_orb_long_up@1MES": {
+  "n": 231,
+  "npass": 0,
+  "nbust": 0,
+  "ncens": 231,
+  "med_days_to_pass": null,
+  "med_days_to_bust": null
+ },
+ "f2_orb_long_up@3MES": {
+  "n": 231,
+  "npass": 0,
+  "nbust": 183,
+  "ncens": 48,
+  "med_days_to_pass": null,
+  "med_days_to_bust": 37
+ },
+ "f2_orb_long_up@5MES": {
+  "n": 231,
+  "npass": 0,
+  "nbust": 185,
+  "ncens": 46,
+  "med_days_to_pass": null,
+  "med_days_to_bust": 24
+ },
+ "f3_trend_t12@1MES": {
+  "n": 231,
+  "npass": 0,
+  "nbust": 0,
+  "ncens": 231,
+  "med_days_to_pass": null,
+  "med_days_to_bust": null
+ },
+ "f3_trend_t12@3MES": {
+  "n": 231,
+  "npass": 0,
+  "nbust": 40,
+  "ncens": 191,
+  "med_days_to_pass": null,
+  "med_days_to_bust": 64
+ },
+ "f3_trend_t12@5MES": {
+  "n": 231,
+  "npass": 0,
+  "nbust": 62,
+  "ncens": 169,
+  "med_days_to_pass": null,
+  "med_days_to_bust": 36
+ }
+}

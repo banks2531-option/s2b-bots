@@ -1,0 +1,97 @@
+{
+  "n_obs": 246,
+  "n_features": 39,
+  "feat_cols": [
+    "idx_put_share_am",
+    "idx_put_ask_prem_am",
+    "idx_put_sweep_cnt_am",
+    "breadth_bear_am",
+    "dp_prem_am",
+    "idx_put_share_prior",
+    "idx_put_ask_prem_prior",
+    "dvix",
+    "alert_cnt_am",
+    "regime_up",
+    "regime_down",
+    "above_sma20",
+    "above_sma50",
+    "dist_sma20",
+    "dist_sma50",
+    "ret_1d",
+    "ret_5d",
+    "ret_10d",
+    "ret_20d",
+    "rsi14",
+    "atr14_pct",
+    "rv5",
+    "rv10",
+    "rv21",
+    "gap",
+    "intraday_to_10",
+    "dist_hi20",
+    "vix_close",
+    "vix_chg",
+    "iv_prior",
+    "iv_minus_rv_prior",
+    "ivalert_minus_rv_prior",
+    "credit_width",
+    "short_delta",
+    "dte_f",
+    "recent_wr10",
+    "recent_avgpnl10",
+    "recent_last_pnl",
+    "recent_dd"
+  ],
+  "win_base_rate": 0.7724,
+  "configs_tried": [
+    "logit_classifier_default",
+    "hgb_classifier_default"
+  ],
+  "oos_real": {
+    "logit": {
+      "n": 136,
+      "auc": 0.5211,
+      "log_loss": 0.7303,
+      "base_rate": 0.7353
+    },
+    "hgb": {
+      "n": 136,
+      "auc": 0.4711,
+      "log_loss": 0.9903,
+      "base_rate": 0.7353
+    }
+  },
+  "oos_shuffled_null": {
+    "logit": {
+      "n": 136,
+      "auc": 0.5558,
+      "log_loss": 0.7932,
+      "base_rate": 0.7353
+    },
+    "hgb": {
+      "n": 136,
+      "auc": 0.4736,
+      "log_loss": 0.8379,
+      "base_rate": 0.7353
+    }
+  },
+  "regressor_oos_corr_pred_vs_realized": -0.1737,
+  "perm_importance_holdout_auc": 0.3727,
+  "perm_importance_top": {
+    "rsi14": 0.0153,
+    "idx_put_share_am": 0.0152,
+    "idx_put_share_prior": 0.0099,
+    "recent_last_pnl": 0.0097,
+    "ret_5d": 0.0086,
+    "recent_dd": 0.006,
+    "dist_sma50": 0.0055,
+    "iv_prior": 0.0043,
+    "credit_width": 0.002,
+    "recent_wr10": 0.0012,
+    "ret_10d": 0.001,
+    "recent_avgpnl10": 0.001,
+    "breadth_bear_am": 0.0007,
+    "idx_put_sweep_cnt_am": -0.0,
+    "dvix": 0.0
+  }
+}

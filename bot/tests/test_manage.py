@@ -41,3 +41,19 @@ def test_spread_value_mid_cost_to_close():
 def test_dte_from_expiry():
     assert dte_from_expiry("2026-06-19", today="2026-06-15") == 4
     assert dte_from_expiry("2026-06-15", today="2026-06-15") == 0
+
+
+from bot.strategy.manage import build_close_payload
+
+
+def test_build_close_payload_buys_back_short_sells_long():
+    pos = ManagedPosition(ticker="SPY", short_strike=568.0, long_strike=558.0,
+                          credit=3.0, qty=2, expiry="2026-06-19")
+    payload = build_close_payload(pos, limit_price=1.20)
+    assert payload["class"] == "multileg"
+    assert payload["type"] == "debit"      # closing a credit spread costs a debit
+    assert payload["price"] == 1.20
+    assert payload["option_symbol[0]"] == "SPY260619P00568000"
+    assert payload["side[0]"] == "buy_to_close" and payload["quantity[0]"] == 2
+    assert payload["option_symbol[1]"] == "SPY260619P00558000"
+    assert payload["side[1]"] == "sell_to_close" and payload["quantity[1]"] == 2

@@ -50,3 +50,19 @@ def dte_from_expiry(expiry: str, today: str) -> int:
     d0 = datetime.strptime(today, "%Y-%m-%d")
     d1 = datetime.strptime(expiry, "%Y-%m-%d")
     return (d1 - d0).days
+
+
+from bot.strategy.s2b import _occ
+
+
+def build_close_payload(pos: ManagedPosition, limit_price: float) -> dict:
+    """Tradier debit multileg to CLOSE a bull put spread: buy back short, sell long."""
+    sym = pos.ticker
+    return {
+        "class": "multileg", "symbol": sym, "type": "debit", "duration": "day",
+        "price": round(limit_price, 2),
+        "option_symbol[0]": _occ(sym, pos.expiry, "P", pos.short_strike),
+        "side[0]": "buy_to_close", "quantity[0]": pos.qty,
+        "option_symbol[1]": _occ(sym, pos.expiry, "P", pos.long_strike),
+        "side[1]": "sell_to_close", "quantity[1]": pos.qty,
+    }

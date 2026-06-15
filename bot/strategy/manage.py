@@ -3,12 +3,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+from bot.strategy.s2b import _occ
+
 
 class ExitAction(str, Enum):
     HOLD = "hold"
     TAKE_PROFIT = "take_profit"
     STOP = "stop"
     TIME_EXIT = "time_exit"
+    ERROR = "error"
 
 
 @dataclass
@@ -24,6 +27,7 @@ def decide_exit(current_value, credit, dte, cfg) -> ExitAction:
         return ExitAction.STOP
     if current_value <= credit * (1 - cfg.tp_pct):
         return ExitAction.TAKE_PROFIT
+    # negative DTE (already expired) also triggers TIME_EXIT -> close attempt surfaces it
     if dte <= cfg.time_exit_dte:
         return ExitAction.TIME_EXIT
     return ExitAction.HOLD
@@ -52,9 +56,6 @@ def dte_from_expiry(expiry: str, today: str) -> int:
     return (d1 - d0).days
 
 
-from bot.strategy.s2b import _occ
-
-
 def build_close_payload(pos: ManagedPosition, limit_price: float) -> dict:
     """Tradier debit multileg to CLOSE a bull put spread: buy back short, sell long."""
     sym = pos.ticker
@@ -70,7 +71,7 @@ def build_close_payload(pos: ManagedPosition, limit_price: float) -> dict:
 
 @dataclass
 class ExitResult:
-    position: "ManagedPosition"
+    position: ManagedPosition
     action: ExitAction
     close_status: str       # e.g. "filled", "timeout", "rejected"
     failed: bool            # True if the close did not reach "filled"
@@ -82,10 +83,15 @@ def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
     is flagged failed=True so the caller can alert (a stop that didn't execute is never silent)."""
     results = []
     for p in positions:
-        action = decide_exit(mark_fn(p), p.credit, dte_fn(p), cfg)
-        if action == ExitAction.HOLD:
+        try:
+            action = decide_exit(mark_fn(p), p.credit, dte_fn(p), cfg)
+            if action == ExitAction.HOLD:
+                continue
+            status = close_fn(p, action)
+            results.append(ExitResult(position=p, action=action, close_status=status,
+                                      failed=(str(status).lower() != "filled")))
+        except Exception as exc:  # one position's error must NOT block the others' stops
+            results.append(ExitResult(position=p, action=ExitAction.ERROR,
+                                      close_status=f"error: {exc}", failed=True))
             continue
-        status = close_fn(p, action)
-        results.append(ExitResult(position=p, action=action, close_status=status,
-                                  failed=(status != "filled")))
     return results

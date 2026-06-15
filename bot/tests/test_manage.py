@@ -98,3 +98,45 @@ def test_monitor_flags_failed_close():
                                 lambda p, a: "timeout", CFG)
     assert len(results) == 1
     assert results[0].failed is True and results[0].close_status == "timeout"
+
+
+# C1: per-position exception isolation — a mark_fn error on position 1 must NOT prevent
+# position 2's stop from firing.
+def test_monitor_isolates_per_position_error():
+    pos1 = _pos()
+    pos2 = _pos()
+
+    def mark_fn(p):
+        if p is pos1:
+            raise ValueError("feed down")
+        return 10.0  # past stop level for pos2
+
+    def close_fn(p, action):
+        return "filled"
+
+    results = monitor_positions([pos1, pos2], mark_fn, lambda p: 5, close_fn, CFG)
+    assert len(results) == 2
+    assert results[0].action == ExitAction.ERROR
+    assert results[0].failed is True
+    assert results[1].action == ExitAction.STOP
+    assert results[1].failed is False
+
+
+# C3: fill check must be case-insensitive ("FILLED" == success)
+def test_monitor_fill_case_insensitive():
+    pos = _pos()
+    results = monitor_positions([pos], lambda p: 10.0, lambda p: 5,
+                                lambda p, a: "FILLED", CFG)
+    assert len(results) == 1
+    assert results[0].failed is False
+
+
+# C2: TAKE_PROFIT must beat TIME_EXIT when both conditions apply
+def test_take_profit_priority_over_time_exit():
+    # current_value=1.5 hits TP (<=1.5), dte=1 also hits TIME_EXIT (<=1); TP must win
+    assert decide_exit(current_value=1.5, credit=3.0, dte=1, cfg=CFG) == ExitAction.TAKE_PROFIT
+
+
+# C4: negative DTE (already expired) must trigger TIME_EXIT
+def test_decide_exit_negative_dte_is_time_exit():
+    assert decide_exit(current_value=3.0, credit=3.0, dte=-1, cfg=CFG) == ExitAction.TIME_EXIT

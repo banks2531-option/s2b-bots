@@ -57,3 +57,44 @@ def test_build_close_payload_buys_back_short_sells_long():
     assert payload["side[0]"] == "buy_to_close" and payload["quantity[0]"] == 2
     assert payload["option_symbol[1]"] == "SPY260619P00558000"
     assert payload["side[1]"] == "sell_to_close" and payload["quantity[1]"] == 2
+
+
+from bot.strategy.manage import monitor_positions, ExitResult
+
+
+def _pos(**kw):
+    base = dict(ticker="SPY", short_strike=568.0, long_strike=558.0, credit=3.0, qty=1, expiry="2026-06-19")
+    base.update(kw)
+    return ManagedPosition(**base)
+
+
+def test_monitor_fires_stop_and_records_filled():
+    pos = _pos()
+    marks = {id(pos): 10.0}    # past stop (>=9.0)
+    closes = []
+
+    def mark_fn(p): return marks[id(p)]
+    def dte_fn(p): return 5
+    def close_fn(p, action): closes.append((p, action)); return "filled"
+
+    results = monitor_positions([pos], mark_fn, dte_fn, close_fn, CFG)
+    assert len(results) == 1
+    r = results[0]
+    assert isinstance(r, ExitResult)
+    assert r.action == ExitAction.STOP and r.close_status == "filled" and r.failed is False
+    assert closes == [(pos, ExitAction.STOP)]
+
+
+def test_monitor_holds_when_no_exit():
+    pos = _pos()
+    results = monitor_positions([pos], lambda p: 3.0, lambda p: 5, lambda p, a: "filled", CFG)
+    assert results == []   # HOLD -> no close attempted
+
+
+def test_monitor_flags_failed_close():
+    # a stop that does NOT reach 'filled' must be surfaced as failed (the bot-B lesson)
+    pos = _pos()
+    results = monitor_positions([pos], lambda p: 10.0, lambda p: 5,
+                                lambda p, a: "timeout", CFG)
+    assert len(results) == 1
+    assert results[0].failed is True and results[0].close_status == "timeout"

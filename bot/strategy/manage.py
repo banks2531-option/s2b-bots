@@ -66,3 +66,26 @@ def build_close_payload(pos: ManagedPosition, limit_price: float) -> dict:
         "option_symbol[1]": _occ(sym, pos.expiry, "P", pos.long_strike),
         "side[1]": "sell_to_close", "quantity[1]": pos.qty,
     }
+
+
+@dataclass
+class ExitResult:
+    position: "ManagedPosition"
+    action: ExitAction
+    close_status: str       # e.g. "filled", "timeout", "rejected"
+    failed: bool            # True if the close did not reach "filled"
+
+
+def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
+    """Check each open position; on a non-HOLD decision, close via close_fn and record result.
+    close_fn(position, action) -> status string (e.g. 'filled'). A close that is not 'filled'
+    is flagged failed=True so the caller can alert (a stop that didn't execute is never silent)."""
+    results = []
+    for p in positions:
+        action = decide_exit(mark_fn(p), p.credit, dte_fn(p), cfg)
+        if action == ExitAction.HOLD:
+            continue
+        status = close_fn(p, action)
+        results.append(ExitResult(position=p, action=action, close_status=status,
+                                  failed=(status != "filled")))
+    return results

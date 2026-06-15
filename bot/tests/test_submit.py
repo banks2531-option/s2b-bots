@@ -49,3 +49,20 @@ def test_rejected_is_terminal_no_cancel():
     state, _ = submit_and_verify(c, {"x": 1}, poll_s=1.0, timeout_s=10.0, now=now, sleep=sleep)
     assert state == OrderState.REJECTED
     assert c.cancelled is None
+
+
+from bot.broker.tradier import TradierClient
+
+
+def test_tradier_client_drives_submit_and_verify():
+    seq = iter([{"order": {"id": 999, "status": "ok"}},       # place
+                {"order": {"id": 999, "status": "open"}},      # poll 1
+                {"order": {"id": 999, "status": "filled"}}])   # poll 2
+
+    def http(method, path, params=None, data=None):
+        return next(seq)
+
+    now, sleep = _clock()
+    c = TradierClient(account_id="ABC", http=http)
+    state, order = submit_and_verify(c, {"x": 1}, poll_s=1.0, timeout_s=10.0, now=now, sleep=sleep)
+    assert state == OrderState.FILLED

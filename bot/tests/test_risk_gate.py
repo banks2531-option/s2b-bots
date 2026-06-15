@@ -27,3 +27,27 @@ def test_directional_debit_spread_rejected():
     d = gate.is_order_allowed(_ok_order(structure="bull_call_spread"), _ok_state())
     assert d.allowed is False
     assert "structure" in d.reason
+
+
+from bot.risk_gate import RiskConfig as _RC  # alias to build tight configs
+
+
+def test_bull_put_thin_cushion_rejected():
+    # spot 575, short 572, ATR 6 -> cushion 0.5 ATR < 1.0 -> reject
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(short_strike=572.0), _ok_state())
+    assert d.allowed is False
+    assert "cushion" in d.reason
+
+
+def test_bull_put_fat_cushion_allowed():
+    # spot 575, short 560, ATR 6 -> cushion 2.5 ATR -> ok
+    gate = RiskGate(RiskConfig())
+    assert gate.is_order_allowed(_ok_order(short_strike=560.0), _ok_state()).allowed is True
+
+
+def test_bear_call_cushion_uses_other_side():
+    # bear_call: cushion = (short - spot)/atr; short 590, spot 575, atr 6 -> 2.5 ATR ok
+    gate = RiskGate(RiskConfig())
+    o = _ok_order(structure="bear_call_spread", short_strike=590.0, long_strike=600.0)
+    assert gate.is_order_allowed(o, _ok_state()).allowed is True

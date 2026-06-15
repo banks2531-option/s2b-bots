@@ -52,4 +52,19 @@ class RiskGate:
     def is_order_allowed(self, order: SpreadOrder, state: AccountState) -> Decision:
         if order.structure not in self.cfg.allowed_structures:
             return Decision(False, f"structure {order.structure} not allowed")
+        cushion = self._cushion_atr(order)
+        if cushion is not None and cushion < self.cfg.cushion_min_atr:
+            return Decision(False, f"cushion {cushion:.2f} ATR < {self.cfg.cushion_min_atr}")
         return Decision(True, "ok")
+
+    def _cushion_atr(self, order: SpreadOrder):
+        """Distance from spot to short strike, in ATRs. None if not applicable."""
+        if order.atr <= 0:
+            return None
+        if order.structure == "bull_put_spread":
+            dist = order.spot - order.short_strike
+        elif order.structure == "bear_call_spread":
+            dist = order.short_strike - order.spot
+        else:
+            return None  # iron_condor: per-side cushion handled by the strategy, not here
+        return dist / order.atr

@@ -40,3 +40,18 @@ def test_place_order_missing_id_raises():
     c = TradierClient(account_id="ABC", http=http)
     with pytest.raises(BrokerError):
         c.place_order({"class": "multileg"})
+
+
+def test_get_order_returns_order_dict():
+    http = make_http({("GET", "/accounts/ABC/orders/123456"):
+                      {"order": {"id": 123456, "status": "filled", "avg_fill_price": 3.05}}})
+    c = TradierClient(account_id="ABC", http=http)
+    o = c.get_order("123456")
+    assert o["status"] == "filled" and o["avg_fill_price"] == 3.05
+
+
+def test_cancel_order_calls_delete():
+    http = make_http({("DELETE", "/accounts/ABC/orders/123456"): {"order": {"id": 123456, "status": "ok"}}})
+    c = TradierClient(account_id="ABC", http=http)
+    c.cancel_order("123456")
+    assert http.calls[0][0] == "DELETE"

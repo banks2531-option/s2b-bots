@@ -35,3 +35,13 @@ class TradierClient:
         if oid is None:
             raise BrokerError(f"order submission returned no id: {resp}")
         return str(oid)
+
+    def get_order(self, order_id: str) -> dict:
+        resp = self.http("GET", f"/accounts/{self.account_id}/orders/{order_id}")
+        order = resp.get("order")
+        if not order:
+            raise BrokerError(f"no order {order_id}")
+        return order
+
+    def cancel_order(self, order_id: str) -> None:
+        self.http("DELETE", f"/accounts/{self.account_id}/orders/{order_id}")

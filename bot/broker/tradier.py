@@ -45,3 +45,23 @@ class TradierClient:
 
     def cancel_order(self, order_id: str) -> None:
         self.http("DELETE", f"/accounts/{self.account_id}/orders/{order_id}")
+
+
+def make_http_from_env():
+    """Build a real requests-backed http() callable. Credentials from env only (C8)."""
+    import os
+    import requests  # imported here so unit tests don't require the dep at import time
+
+    token = os.environ.get("TRADIER_TOKEN")
+    base = os.environ.get("TRADIER_BASE_URL", "https://sandbox.tradier.com/v1")
+    if not token:
+        raise BrokerError("TRADIER_TOKEN not set (C8: credentials from environment only)")
+    session = requests.Session()
+    session.headers.update({"Authorization": f"Bearer {token}", "Accept": "application/json"})
+
+    def http(method, path, params=None, data=None):
+        r = session.request(method, base + path, params=params, data=data, timeout=30)
+        r.raise_for_status()
+        return r.json()
+
+    return http

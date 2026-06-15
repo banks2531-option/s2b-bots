@@ -55,3 +55,20 @@ def test_cancel_order_calls_delete():
     c = TradierClient(account_id="ABC", http=http)
     c.cancel_order("123456")
     assert http.calls[0][0] == "DELETE"
+
+
+import os
+from bot.broker.tradier import make_http_from_env
+
+
+def test_make_http_requires_token(monkeypatch):
+    monkeypatch.delenv("TRADIER_TOKEN", raising=False)
+    with pytest.raises(BrokerError):
+        make_http_from_env()
+
+
+def test_make_http_returns_callable(monkeypatch):
+    monkeypatch.setenv("TRADIER_TOKEN", "x")
+    monkeypatch.setenv("TRADIER_BASE_URL", "https://sandbox.tradier.com/v1")
+    http = make_http_from_env()
+    assert callable(http)

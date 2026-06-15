@@ -55,6 +55,11 @@ class RiskGate:
         cushion = self._cushion_atr(order)
         if cushion is not None and cushion < self.cfg.cushion_min_atr:
             return Decision(False, f"cushion {cushion:.2f} ATR < {self.cfg.cushion_min_atr}")
+        trade_risk = order.max_loss_per_contract * order.qty
+        if trade_risk > state.equity * self.cfg.max_risk_pct + 1e-9:
+            return Decision(False, "per-trade risk exceeds cap")
+        if state.open_risk + trade_risk > state.equity * self.cfg.max_total_risk_pct + 1e-9:
+            return Decision(False, "total open risk exceeds cap")
         return Decision(True, "ok")
 
     def _cushion_atr(self, order: SpreadOrder):

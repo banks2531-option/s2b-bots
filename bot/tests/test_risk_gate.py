@@ -51,3 +51,19 @@ def test_bear_call_cushion_uses_other_side():
     gate = RiskGate(RiskConfig())
     o = _ok_order(structure="bear_call_spread", short_strike=590.0, long_strike=600.0)
     assert gate.is_order_allowed(o, _ok_state()).allowed is True
+
+
+def test_per_trade_risk_cap_rejects():
+    # 10% of $20k = $2000 cap; order risk = 700*4 = $2800 -> reject
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(qty=4), _ok_state())
+    assert d.allowed is False
+    assert "per-trade risk" in d.reason
+
+
+def test_total_open_risk_cap_rejects():
+    # 30% of $20k = $6000 total cap; already $5000 open + $1400 new = $6400 -> reject
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(qty=2), _ok_state(open_risk=5000.0))
+    assert d.allowed is False
+    assert "total open risk" in d.reason

@@ -72,3 +72,39 @@ def test_make_http_returns_callable(monkeypatch):
     monkeypatch.setenv("TRADIER_BASE_URL", "https://sandbox.tradier.com/v1")
     http = make_http_from_env()
     assert callable(http)
+
+
+# Fix A: cancel_order must propagate broker errors
+def test_cancel_order_raises_on_error():
+    """Tradier returns {"errors": {...}} when cancel fails (e.g. order already filled)."""
+    http = make_http({
+        ("DELETE", "/accounts/ABC/orders/123456"): {
+            "errors": {"error": ["order already in filled state"]}
+        }
+    })
+    c = TradierClient(account_id="ABC", http=http)
+    with pytest.raises(BrokerError):
+        c.cancel_order("123456")
+
+
+# Fix C: get_quote must raise BrokerError (not TypeError) on null price fields
+def test_get_quote_null_field_raises():
+    """A null bid field must raise BrokerError, not TypeError from float(None)."""
+    http = make_http({
+        ("GET", "/markets/quotes"): {"quotes": {"quote": {
+            "symbol": "SPY", "bid": None, "ask": 574.60, "last": 574.55}}}
+    })
+    c = TradierClient(account_id="ABC", http=http)
+    with pytest.raises(BrokerError):
+        c.get_quote("SPY")
+
+
+# Fix D: cover the missing-quote path
+def test_get_quote_missing_raises():
+    """When the quotes dict has no 'quote' key, get_quote must raise BrokerError."""
+    http = make_http({
+        ("GET", "/markets/quotes"): {"quotes": {}}
+    })
+    c = TradierClient(account_id="ABC", http=http)
+    with pytest.raises(BrokerError):
+        c.get_quote("SPY")

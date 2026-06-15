@@ -67,3 +67,35 @@ def test_total_open_risk_cap_rejects():
     d = gate.is_order_allowed(_ok_order(qty=2), _ok_state(open_risk=5000.0))
     assert d.allowed is False
     assert "total open risk" in d.reason
+
+
+def test_max_concurrent_rejects():
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(), _ok_state(concurrent_positions=3))
+    assert d.allowed is False and "concurrent" in d.reason
+
+
+def test_daily_loss_halt_rejects():
+    # 2% of $20k = $400 loss halt; today -$450 -> reject
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(), _ok_state(realized_pnl_today=-450.0))
+    assert d.allowed is False and "daily loss" in d.reason
+
+
+def test_insufficient_settled_cash_rejects():
+    # trade risk 700*2=1400 but only $1000 settled -> reject (cash account)
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(qty=2), _ok_state(settled_cash=1000.0))
+    assert d.allowed is False and "settled cash" in d.reason
+
+
+def test_same_ticker_cooldown_rejects():
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(ticker="SPY"), _ok_state(recent_losses={"SPY": 2}))
+    assert d.allowed is False and "cooldown" in d.reason
+
+
+def test_cooldown_expired_allows():
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(ticker="SPY"), _ok_state(recent_losses={"SPY": 5}))
+    assert d.allowed is True

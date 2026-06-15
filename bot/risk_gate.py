@@ -60,6 +60,15 @@ class RiskGate:
             return Decision(False, "per-trade risk exceeds cap")
         if state.open_risk + trade_risk > state.equity * self.cfg.max_total_risk_pct + 1e-9:
             return Decision(False, "total open risk exceeds cap")
+        if state.concurrent_positions >= self.cfg.max_concurrent:
+            return Decision(False, "max concurrent positions reached")
+        if state.realized_pnl_today <= -self.cfg.daily_loss_halt_pct * state.equity:
+            return Decision(False, "daily loss halt active")
+        if trade_risk > state.settled_cash + 1e-9:
+            return Decision(False, "insufficient settled cash")
+        sessions_since = state.recent_losses.get(order.ticker)
+        if sessions_since is not None and sessions_since < self.cfg.cooldown_sessions:
+            return Decision(False, f"{order.ticker} in cooldown")
         return Decision(True, "ok")
 
     def _cushion_atr(self, order: SpreadOrder):

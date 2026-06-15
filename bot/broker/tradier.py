@@ -27,3 +27,11 @@ class TradierClient:
             raise BrokerError(f"no quote for {symbol}")
         return Quote(symbol=q["symbol"], bid=float(q["bid"]),
                      ask=float(q["ask"]), last=float(q["last"]))
+
+    def place_order(self, payload: dict) -> str:
+        """Submit an order; return broker order id as str. Raise if no id (C6: no silent fail)."""
+        resp = self.http("POST", f"/accounts/{self.account_id}/orders", data=payload)
+        oid = resp.get("order", {}).get("id")
+        if oid is None:
+            raise BrokerError(f"order submission returned no id: {resp}")
+        return str(oid)

@@ -1,0 +1,28 @@
+{
+  "full": {
+    "n": 40,
+    "wr": 0.75,
+    "pf": 1.112,
+    "pnl": 451.9
+  },
+  "h1": {
+    "n": 20,
+    "wr": 0.75,
+    "pf": 0.954,
+    "pnl": -123.1
+  },
+  "h2": {
+    "n": 20,
+    "wr": 0.75,
+    "pf": 1.41,
+    "pnl": 575.0
+  },
+  "total_pnl": 451.9,
+  "pnl_per_month": 38.1,
+  "max_drawdown_dollars": 1736.2,
+  "worst_week_losses_only": {
+    "week": "2025-W15",
+    "sum_losses": -1358.0
+  },
+  "longest_losing_streak": 2
+}

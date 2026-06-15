@@ -1,0 +1,366 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-05-06T13:32:50.132731+00:00",
+  "config": {
+    "window": 20,
+    "min_samples": 8,
+    "decay": 0.95,
+    "active_axes": [
+      "ticker",
+      "strategy",
+      "ticker_strategy"
+    ]
+  },
+  "buckets": {
+    "ticker|IWM": [
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0
+    ],
+    "strategy|bear_call_spread": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0
+    ],
+    "ticker_strategy|IWM|bear_call_spread": [
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0
+    ],
+    "ticker|GLD": [
+      1,
+      1,
+      0,
+      1,
+      0,
+      0,
+      1,
+      1,
+      0
+    ],
+    "strategy|bull_put_spread": [
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0
+    ],
+    "ticker_strategy|GLD|bull_put_spread": [
+      1,
+      1,
+      0,
+      0,
+      1,
+      0
+    ],
+    "ticker|AVGO": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "ticker_strategy|AVGO|bear_call_spread": [
+      1
+    ],
+    "ticker|NVDA": [
+      1,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0
+    ],
+    "ticker_strategy|NVDA|bull_put_spread": [
+      1,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0
+    ],
+    "ticker|AAPL": [
+      0,
+      1,
+      1,
+      1,
+      1,
+      0,
+      1,
+      1
+    ],
+    "ticker_strategy|AAPL|bull_put_spread": [
+      0,
+      1,
+      1,
+      1
+    ],
+    "ticker|WFC": [
+      1,
+      1
+    ],
+    "ticker_strategy|WFC|bull_put_spread": [
+      1,
+      1
+    ],
+    "ticker|SMH": [
+      1,
+      1
+    ],
+    "ticker_strategy|SMH|bear_call_spread": [
+      1
+    ],
+    "ticker_strategy|AAPL|bear_call_spread": [
+      1,
+      1,
+      0
+    ],
+    "ticker|ORCL": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "ticker_strategy|ORCL|bull_put_spread": [
+      1,
+      1
+    ],
+    "ticker|META": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "ticker_strategy|META|bull_put_spread": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "ticker|CRM": [
+      0
+    ],
+    "ticker_strategy|CRM|bull_put_spread": [
+      0
+    ],
+    "ticker|QQQ": [
+      0,
+      1
+    ],
+    "ticker_strategy|QQQ|bear_call_spread": [
+      0
+    ],
+    "ticker_strategy|ORCL|bear_call_spread": [
+      1
+    ],
+    "ticker_strategy|SMH|bull_put_spread": [
+      1
+    ],
+    "ticker|COIN": [
+      0,
+      1,
+      0
+    ],
+    "ticker_strategy|COIN|bear_call_spread": [
+      0
+    ],
+    "ticker_strategy|GLD|bear_call_spread": [
+      1,
+      0
+    ],
+    "ticker|PLTR": [
+      1,
+      1,
+      0
+    ],
+    "ticker_strategy|PLTR|bear_call_spread": [
+      1
+    ],
+    "ticker_strategy|PLTR|bull_put_spread": [
+      1,
+      0
+    ],
+    "ticker|SNOW": [
+      1
+    ],
+    "ticker_strategy|SNOW|bull_put_spread": [
+      1
+    ],
+    "ticker|DIA": [
+      0,
+      1
+    ],
+    "strategy|bull_call_spread": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      1,
+      1,
+      0,
+      0
+    ],
+    "ticker_strategy|DIA|bull_call_spread": [
+      0
+    ],
+    "ticker_strategy|DIA|bull_put_spread": [
+      1
+    ],
+    "ticker_strategy|COIN|bull_put_spread": [
+      1,
+      0
+    ],
+    "ticker|XOM": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "ticker_strategy|XOM|bull_call_spread": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "ticker_strategy|AVGO|bull_put_spread": [
+      0,
+      1
+    ],
+    "ticker_strategy|QQQ|bull_call_spread": [
+      1
+    ],
+    "ticker_strategy|GLD|bull_call_spread": [
+      1
+    ],
+    "ticker|LLY": [
+      1
+    ],
+    "ticker_strategy|LLY|bull_call_spread": [
+      1
+    ],
+    "ticker_strategy|AVGO|bull_call_spread": [
+      0
+    ],
+    "ticker|WMT": [
+      1,
+      0
+    ],
+    "ticker_strategy|WMT|bull_put_spread": [
+      1,
+      0
+    ],
+    "ticker|JNJ": [
+      0,
+      0
+    ],
+    "ticker_strategy|JNJ|bull_call_spread": [
+      0,
+      0
+    ],
+    "ticker_strategy|ORCL|bull_call_spread": [
+      1
+    ],
+    "ticker_strategy|AAPL|bull_call_spread": [
+      1
+    ],
+    "ticker|XLV": [
+      0
+    ],
+    "ticker_strategy|XLV|bull_call_spread": [
+      0
+    ],
+    "ticker|UNH": [
+      0
+    ],
+    "ticker_strategy|UNH|bull_put_spread": [
+      0
+    ]
+  }
+}

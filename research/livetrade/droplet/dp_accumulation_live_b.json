@@ -1,0 +1,3743 @@
+{
+  "date": "2026-06-10",
+  "tickers": {
+    "MU": {
+      "bullish": 136912039.92150003,
+      "bearish": 252147115.49310008,
+      "prints": 224,
+      "total_notional": 389059155.41460013
+    },
+    "SNDK": {
+      "bullish": 124747247.55299999,
+      "bearish": 91065479.358,
+      "prints": 93,
+      "total_notional": 215812726.911
+    },
+    "HUM": {
+      "bullish": 1698704.0,
+      "bearish": 1055858.21,
+      "prints": 2,
+      "total_notional": 2754562.21
+    },
+    "EWJ": {
+      "bullish": 4924940.52,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 4924940.52
+    },
+    "VOO": {
+      "bullish": 18904703.009999998,
+      "bearish": 20514959.5441,
+      "prints": 15,
+      "total_notional": 39419662.55410001
+    },
+    "QQQ": {
+      "bullish": 271066499.4039,
+      "bearish": 122104757.44730002,
+      "prints": 114,
+      "total_notional": 393171256.85120004
+    },
+    "VTIP": {
+      "bullish": 0,
+      "bearish": 1137707.19,
+      "prints": 1,
+      "total_notional": 1137707.19
+    },
+    "KNX": {
+      "bullish": 7105512.0,
+      "bearish": 5823829.1,
+      "prints": 5,
+      "total_notional": 12929341.1
+    },
+    "SMH": {
+      "bullish": 6738492.12,
+      "bearish": 23080266.825700004,
+      "prints": 11,
+      "total_notional": 29818758.9457
+    },
+    "AMD": {
+      "bullish": 19975731.376000002,
+      "bearish": 6635648.9958,
+      "prints": 15,
+      "total_notional": 26611380.371799998
+    },
+    "HOOD": {
+      "bullish": 0,
+      "bearish": 3625338.76,
+      "prints": 3,
+      "total_notional": 3625338.76
+    },
+    "SGOV": {
+      "bullish": 42229992.438999996,
+      "bearish": 11729032.8,
+      "prints": 29,
+      "total_notional": 53959025.239
+    },
+    "ACWI": {
+      "bullish": 4497554.4344999995,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 4497554.4344999995
+    },
+    "T": {
+      "bullish": 2631345.98,
+      "bearish": 4553355.0,
+      "prints": 4,
+      "total_notional": 7184700.98
+    },
+    "INTC": {
+      "bullish": 4339070.898,
+      "bearish": 4959625.5,
+      "prints": 6,
+      "total_notional": 9298696.398
+    },
+    "UPS": {
+      "bullish": 0,
+      "bearish": 1181899.335,
+      "prints": 1,
+      "total_notional": 1181899.335
+    },
+    "TSN": {
+      "bullish": 1774070.4,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1774070.4
+    },
+    "PANW": {
+      "bullish": 29350149.0,
+      "bearish": 14323543.9,
+      "prints": 6,
+      "total_notional": 43673692.9
+    },
+    "SOXX": {
+      "bullish": 13136358.1237,
+      "bearish": 11925841.0253,
+      "prints": 13,
+      "total_notional": 25062199.149
+    },
+    "ABBV": {
+      "bullish": 0,
+      "bearish": 1741848.42,
+      "prints": 1,
+      "total_notional": 1741848.42
+    },
+    "IWM": {
+      "bullish": 78943121.3822,
+      "bearish": 18589614.318,
+      "prints": 21,
+      "total_notional": 97532735.70019999
+    },
+    "AAPL": {
+      "bullish": 30280443.5277,
+      "bearish": 18070508.0638,
+      "prints": 21,
+      "total_notional": 48350951.5915
+    },
+    "TSLA": {
+      "bullish": 26579320.7891,
+      "bearish": 21435341.5216,
+      "prints": 26,
+      "total_notional": 48014662.3107
+    },
+    "COHR": {
+      "bullish": 1856407.54,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1856407.54
+    },
+    "COMB": {
+      "bullish": 0,
+      "bearish": 6086182.0,
+      "prints": 1,
+      "total_notional": 6086182.0
+    },
+    "DRAM": {
+      "bullish": 7733391.66,
+      "bearish": 21869700.449,
+      "prints": 9,
+      "total_notional": 29603092.109
+    },
+    "FWD": {
+      "bullish": 3256335.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3256335.0
+    },
+    "ILOW": {
+      "bullish": 0,
+      "bearish": 1976284.34,
+      "prints": 1,
+      "total_notional": 1976284.34
+    },
+    "SOXS": {
+      "bullish": 10626694.8629,
+      "bearish": 8554807.1829,
+      "prints": 12,
+      "total_notional": 19181502.0458
+    },
+    "ASX": {
+      "bullish": 0,
+      "bearish": 1382505.28,
+      "prints": 1,
+      "total_notional": 1382505.28
+    },
+    "VXUS": {
+      "bullish": 10522672.04,
+      "bearish": 7102585.89,
+      "prints": 3,
+      "total_notional": 17625257.93
+    },
+    "GOOG": {
+      "bullish": 7217712.2162,
+      "bearish": 16511213.54,
+      "prints": 8,
+      "total_notional": 23728925.756200004
+    },
+    "GLD": {
+      "bullish": 6235707.5052000005,
+      "bearish": 37152618.5597,
+      "prints": 11,
+      "total_notional": 43388326.064899996
+    },
+    "MRVL": {
+      "bullish": 8073881.695,
+      "bearish": 16188470.0372,
+      "prints": 14,
+      "total_notional": 24262351.7322
+    },
+    "FN": {
+      "bullish": 0,
+      "bearish": 1615950.0,
+      "prints": 1,
+      "total_notional": 1615950.0
+    },
+    "INSM": {
+      "bullish": 1438406.4,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1438406.4
+    },
+    "AVGO": {
+      "bullish": 17235877.779600002,
+      "bearish": 26387370.515,
+      "prints": 22,
+      "total_notional": 43623248.294599995
+    },
+    "NP": {
+      "bullish": 2521401.21,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2521401.21
+    },
+    "NBIS": {
+      "bullish": 14101684.0,
+      "bearish": 3828026.0,
+      "prints": 7,
+      "total_notional": 17929710.0
+    },
+    "XBI": {
+      "bullish": 0,
+      "bearish": 1009807.6,
+      "prints": 1,
+      "total_notional": 1009807.6
+    },
+    "KLAC": {
+      "bullish": 10060287.820799999,
+      "bearish": 5433515.52,
+      "prints": 8,
+      "total_notional": 15493803.3408
+    },
+    "TQQQ": {
+      "bullish": 6383802.868,
+      "bearish": 9770978.834,
+      "prints": 11,
+      "total_notional": 16154781.702
+    },
+    "SPY": {
+      "bullish": 320597284.5863,
+      "bearish": 88226166.31310003,
+      "prints": 112,
+      "total_notional": 408823450.89939994
+    },
+    "AMAT": {
+      "bullish": 7984037.1768,
+      "bearish": 7938518.71,
+      "prints": 6,
+      "total_notional": 15922555.8868
+    },
+    "SHV": {
+      "bullish": 0,
+      "bearish": 18313355.1292,
+      "prints": 4,
+      "total_notional": 18313355.1292
+    },
+    "SCHO": {
+      "bullish": 8870824.746199999,
+      "bearish": 2098584.9714,
+      "prints": 3,
+      "total_notional": 10969409.7176
+    },
+    "LITE": {
+      "bullish": 8869653.83,
+      "bearish": 9985502.5802,
+      "prints": 14,
+      "total_notional": 18855156.4102
+    },
+    "HYG": {
+      "bullish": 36435084.9,
+      "bearish": 2706910.0,
+      "prints": 6,
+      "total_notional": 39141994.9
+    },
+    "AMZN": {
+      "bullish": 15956934.591399997,
+      "bearish": 16866543.306599997,
+      "prints": 22,
+      "total_notional": 32823477.898
+    },
+    "LLY": {
+      "bullish": 7341964.12,
+      "bearish": 10609584.27,
+      "prints": 8,
+      "total_notional": 17951548.39
+    },
+    "ORCL": {
+      "bullish": 8636317.214,
+      "bearish": 9480148.6162,
+      "prints": 9,
+      "total_notional": 18116465.8302
+    },
+    "FLUT": {
+      "bullish": 3933128.0,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3933128.0
+    },
+    "IBDT": {
+      "bullish": 1763300.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1763300.0
+    },
+    "CPB": {
+      "bullish": 2152871.7199999997,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2152871.7199999997
+    },
+    "SGHC": {
+      "bullish": 0,
+      "bearish": 2042424.0,
+      "prints": 1,
+      "total_notional": 2042424.0
+    },
+    "CL": {
+      "bullish": 3494873.1,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 3494873.1
+    },
+    "TSM": {
+      "bullish": 10779096.46,
+      "bearish": 4769921.89,
+      "prints": 9,
+      "total_notional": 15549018.35
+    },
+    "DE": {
+      "bullish": 0,
+      "bearish": 5214056.07,
+      "prints": 2,
+      "total_notional": 5214056.07
+    },
+    "VRT": {
+      "bullish": 6232234.8,
+      "bearish": 2806545.37,
+      "prints": 4,
+      "total_notional": 9038780.17
+    },
+    "GS": {
+      "bullish": 0,
+      "bearish": 4246256.776000001,
+      "prints": 2,
+      "total_notional": 4246256.776000001
+    },
+    "MCD": {
+      "bullish": 0,
+      "bearish": 1354472.6968,
+      "prints": 1,
+      "total_notional": 1354472.6968
+    },
+    "ALAB": {
+      "bullish": 0,
+      "bearish": 6001340.82,
+      "prints": 2,
+      "total_notional": 6001340.82
+    },
+    "GLDM": {
+      "bullish": 7050473.76,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 7050473.76
+    },
+    "NVDA": {
+      "bullish": 31648244.1338,
+      "bearish": 33231191.8277,
+      "prints": 41,
+      "total_notional": 64879435.961500004
+    },
+    "PM": {
+      "bullish": 2553657.0,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2553657.0
+    },
+    "AXSM": {
+      "bullish": 2204239.7,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2204239.7
+    },
+    "IBIT": {
+      "bullish": 3372270.0,
+      "bearish": 1065929.964,
+      "prints": 3,
+      "total_notional": 4438199.964
+    },
+    "DELL": {
+      "bullish": 3141042.4,
+      "bearish": 2427755.402,
+      "prints": 4,
+      "total_notional": 5568797.802
+    },
+    "SMCI": {
+      "bullish": 20428756.0,
+      "bearish": 2783550.4893,
+      "prints": 10,
+      "total_notional": 23212306.4893
+    },
+    "MA": {
+      "bullish": 4965387.705,
+      "bearish": 1267578.5187,
+      "prints": 4,
+      "total_notional": 6232966.2237
+    },
+    "WAB": {
+      "bullish": 0,
+      "bearish": 1790404.2,
+      "prints": 1,
+      "total_notional": 1790404.2
+    },
+    "KO": {
+      "bullish": 5942698.17,
+      "bearish": 2475940.5,
+      "prints": 3,
+      "total_notional": 8418638.67
+    },
+    "LOW": {
+      "bullish": 0,
+      "bearish": 2828617.5,
+      "prints": 1,
+      "total_notional": 2828617.5
+    },
+    "APH": {
+      "bullish": 7839790.8100000005,
+      "bearish": 0,
+      "prints": 4,
+      "total_notional": 7839790.8100000005
+    },
+    "IJR": {
+      "bullish": 2585863.36,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2585863.36
+    },
+    "ABNB": {
+      "bullish": 0,
+      "bearish": 1404095.49,
+      "prints": 1,
+      "total_notional": 1404095.49
+    },
+    "VWO": {
+      "bullish": 1997008.75,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1997008.75
+    },
+    "QLTY": {
+      "bullish": 0,
+      "bearish": 3789938.69,
+      "prints": 2,
+      "total_notional": 3789938.69
+    },
+    "BKNG": {
+      "bullish": 1654270.375,
+      "bearish": 5443858.14,
+      "prints": 3,
+      "total_notional": 7098128.515
+    },
+    "UNH": {
+      "bullish": 5312996.9009,
+      "bearish": 3686309.456,
+      "prints": 4,
+      "total_notional": 8999306.3569
+    },
+    "ISRG": {
+      "bullish": 7489713.24,
+      "bearish": 1670387.94,
+      "prints": 3,
+      "total_notional": 9160101.18
+    },
+    "SYK": {
+      "bullish": 6108138.48,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 6108138.48
+    },
+    "DT": {
+      "bullish": 1447761.9,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1447761.9
+    },
+    "HWM": {
+      "bullish": 5264644.0458,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 5264644.0458
+    },
+    "SNOW": {
+      "bullish": 6825805.6855999995,
+      "bearish": 8170842.0,
+      "prints": 5,
+      "total_notional": 14996647.6856
+    },
+    "NFLX": {
+      "bullish": 9173657.8292,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 9173657.8292
+    },
+    "INTU": {
+      "bullish": 4203290.6,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 4203290.6
+    },
+    "PL": {
+      "bullish": 1052283.995,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1052283.995
+    },
+    "KSS": {
+      "bullish": 0,
+      "bearish": 1601000.0,
+      "prints": 1,
+      "total_notional": 1601000.0
+    },
+    "SPDN": {
+      "bullish": 21946905.63,
+      "bearish": 15422691.09,
+      "prints": 27,
+      "total_notional": 37369596.72
+    },
+    "LC": {
+      "bullish": 0,
+      "bearish": 2227272.5,
+      "prints": 1,
+      "total_notional": 2227272.5
+    },
+    "GSIE": {
+      "bullish": 0,
+      "bearish": 4165930.53,
+      "prints": 1,
+      "total_notional": 4165930.53
+    },
+    "HEFA": {
+      "bullish": 0,
+      "bearish": 2694499.5,
+      "prints": 1,
+      "total_notional": 2694499.5
+    },
+    "GSLC": {
+      "bullish": 9425900.25,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 9425900.25
+    },
+    "META": {
+      "bullish": 9720310.67,
+      "bearish": 5779955.3343,
+      "prints": 9,
+      "total_notional": 15500266.0043
+    },
+    "IBTG": {
+      "bullish": 9037838.16,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 9037838.16
+    },
+    "COIN": {
+      "bullish": 2259302.1,
+      "bearish": 2111903.69,
+      "prints": 4,
+      "total_notional": 4371205.79
+    },
+    "XLK": {
+      "bullish": 0,
+      "bearish": 71520101.32,
+      "prints": 4,
+      "total_notional": 71520101.32
+    },
+    "SOXL": {
+      "bullish": 10132545.3192,
+      "bearish": 8934415.528,
+      "prints": 12,
+      "total_notional": 19066960.8472
+    },
+    "CLH": {
+      "bullish": 0,
+      "bearish": 4080002.25,
+      "prints": 2,
+      "total_notional": 4080002.25
+    },
+    "USVM": {
+      "bullish": 2990665.88,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2990665.88
+    },
+    "WFRD": {
+      "bullish": 2683239.44,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2683239.44
+    },
+    "VGIT": {
+      "bullish": 0,
+      "bearish": 2167311.02,
+      "prints": 1,
+      "total_notional": 2167311.02
+    },
+    "GDX": {
+      "bullish": 10298016.11,
+      "bearish": 2734020.0,
+      "prints": 4,
+      "total_notional": 13032036.11
+    },
+    "WBS": {
+      "bullish": 6520500.0,
+      "bearish": 38577700.0,
+      "prints": 4,
+      "total_notional": 45098200.0
+    },
+    "AVUV": {
+      "bullish": 0,
+      "bearish": 1778146.45,
+      "prints": 1,
+      "total_notional": 1778146.45
+    },
+    "WT": {
+      "bullish": 0,
+      "bearish": 1096908.0,
+      "prints": 1,
+      "total_notional": 1096908.0
+    },
+    "NET": {
+      "bullish": 0,
+      "bearish": 1565368.5,
+      "prints": 1,
+      "total_notional": 1565368.5
+    },
+    "DHR": {
+      "bullish": 1687460.5493,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1687460.5493
+    },
+    "SPYM": {
+      "bullish": 2909448.57,
+      "bearish": 3753566.6,
+      "prints": 3,
+      "total_notional": 6663015.17
+    },
+    "FHN": {
+      "bullish": 3633637.5,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3633637.5
+    },
+    "ZTS": {
+      "bullish": 5465981.71,
+      "bearish": 1088147.0,
+      "prints": 4,
+      "total_notional": 6554128.71
+    },
+    "CRDO": {
+      "bullish": 5111199.64,
+      "bearish": 2374422.0,
+      "prints": 4,
+      "total_notional": 7485621.64
+    },
+    "ABT": {
+      "bullish": 3350476.0,
+      "bearish": 4251887.48,
+      "prints": 5,
+      "total_notional": 7602363.48
+    },
+    "IBM": {
+      "bullish": 3282433.4716000003,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3282433.4716000003
+    },
+    "CRS": {
+      "bullish": 2342489.4812,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2342489.4812
+    },
+    "RIG": {
+      "bullish": 1493257.5,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1493257.5
+    },
+    "BROS": {
+      "bullish": 1015549.845,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1015549.845
+    },
+    "EMBJ": {
+      "bullish": 0,
+      "bearish": 1952475.2,
+      "prints": 1,
+      "total_notional": 1952475.2
+    },
+    "DKNG": {
+      "bullish": 1078027.5,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1078027.5
+    },
+    "GLXY": {
+      "bullish": 0,
+      "bearish": 5647250.0,
+      "prints": 2,
+      "total_notional": 5647250.0
+    },
+    "IGV": {
+      "bullish": 2895968.6,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2895968.6
+    },
+    "GOOGN": {
+      "bullish": 63610155.5118,
+      "bearish": 25236800.0,
+      "prints": 9,
+      "total_notional": 88846955.5118
+    },
+    "CAT": {
+      "bullish": 0,
+      "bearish": 9386775.23,
+      "prints": 4,
+      "total_notional": 9386775.23
+    },
+    "BALT": {
+      "bullish": 1641665.4,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1641665.4
+    },
+    "MSFT": {
+      "bullish": 8214109.6,
+      "bearish": 23621309.5482,
+      "prints": 16,
+      "total_notional": 31835419.1482
+    },
+    "CPNG": {
+      "bullish": 35422500.0,
+      "bearish": 0,
+      "prints": 6,
+      "total_notional": 35422500.0
+    },
+    "IVV": {
+      "bullish": 7503820.761299999,
+      "bearish": 3729687.4505000003,
+      "prints": 7,
+      "total_notional": 11233508.211800002
+    },
+    "VTEB": {
+      "bullish": 2278580.7168,
+      "bearish": 3936198.3,
+      "prints": 3,
+      "total_notional": 6214779.016799999
+    },
+    "EFA": {
+      "bullish": 7709313.0,
+      "bearish": 20328180.72,
+      "prints": 10,
+      "total_notional": 28037493.72
+    },
+    "LIVN": {
+      "bullish": 6282000.0,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 6282000.0
+    },
+    "JPST": {
+      "bullish": 5465423.52,
+      "bearish": 3141502.2864,
+      "prints": 4,
+      "total_notional": 8606925.806400001
+    },
+    "LYV": {
+      "bullish": 7906904.87,
+      "bearish": 2310810.0,
+      "prints": 3,
+      "total_notional": 10217714.870000001
+    },
+    "LULU": {
+      "bullish": 0,
+      "bearish": 1119007.89,
+      "prints": 1,
+      "total_notional": 1119007.89
+    },
+    "CUB": {
+      "bullish": 5440000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 5440000.0
+    },
+    "DJP": {
+      "bullish": 0,
+      "bearish": 3231446.4,
+      "prints": 1,
+      "total_notional": 3231446.4
+    },
+    "STX": {
+      "bullish": 0,
+      "bearish": 10548511.617999999,
+      "prints": 4,
+      "total_notional": 10548511.617999999
+    },
+    "GOOGL": {
+      "bullish": 45838204.740899995,
+      "bearish": 12955281.257000001,
+      "prints": 21,
+      "total_notional": 58793485.9979
+    },
+    "ECL": {
+      "bullish": 1128600.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1128600.0
+    },
+    "NOK": {
+      "bullish": 7460325.0,
+      "bearish": 12976467.0,
+      "prints": 3,
+      "total_notional": 20436792.0
+    },
+    "MUU": {
+      "bullish": 4922351.6346,
+      "bearish": 3980638.366,
+      "prints": 6,
+      "total_notional": 8902990.000599999
+    },
+    "RSG": {
+      "bullish": 1056125.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1056125.0
+    },
+    "APG": {
+      "bullish": 0,
+      "bearish": 2191000.0,
+      "prints": 1,
+      "total_notional": 2191000.0
+    },
+    "CIEN": {
+      "bullish": 24400420.6544,
+      "bearish": 10181539.08,
+      "prints": 13,
+      "total_notional": 34581959.7344
+    },
+    "TSLL": {
+      "bullish": 1918284.32,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1918284.32
+    },
+    "SLV": {
+      "bullish": 1531403.1,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1531403.1
+    },
+    "DDOG": {
+      "bullish": 1118174.18,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1118174.18
+    },
+    "TEL": {
+      "bullish": 0,
+      "bearish": 5144020.0,
+      "prints": 1,
+      "total_notional": 5144020.0
+    },
+    "BIL": {
+      "bullish": 3042075.92,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3042075.92
+    },
+    "ORCL-D": {
+      "bullish": 0,
+      "bearish": 26126078.65,
+      "prints": 1,
+      "total_notional": 26126078.65
+    },
+    "MUB": {
+      "bullish": 0,
+      "bearish": 32207524.72,
+      "prints": 4,
+      "total_notional": 32207524.72
+    },
+    "XLU": {
+      "bullish": 6057334.345000001,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 6057334.345000001
+    },
+    "BX": {
+      "bullish": 3059456.12,
+      "bearish": 2452193.6,
+      "prints": 3,
+      "total_notional": 5511649.720000001
+    },
+    "WDC": {
+      "bullish": 16763380.8,
+      "bearish": 5917127.7055,
+      "prints": 7,
+      "total_notional": 22680508.5055
+    },
+    "PCG": {
+      "bullish": 1506600.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1506600.0
+    },
+    "CDE": {
+      "bullish": 2674766.28,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2674766.28
+    },
+    "DG": {
+      "bullish": 1425136.96,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1425136.96
+    },
+    "VGUS": {
+      "bullish": 1287464.96,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1287464.96
+    },
+    "AFRM": {
+      "bullish": 1814790.39,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1814790.39
+    },
+    "OWL": {
+      "bullish": 11492640.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 11492640.0
+    },
+    "HD": {
+      "bullish": 0,
+      "bearish": 2385464.0,
+      "prints": 1,
+      "total_notional": 2385464.0
+    },
+    "EMB": {
+      "bullish": 4234194.0,
+      "bearish": 27602896.0,
+      "prints": 5,
+      "total_notional": 31837090.0
+    },
+    "LRCX": {
+      "bullish": 16158235.0,
+      "bearish": 9173698.812800001,
+      "prints": 7,
+      "total_notional": 25331933.8128
+    },
+    "BMY": {
+      "bullish": 0,
+      "bearish": 1126844.0,
+      "prints": 1,
+      "total_notional": 1126844.0
+    },
+    "SPOT": {
+      "bullish": 1481754.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1481754.0
+    },
+    "EBC": {
+      "bullish": 3410279.565,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3410279.565
+    },
+    "NIC": {
+      "bullish": 2344649.625,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2344649.625
+    },
+    "WSBC": {
+      "bullish": 0,
+      "bearish": 2734060.72,
+      "prints": 1,
+      "total_notional": 2734060.72
+    },
+    "LAZ": {
+      "bullish": 0,
+      "bearish": 5340266.425,
+      "prints": 3,
+      "total_notional": 5340266.425
+    },
+    "IVT": {
+      "bullish": 5049274.04,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 5049274.04
+    },
+    "ELV": {
+      "bullish": 0,
+      "bearish": 3160774.05,
+      "prints": 2,
+      "total_notional": 3160774.05
+    },
+    "RNR": {
+      "bullish": 4751211.8,
+      "bearish": 2948833.1459999997,
+      "prints": 5,
+      "total_notional": 7700044.9459999995
+    },
+    "PLTR": {
+      "bullish": 3348011.0936999996,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 3348011.0936999996
+    },
+    "BKD": {
+      "bullish": 0,
+      "bearish": 1122773.58,
+      "prints": 1,
+      "total_notional": 1122773.58
+    },
+    "VTI": {
+      "bullish": 1042550.49,
+      "bearish": 8334156.141499999,
+      "prints": 5,
+      "total_notional": 9376706.6315
+    },
+    "PHYS": {
+      "bullish": 1701219.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1701219.0
+    },
+    "BKLN": {
+      "bullish": 1077461.785,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1077461.785
+    },
+    "CNK": {
+      "bullish": 0,
+      "bearish": 2173902.3,
+      "prints": 1,
+      "total_notional": 2173902.3
+    },
+    "BE": {
+      "bullish": 3566752.0,
+      "bearish": 5854704.5,
+      "prints": 8,
+      "total_notional": 9421456.5
+    },
+    "JCPB": {
+      "bullish": 1000826.9546,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1000826.9546
+    },
+    "CDNS": {
+      "bullish": 0,
+      "bearish": 1964825.0,
+      "prints": 1,
+      "total_notional": 1964825.0
+    },
+    "AU": {
+      "bullish": 10284477.2021,
+      "bearish": 4723864.7456,
+      "prints": 2,
+      "total_notional": 15008341.9477
+    },
+    "EEM": {
+      "bullish": 1389048.02,
+      "bearish": 2830889.0,
+      "prints": 3,
+      "total_notional": 4219937.02
+    },
+    "VB": {
+      "bullish": 1210411.8,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1210411.8
+    },
+    "AAOI": {
+      "bullish": 0,
+      "bearish": 7081986.88,
+      "prints": 4,
+      "total_notional": 7081986.88
+    },
+    "VEA": {
+      "bullish": 7121316.405,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 7121316.405
+    },
+    "PFE": {
+      "bullish": 1008467.6914,
+      "bearish": 1002355.3002,
+      "prints": 2,
+      "total_notional": 2010822.9916
+    },
+    "MSA": {
+      "bullish": 0,
+      "bearish": 4120556.22,
+      "prints": 1,
+      "total_notional": 4120556.22
+    },
+    "CBRS": {
+      "bullish": 0,
+      "bearish": 2785243.3200000003,
+      "prints": 2,
+      "total_notional": 2785243.3200000003
+    },
+    "IEMG": {
+      "bullish": 5559211.93,
+      "bearish": 5167992.68,
+      "prints": 5,
+      "total_notional": 10727204.610000001
+    },
+    "ZBRA": {
+      "bullish": 1921059.2,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1921059.2
+    },
+    "TAN": {
+      "bullish": 0,
+      "bearish": 1225847.7,
+      "prints": 1,
+      "total_notional": 1225847.7
+    },
+    "FERG": {
+      "bullish": 1607025.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1607025.0
+    },
+    "PAGP": {
+      "bullish": 0,
+      "bearish": 2962978.45,
+      "prints": 1,
+      "total_notional": 2962978.45
+    },
+    "BLDR": {
+      "bullish": 1934500.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1934500.0
+    },
+    "BA": {
+      "bullish": 2118796.8899999997,
+      "bearish": 1508416.56,
+      "prints": 3,
+      "total_notional": 3627213.4499999997
+    },
+    "XPO": {
+      "bullish": 7110425.1,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 7110425.1
+    },
+    "SQQQ": {
+      "bullish": 3686548.58,
+      "bearish": 17043916.3932,
+      "prints": 14,
+      "total_notional": 20730464.9732
+    },
+    "GEV": {
+      "bullish": 1078480.42,
+      "bearish": 7562837.751,
+      "prints": 7,
+      "total_notional": 8641318.171
+    },
+    "SPSB": {
+      "bullish": 10963036.56,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 10963036.56
+    },
+    "PDBA": {
+      "bullish": 2257323.32,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2257323.32
+    },
+    "H": {
+      "bullish": 0,
+      "bearish": 1283665.65,
+      "prints": 1,
+      "total_notional": 1283665.65
+    },
+    "IEFA": {
+      "bullish": 1159539.36,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1159539.36
+    },
+    "VZ": {
+      "bullish": 3579259.4745,
+      "bearish": 1911870.5,
+      "prints": 4,
+      "total_notional": 5491129.9745000005
+    },
+    "UPSD": {
+      "bullish": 0,
+      "bearish": 2772893.2,
+      "prints": 1,
+      "total_notional": 2772893.2
+    },
+    "RSPA": {
+      "bullish": 1407050.46,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1407050.46
+    },
+    "ACN": {
+      "bullish": 4197308.4,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 4197308.4
+    },
+    "GOOGM": {
+      "bullish": 0,
+      "bearish": 60937806.5,
+      "prints": 5,
+      "total_notional": 60937806.5
+    },
+    "ADI": {
+      "bullish": 2003475.0,
+      "bearish": 2309437.75,
+      "prints": 2,
+      "total_notional": 4312912.75
+    },
+    "BDX": {
+      "bullish": 1698390.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1698390.0
+    },
+    "AEM": {
+      "bullish": 1341962.8,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1341962.8
+    },
+    "SPIB": {
+      "bullish": 10967336.5,
+      "bearish": 0,
+      "prints": 4,
+      "total_notional": 10967336.5
+    },
+    "AMKR": {
+      "bullish": 3493391.0,
+      "bearish": 1671324.0,
+      "prints": 3,
+      "total_notional": 5164715.0
+    },
+    "ICLR": {
+      "bullish": 0,
+      "bearish": 1133414.7,
+      "prints": 1,
+      "total_notional": 1133414.7
+    },
+    "NVDL": {
+      "bullish": 1513616.49,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1513616.49
+    },
+    "IWP": {
+      "bullish": 5968977.2,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 5968977.2
+    },
+    "ETN": {
+      "bullish": 4876572.005,
+      "bearish": 2229754.8,
+      "prints": 3,
+      "total_notional": 7106326.805
+    },
+    "SOFI": {
+      "bullish": 1286282.2,
+      "bearish": 1357203.758,
+      "prints": 2,
+      "total_notional": 2643485.9579999996
+    },
+    "TNGX": {
+      "bullish": 1682951.2,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1682951.2
+    },
+    "JHX": {
+      "bullish": 1137500.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1137500.0
+    },
+    "MTSI": {
+      "bullish": 0,
+      "bearish": 1485930.16,
+      "prints": 1,
+      "total_notional": 1485930.16
+    },
+    "ARM": {
+      "bullish": 1154396.3,
+      "bearish": 3167755.5,
+      "prints": 3,
+      "total_notional": 4322151.8
+    },
+    "CF": {
+      "bullish": 0,
+      "bearish": 1080850.0,
+      "prints": 1,
+      "total_notional": 1080850.0
+    },
+    "U": {
+      "bullish": 16576571.52,
+      "bearish": 0,
+      "prints": 4,
+      "total_notional": 16576571.52
+    },
+    "AES": {
+      "bullish": 0,
+      "bearish": 1097325.0,
+      "prints": 1,
+      "total_notional": 1097325.0
+    },
+    "TLT": {
+      "bullish": 19287433.78,
+      "bearish": 5552821.125,
+      "prints": 11,
+      "total_notional": 24840254.905
+    },
+    "JAAA": {
+      "bullish": 5809835.59,
+      "bearish": 7258241.92,
+      "prints": 3,
+      "total_notional": 13068077.510000002
+    },
+    "DOCN": {
+      "bullish": 6606171.915,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 6606171.915
+    },
+    "CGNX": {
+      "bullish": 1070702.5,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1070702.5
+    },
+    "SHOTU": {
+      "bullish": 5005000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 5005000.0
+    },
+    "SBUX": {
+      "bullish": 1459078.4,
+      "bearish": 1124978.665,
+      "prints": 2,
+      "total_notional": 2584057.065
+    },
+    "HON": {
+      "bullish": 1412359.11,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1412359.11
+    },
+    "BIRK": {
+      "bullish": 0,
+      "bearish": 4324901.5,
+      "prints": 3,
+      "total_notional": 4324901.5
+    },
+    "SNXX": {
+      "bullish": 0,
+      "bearish": 2704278.6799999997,
+      "prints": 2,
+      "total_notional": 2704278.6799999997
+    },
+    "VGT": {
+      "bullish": 2012521.77,
+      "bearish": 1035120.0,
+      "prints": 3,
+      "total_notional": 3047641.77
+    },
+    "PWR": {
+      "bullish": 0,
+      "bearish": 2825180.775,
+      "prints": 1,
+      "total_notional": 2825180.775
+    },
+    "JABRU": {
+      "bullish": 3007000.0,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3007000.0
+    },
+    "TYL": {
+      "bullish": 17357306.2,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 17357306.2
+    },
+    "MDLN": {
+      "bullish": 1209630.96,
+      "bearish": 7220006.23,
+      "prints": 4,
+      "total_notional": 8429637.190000001
+    },
+    "NOW": {
+      "bullish": 1162555.0,
+      "bearish": 3510330.7487999997,
+      "prints": 4,
+      "total_notional": 4672885.7488
+    },
+    "SCHE": {
+      "bullish": 0,
+      "bearish": 6011465.04,
+      "prints": 1,
+      "total_notional": 6011465.04
+    },
+    "SCHX": {
+      "bullish": 11195199.46,
+      "bearish": 6159010.56,
+      "prints": 4,
+      "total_notional": 17354210.02
+    },
+    "AMP": {
+      "bullish": 0,
+      "bearish": 1221723.27,
+      "prints": 1,
+      "total_notional": 1221723.27
+    },
+    "KVYO": {
+      "bullish": 0,
+      "bearish": 1484000.0,
+      "prints": 1,
+      "total_notional": 1484000.0
+    },
+    "GIS": {
+      "bullish": 2185343.145,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2185343.145
+    },
+    "BTDR": {
+      "bullish": 1260371.6,
+      "bearish": 2963520.0,
+      "prints": 2,
+      "total_notional": 4223891.6
+    },
+    "MCK": {
+      "bullish": 9456214.32,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 9456214.32
+    },
+    "NORW": {
+      "bullish": 1764507.36,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1764507.36
+    },
+    "ALNY": {
+      "bullish": 2601351.6,
+      "bearish": 2242938.6,
+      "prints": 2,
+      "total_notional": 4844290.2
+    },
+    "UBER": {
+      "bullish": 1512196.14,
+      "bearish": 6823433.25,
+      "prints": 2,
+      "total_notional": 8335629.39
+    },
+    "IWF": {
+      "bullish": 6245148.41,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 6245148.41
+    },
+    "V": {
+      "bullish": 2452554.6,
+      "bearish": 4705428.5689,
+      "prints": 3,
+      "total_notional": 7157983.1689
+    },
+    "IREN": {
+      "bullish": 17762844.0,
+      "bearish": 1145377.0,
+      "prints": 5,
+      "total_notional": 18908221.0
+    },
+    "TXRH": {
+      "bullish": 2376370.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2376370.0
+    },
+    "ES": {
+      "bullish": 0,
+      "bearish": 2345166.96,
+      "prints": 1,
+      "total_notional": 2345166.96
+    },
+    "FAST": {
+      "bullish": 2334500.0,
+      "bearish": 2340000.0,
+      "prints": 2,
+      "total_notional": 4674500.0
+    },
+    "HUBB": {
+      "bullish": 15828024.52,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 15828024.52
+    },
+    "NU": {
+      "bullish": 2526293.0,
+      "bearish": 1499688.0,
+      "prints": 2,
+      "total_notional": 4025981.0
+    },
+    "WBD": {
+      "bullish": 2514735.21,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2514735.21
+    },
+    "CAH": {
+      "bullish": 11432944.7751,
+      "bearish": 0,
+      "prints": 5,
+      "total_notional": 11432944.7751
+    },
+    "SRLN": {
+      "bullish": 4025500.0,
+      "bearish": 7365088.4399999995,
+      "prints": 3,
+      "total_notional": 11390588.44
+    },
+    "KR": {
+      "bullish": 0,
+      "bearish": 22442000.0,
+      "prints": 1,
+      "total_notional": 22442000.0
+    },
+    "CRBG": {
+      "bullish": 7610000.0,
+      "bearish": 2636250.0,
+      "prints": 4,
+      "total_notional": 10246250.0
+    },
+    "FXI": {
+      "bullish": 0,
+      "bearish": 8371200.0,
+      "prints": 1,
+      "total_notional": 8371200.0
+    },
+    "GNRC": {
+      "bullish": 0,
+      "bearish": 1164118.23,
+      "prints": 1,
+      "total_notional": 1164118.23
+    },
+    "EWY": {
+      "bullish": 5663394.1,
+      "bearish": 17402918.990000002,
+      "prints": 7,
+      "total_notional": 23066313.09
+    },
+    "BITX": {
+      "bullish": 0,
+      "bearish": 1317930.0,
+      "prints": 1,
+      "total_notional": 1317930.0
+    },
+    "DTCR": {
+      "bullish": 0,
+      "bearish": 1889894.0,
+      "prints": 1,
+      "total_notional": 1889894.0
+    },
+    "RSP": {
+      "bullish": 2537245.5624,
+      "bearish": 1040100.38,
+      "prints": 3,
+      "total_notional": 3577345.9424
+    },
+    "NOBL": {
+      "bullish": 0,
+      "bearish": 1985049.72,
+      "prints": 1,
+      "total_notional": 1985049.72
+    },
+    "SLAB": {
+      "bullish": 0,
+      "bearish": 6140133.4,
+      "prints": 1,
+      "total_notional": 6140133.4
+    },
+    "LVHI": {
+      "bullish": 2200830.8,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2200830.8
+    },
+    "VSAT": {
+      "bullish": 0,
+      "bearish": 1297375.0,
+      "prints": 1,
+      "total_notional": 1297375.0
+    },
+    "QQQM": {
+      "bullish": 10708129.1651,
+      "bearish": 2974546.9,
+      "prints": 5,
+      "total_notional": 13682676.0651
+    },
+    "KEEL": {
+      "bullish": 5636994.0,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 5636994.0
+    },
+    "CANQ": {
+      "bullish": 0,
+      "bearish": 1074563.49,
+      "prints": 1,
+      "total_notional": 1074563.49
+    },
+    "IUSB": {
+      "bullish": 3215857.2800000003,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3215857.2800000003
+    },
+    "PINS": {
+      "bullish": 1023010.065,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1023010.065
+    },
+    "HSBC": {
+      "bullish": 0,
+      "bearish": 1113401.4,
+      "prints": 1,
+      "total_notional": 1113401.4
+    },
+    "LMT": {
+      "bullish": 0,
+      "bearish": 1587013.386,
+      "prints": 1,
+      "total_notional": 1587013.386
+    },
+    "AKR": {
+      "bullish": 2134759.2,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2134759.2
+    },
+    "SPTS": {
+      "bullish": 1644151.765,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1644151.765
+    },
+    "XRT": {
+      "bullish": 2300869.2800000003,
+      "bearish": 4947980.0,
+      "prints": 3,
+      "total_notional": 7248849.28
+    },
+    "PG": {
+      "bullish": 0,
+      "bearish": 1194477.6,
+      "prints": 1,
+      "total_notional": 1194477.6
+    },
+    "IYT": {
+      "bullish": 0,
+      "bearish": 2096250.0,
+      "prints": 1,
+      "total_notional": 2096250.0
+    },
+    "PAAA": {
+      "bullish": 0,
+      "bearish": 1078560.0,
+      "prints": 1,
+      "total_notional": 1078560.0
+    },
+    "SPMO": {
+      "bullish": 0,
+      "bearish": 13994970.82,
+      "prints": 2,
+      "total_notional": 13994970.82
+    },
+    "CXW": {
+      "bullish": 1272500.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1272500.0
+    },
+    "VEEV": {
+      "bullish": 0,
+      "bearish": 2754940.65,
+      "prints": 1,
+      "total_notional": 2754940.65
+    },
+    "BBCA": {
+      "bullish": 0,
+      "bearish": 12367958.0,
+      "prints": 2,
+      "total_notional": 12367958.0
+    },
+    "HR": {
+      "bullish": 6916632.0,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 6916632.0
+    },
+    "JNJ": {
+      "bullish": 1193975.0,
+      "bearish": 3969973.0,
+      "prints": 2,
+      "total_notional": 5163948.0
+    },
+    "VCTR": {
+      "bullish": 1269554.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1269554.0
+    },
+    "XLV": {
+      "bullish": 9305604.94,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 9305604.94
+    },
+    "MDU": {
+      "bullish": 1067500.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1067500.0
+    },
+    "WH": {
+      "bullish": 0,
+      "bearish": 1935125.0,
+      "prints": 1,
+      "total_notional": 1935125.0
+    },
+    "FROG": {
+      "bullish": 0,
+      "bearish": 4312070.46,
+      "prints": 1,
+      "total_notional": 4312070.46
+    },
+    "UDR": {
+      "bullish": 1887840.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1887840.0
+    },
+    "GDXU": {
+      "bullish": 1384320.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1384320.0
+    },
+    "QGEN": {
+      "bullish": 5654678.55,
+      "bearish": 11145000.0,
+      "prints": 2,
+      "total_notional": 16799678.55
+    },
+    "MINO": {
+      "bullish": 4231622.78,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 4231622.78
+    },
+    "QCOM": {
+      "bullish": 1349583.0,
+      "bearish": 1293144.8316,
+      "prints": 2,
+      "total_notional": 2642727.8316
+    },
+    "WMT": {
+      "bullish": 1651722.0,
+      "bearish": 3331056.7122,
+      "prints": 3,
+      "total_notional": 4982778.7122
+    },
+    "YUMC": {
+      "bullish": 0,
+      "bearish": 3229231.5,
+      "prints": 1,
+      "total_notional": 3229231.5
+    },
+    "NUE": {
+      "bullish": 0,
+      "bearish": 1035619.0,
+      "prints": 1,
+      "total_notional": 1035619.0
+    },
+    "UVIX": {
+      "bullish": 4377082.950999999,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 4377082.950999999
+    },
+    "PDBC": {
+      "bullish": 0,
+      "bearish": 1790781.38,
+      "prints": 1,
+      "total_notional": 1790781.38
+    },
+    "COST": {
+      "bullish": 2503418.03,
+      "bearish": 1339802.46,
+      "prints": 2,
+      "total_notional": 3843220.4899999998
+    },
+    "DFTX": {
+      "bullish": 1157202.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1157202.0
+    },
+    "MSI": {
+      "bullish": 1875068.9,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1875068.9
+    },
+    "CWB": {
+      "bullish": 0,
+      "bearish": 5115861.0,
+      "prints": 1,
+      "total_notional": 5115861.0
+    },
+    "RH": {
+      "bullish": 4123302.0,
+      "bearish": 1115062.5,
+      "prints": 2,
+      "total_notional": 5238364.5
+    },
+    "ACI": {
+      "bullish": 1124717.195,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1124717.195
+    },
+    "DIA": {
+      "bullish": 1793777.2,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1793777.2
+    },
+    "MGK": {
+      "bullish": 6348659.5465,
+      "bearish": 24087748.6,
+      "prints": 5,
+      "total_notional": 30436408.146500003
+    },
+    "EIDO": {
+      "bullish": 0,
+      "bearish": 1217140.0,
+      "prints": 1,
+      "total_notional": 1217140.0
+    },
+    "MGV": {
+      "bullish": 1507301.32,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1507301.32
+    },
+    "STM": {
+      "bullish": 3545000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3545000.0
+    },
+    "ANF": {
+      "bullish": 0,
+      "bearish": 1398676.96,
+      "prints": 1,
+      "total_notional": 1398676.96
+    },
+    "IAK": {
+      "bullish": 2455849.26,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2455849.26
+    },
+    "OILK": {
+      "bullish": 0,
+      "bearish": 1751179.5,
+      "prints": 1,
+      "total_notional": 1751179.5
+    },
+    "TILT": {
+      "bullish": 0,
+      "bearish": 1055864.25,
+      "prints": 1,
+      "total_notional": 1055864.25
+    },
+    "ODFL": {
+      "bullish": 102377750.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 102377750.0
+    },
+    "EWZ": {
+      "bullish": 0,
+      "bearish": 3384500.0,
+      "prints": 2,
+      "total_notional": 3384500.0
+    },
+    "GEHC": {
+      "bullish": 0,
+      "bearish": 1254066.975,
+      "prints": 1,
+      "total_notional": 1254066.975
+    },
+    "VCIT": {
+      "bullish": 3455098.505,
+      "bearish": 2215890.0,
+      "prints": 3,
+      "total_notional": 5670988.505
+    },
+    "ABVX": {
+      "bullish": 3124049.4699999997,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3124049.4699999997
+    },
+    "EXPD": {
+      "bullish": 0,
+      "bearish": 1348902.28,
+      "prints": 1,
+      "total_notional": 1348902.28
+    },
+    "XTL": {
+      "bullish": 0,
+      "bearish": 1253637.0,
+      "prints": 1,
+      "total_notional": 1253637.0
+    },
+    "EFV": {
+      "bullish": 1618050.0,
+      "bearish": 1119757.2,
+      "prints": 2,
+      "total_notional": 2737807.2
+    },
+    "IYW": {
+      "bullish": 1388666.08,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1388666.08
+    },
+    "FSLR": {
+      "bullish": 1124595.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1124595.0
+    },
+    "SCHW": {
+      "bullish": 0,
+      "bearish": 1787600.0,
+      "prints": 1,
+      "total_notional": 1787600.0
+    },
+    "VXF": {
+      "bullish": 0,
+      "bearish": 1143164.858,
+      "prints": 1,
+      "total_notional": 1143164.858
+    },
+    "ASML": {
+      "bullish": 2849515.8048,
+      "bearish": 7486084.3,
+      "prints": 6,
+      "total_notional": 10335600.1048
+    },
+    "KRE": {
+      "bullish": 0,
+      "bearish": 1437400.0,
+      "prints": 1,
+      "total_notional": 1437400.0
+    },
+    "PYPL": {
+      "bullish": 2058500.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2058500.0
+    },
+    "TER": {
+      "bullish": 1885319.59,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1885319.59
+    },
+    "IAU": {
+      "bullish": 6165346.62,
+      "bearish": 31086299.259999998,
+      "prints": 5,
+      "total_notional": 37251645.879999995
+    },
+    "MRK": {
+      "bullish": 4088457.1500000004,
+      "bearish": 24973478.0,
+      "prints": 5,
+      "total_notional": 29061935.15
+    },
+    "SHYG": {
+      "bullish": 1012560.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1012560.0
+    },
+    "FCX": {
+      "bullish": 1925997.0,
+      "bearish": 9292680.0,
+      "prints": 2,
+      "total_notional": 11218677.0
+    },
+    "BBIO": {
+      "bullish": 0,
+      "bearish": 2796474.1,
+      "prints": 2,
+      "total_notional": 2796474.1
+    },
+    "IVE": {
+      "bullish": 2528963.52,
+      "bearish": 7996962.281400001,
+      "prints": 5,
+      "total_notional": 10525925.8014
+    },
+    "SIL": {
+      "bullish": 0,
+      "bearish": 2126724.65,
+      "prints": 1,
+      "total_notional": 2126724.65
+    },
+    "CRWV": {
+      "bullish": 0,
+      "bearish": 5682071.0,
+      "prints": 2,
+      "total_notional": 5682071.0
+    },
+    "OIH": {
+      "bullish": 0,
+      "bearish": 1907974.8,
+      "prints": 1,
+      "total_notional": 1907974.8
+    },
+    "MAXJ": {
+      "bullish": 4027848.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 4027848.0
+    },
+    "SATA": {
+      "bullish": 0,
+      "bearish": 2934334.35,
+      "prints": 1,
+      "total_notional": 2934334.35
+    },
+    "SCHG": {
+      "bullish": 4497174.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 4497174.0
+    },
+    "SCHH": {
+      "bullish": 1148834.925,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1148834.925
+    },
+    "VIG": {
+      "bullish": 9930394.825,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 9930394.825
+    },
+    "USO": {
+      "bullish": 1244851.08,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1244851.08
+    },
+    "AUR": {
+      "bullish": 2974889.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2974889.0
+    },
+    "C": {
+      "bullish": 0,
+      "bearish": 10539637.865,
+      "prints": 4,
+      "total_notional": 10539637.865
+    },
+    "FNDA": {
+      "bullish": 0,
+      "bearish": 4537158.02,
+      "prints": 1,
+      "total_notional": 4537158.02
+    },
+    "SPXL": {
+      "bullish": 2926161.42,
+      "bearish": 12988663.05,
+      "prints": 9,
+      "total_notional": 15914824.47
+    },
+    "SWK": {
+      "bullish": 1976250.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1976250.0
+    },
+    "JNK": {
+      "bullish": 19160000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 19160000.0
+    },
+    "DOW": {
+      "bullish": 0,
+      "bearish": 2611507.66,
+      "prints": 2,
+      "total_notional": 2611507.66
+    },
+    "FNDX": {
+      "bullish": 4499149.5,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 4499149.5
+    },
+    "CEG": {
+      "bullish": 1026437.58,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1026437.58
+    },
+    "WFC": {
+      "bullish": 0,
+      "bearish": 2371557.6,
+      "prints": 1,
+      "total_notional": 2371557.6
+    },
+    "SPGI": {
+      "bullish": 0,
+      "bearish": 3614741.0,
+      "prints": 1,
+      "total_notional": 3614741.0
+    },
+    "MS": {
+      "bullish": 1119537.7222,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1119537.7222
+    },
+    "KEYS": {
+      "bullish": 0,
+      "bearish": 1831381.575,
+      "prints": 1,
+      "total_notional": 1831381.575
+    },
+    "JCI": {
+      "bullish": 0,
+      "bearish": 1403347.99,
+      "prints": 1,
+      "total_notional": 1403347.99
+    },
+    "CMI": {
+      "bullish": 2354942.205,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2354942.205
+    },
+    "OEF": {
+      "bullish": 0,
+      "bearish": 1317605.9,
+      "prints": 1,
+      "total_notional": 1317605.9
+    },
+    "SCHR": {
+      "bullish": 5284429.48,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 5284429.48
+    },
+    "VLUE": {
+      "bullish": 1239115.7,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1239115.7
+    },
+    "IDA": {
+      "bullish": 1503903.52,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1503903.52
+    },
+    "ONTO": {
+      "bullish": 4941500.0,
+      "bearish": 2006140.0,
+      "prints": 3,
+      "total_notional": 6947640.0
+    },
+    "BND": {
+      "bullish": 10990875.7071,
+      "bearish": 1195140.72,
+      "prints": 4,
+      "total_notional": 12186016.4271
+    },
+    "BNTX": {
+      "bullish": 3392813.355,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3392813.355
+    },
+    "MISL": {
+      "bullish": 0,
+      "bearish": 3422586.96,
+      "prints": 1,
+      "total_notional": 3422586.96
+    },
+    "SUI": {
+      "bullish": 0,
+      "bearish": 1138050.0,
+      "prints": 1,
+      "total_notional": 1138050.0
+    },
+    "NEBX": {
+      "bullish": 0,
+      "bearish": 1045760.91,
+      "prints": 1,
+      "total_notional": 1045760.91
+    },
+    "ATI": {
+      "bullish": 0,
+      "bearish": 4668672.0,
+      "prints": 2,
+      "total_notional": 4668672.0
+    },
+    "HPQ": {
+      "bullish": 0,
+      "bearish": 1190476.0,
+      "prints": 1,
+      "total_notional": 1190476.0
+    },
+    "GRID": {
+      "bullish": 1103617.3782,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1103617.3782
+    },
+    "CGDV": {
+      "bullish": 2917511.4000000004,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2917511.4000000004
+    },
+    "CGMS": {
+      "bullish": 0,
+      "bearish": 1021850.7,
+      "prints": 1,
+      "total_notional": 1021850.7
+    },
+    "AVDV": {
+      "bullish": 0,
+      "bearish": 25630660.0,
+      "prints": 1,
+      "total_notional": 25630660.0
+    },
+    "PVAL": {
+      "bullish": 4945015.41,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 4945015.41
+    },
+    "EVAC": {
+      "bullish": 0,
+      "bearish": 1197168.0,
+      "prints": 1,
+      "total_notional": 1197168.0
+    },
+    "VLY": {
+      "bullish": 1428000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1428000.0
+    },
+    "CTAS": {
+      "bullish": 1814500.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1814500.0
+    },
+    "XLI": {
+      "bullish": 9884082.4,
+      "bearish": 3702544.92,
+      "prints": 3,
+      "total_notional": 13586627.32
+    },
+    "INDA": {
+      "bullish": 21375000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 21375000.0
+    },
+    "BRKA": {
+      "bullish": 0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1463830.0
+    },
+    "SILJ": {
+      "bullish": 0,
+      "bearish": 1395287.64,
+      "prints": 1,
+      "total_notional": 1395287.64
+    },
+    "BOXX": {
+      "bullish": 2710420.8416999998,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2710420.8416999998
+    },
+    "NIO": {
+      "bullish": 0,
+      "bearish": 1115646.0,
+      "prints": 1,
+      "total_notional": 1115646.0
+    },
+    "KRC": {
+      "bullish": 0,
+      "bearish": 1546400.0,
+      "prints": 1,
+      "total_notional": 1546400.0
+    },
+    "SSO": {
+      "bullish": 0,
+      "bearish": 1072553.13,
+      "prints": 1,
+      "total_notional": 1072553.13
+    },
+    "WING": {
+      "bullish": 0,
+      "bearish": 2601606.0,
+      "prints": 1,
+      "total_notional": 2601606.0
+    },
+    "HLT": {
+      "bullish": 3249729.84,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3249729.84
+    },
+    "FRMI": {
+      "bullish": 0,
+      "bearish": 1273000.0,
+      "prints": 1,
+      "total_notional": 1273000.0
+    },
+    "AACP": {
+      "bullish": 2490000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2490000.0
+    },
+    "IPCX": {
+      "bullish": 1549500.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1549500.0
+    },
+    "GLW": {
+      "bullish": 1688500.0,
+      "bearish": 1057897.6,
+      "prints": 2,
+      "total_notional": 2746397.6
+    },
+    "INIO": {
+      "bullish": 0,
+      "bearish": 2923425.0,
+      "prints": 2,
+      "total_notional": 2923425.0
+    },
+    "CSCO": {
+      "bullish": 1001364.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1001364.0
+    },
+    "ADSK": {
+      "bullish": 3572446.2,
+      "bearish": 1469548.8,
+      "prints": 2,
+      "total_notional": 5041995.0
+    },
+    "NRG": {
+      "bullish": 0,
+      "bearish": 1175300.5,
+      "prints": 1,
+      "total_notional": 1175300.5
+    },
+    "RYAN": {
+      "bullish": 2794205.7,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2794205.7
+    },
+    "BABA": {
+      "bullish": 2715871.55,
+      "bearish": 13110368.0,
+      "prints": 3,
+      "total_notional": 15826239.55
+    },
+    "DFCF": {
+      "bullish": 0,
+      "bearish": 1366662.3,
+      "prints": 1,
+      "total_notional": 1366662.3
+    },
+    "IIPR": {
+      "bullish": 6368284.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 6368284.0
+    },
+    "AGG": {
+      "bullish": 6565902.6,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 6565902.6
+    },
+    "XLF": {
+      "bullish": 6395996.01,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 6395996.01
+    },
+    "NBSM": {
+      "bullish": 0,
+      "bearish": 2683000.0,
+      "prints": 1,
+      "total_notional": 2683000.0
+    },
+    "BAC": {
+      "bullish": 4415890.745,
+      "bearish": 1126896.0,
+      "prints": 3,
+      "total_notional": 5542786.745
+    },
+    "JMST": {
+      "bullish": 0,
+      "bearish": 1362771.96,
+      "prints": 1,
+      "total_notional": 1362771.96
+    },
+    "IAGG": {
+      "bullish": 2050074.88,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2050074.88
+    },
+    "GXPS": {
+      "bullish": 0,
+      "bearish": 1555408.8,
+      "prints": 1,
+      "total_notional": 1555408.8
+    },
+    "FHDG": {
+      "bullish": 1808825.08,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1808825.08
+    },
+    "MCO": {
+      "bullish": 1332023.2055,
+      "bearish": 1659283.02,
+      "prints": 2,
+      "total_notional": 2991306.2254999997
+    },
+    "STAG": {
+      "bullish": 0,
+      "bearish": 1908000.0,
+      "prints": 1,
+      "total_notional": 1908000.0
+    },
+    "HGER": {
+      "bullish": 11957258.16,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 11957258.16
+    },
+    "TXN": {
+      "bullish": 1414475.0,
+      "bearish": 1218899.5,
+      "prints": 2,
+      "total_notional": 2633374.5
+    },
+    "GSK": {
+      "bullish": 4854038.125,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 4854038.125
+    },
+    "VO": {
+      "bullish": 2844405.5,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2844405.5
+    },
+    "XLY": {
+      "bullish": 6645926.43,
+      "bearish": 0,
+      "prints": 3,
+      "total_notional": 6645926.43
+    },
+    "SCHP": {
+      "bullish": 0,
+      "bearish": 2414075.68,
+      "prints": 1,
+      "total_notional": 2414075.68
+    },
+    "VV": {
+      "bullish": 0,
+      "bearish": 2130393.25,
+      "prints": 1,
+      "total_notional": 2130393.25
+    },
+    "VTV": {
+      "bullish": 3497032.675,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3497032.675
+    },
+    "AKAM": {
+      "bullish": 15466419.04,
+      "bearish": 12205712.0,
+      "prints": 7,
+      "total_notional": 27672131.04
+    },
+    "AGQ": {
+      "bullish": 0,
+      "bearish": 1081080.0,
+      "prints": 1,
+      "total_notional": 1081080.0
+    },
+    "AIS": {
+      "bullish": 0,
+      "bearish": 1123068.96,
+      "prints": 1,
+      "total_notional": 1123068.96
+    },
+    "CHD": {
+      "bullish": 1227875.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1227875.0
+    },
+    "ARES": {
+      "bullish": 0,
+      "bearish": 1935623.94,
+      "prints": 1,
+      "total_notional": 1935623.94
+    },
+    "SEI": {
+      "bullish": 2606004.75,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2606004.75
+    },
+    "BIV": {
+      "bullish": 4903233.13,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 4903233.13
+    },
+    "BSV": {
+      "bullish": 2474022.51,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2474022.51
+    },
+    "WEC": {
+      "bullish": 0,
+      "bearish": 2215061.0,
+      "prints": 1,
+      "total_notional": 2215061.0
+    },
+    "ESGE": {
+      "bullish": 0,
+      "bearish": 1277163.52,
+      "prints": 1,
+      "total_notional": 1277163.52
+    },
+    "AEIS": {
+      "bullish": 3579740.0,
+      "bearish": 2995942.0,
+      "prints": 4,
+      "total_notional": 6575682.0
+    },
+    "PULS": {
+      "bullish": 1000153.7525,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1000153.7525
+    },
+    "FANG": {
+      "bullish": 4438224.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 4438224.0
+    },
+    "MCHP": {
+      "bullish": 1351196.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1351196.0
+    },
+    "HIW": {
+      "bullish": 2899454.26,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2899454.26
+    },
+    "DNTH": {
+      "bullish": 1080450.0,
+      "bearish": 1300759.68,
+      "prints": 2,
+      "total_notional": 2381209.6799999997
+    },
+    "NUVL": {
+      "bullish": 0,
+      "bearish": 7846851.6,
+      "prints": 1,
+      "total_notional": 7846851.6
+    },
+    "EFG": {
+      "bullish": 1822546.1,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1822546.1
+    },
+    "IXUS": {
+      "bullish": 4266445.92,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 4266445.92
+    },
+    "RTX": {
+      "bullish": 0,
+      "bearish": 1562346.0,
+      "prints": 1,
+      "total_notional": 1562346.0
+    },
+    "IDXX": {
+      "bullish": 0,
+      "bearish": 1223997.445,
+      "prints": 1,
+      "total_notional": 1223997.445
+    },
+    "FDVV": {
+      "bullish": 0,
+      "bearish": 1056007.74,
+      "prints": 1,
+      "total_notional": 1056007.74
+    },
+    "CGGR": {
+      "bullish": 0,
+      "bearish": 4362731.865,
+      "prints": 1,
+      "total_notional": 4362731.865
+    },
+    "GGOV": {
+      "bullish": 3347748.35,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3347748.35
+    },
+    "IALT": {
+      "bullish": 2932552.0,
+      "bearish": 1803031.71,
+      "prints": 2,
+      "total_notional": 4735583.71
+    },
+    "RLAY": {
+      "bullish": 0,
+      "bearish": 1700000.0,
+      "prints": 1,
+      "total_notional": 1700000.0
+    },
+    "FDT": {
+      "bullish": 0,
+      "bearish": 3247226.28,
+      "prints": 1,
+      "total_notional": 3247226.28
+    },
+    "TSEM": {
+      "bullish": 2743897.24,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2743897.24
+    },
+    "XME": {
+      "bullish": 1609089.5,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1609089.5
+    },
+    "USB": {
+      "bullish": 2257032.32,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2257032.32
+    },
+    "AMGN": {
+      "bullish": 0,
+      "bearish": 1289466.85,
+      "prints": 1,
+      "total_notional": 1289466.85
+    },
+    "FNV": {
+      "bullish": 1727001.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1727001.0
+    },
+    "LQD": {
+      "bullish": 1049249.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1049249.0
+    },
+    "STZ": {
+      "bullish": 0,
+      "bearish": 1056712.5,
+      "prints": 1,
+      "total_notional": 1056712.5
+    },
+    "XLE": {
+      "bullish": 0,
+      "bearish": 1343926.3,
+      "prints": 1,
+      "total_notional": 1343926.3
+    },
+    "KGS": {
+      "bullish": 1121372.928,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1121372.928
+    },
+    "TBLL": {
+      "bullish": 0,
+      "bearish": 10188186.08,
+      "prints": 1,
+      "total_notional": 10188186.08
+    },
+    "ZBH": {
+      "bullish": 1853892.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1853892.0
+    },
+    "SPHQ": {
+      "bullish": 1030814.92,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1030814.92
+    },
+    "GH": {
+      "bullish": 9436596.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 9436596.0
+    },
+    "CGMM": {
+      "bullish": 0,
+      "bearish": 2877024.6,
+      "prints": 1,
+      "total_notional": 2877024.6
+    },
+    "DFIP": {
+      "bullish": 1415475.25,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1415475.25
+    },
+    "ADPT": {
+      "bullish": 4046430.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 4046430.0
+    },
+    "TDY": {
+      "bullish": 2940826.6,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2940826.6
+    },
+    "VICI": {
+      "bullish": 1421250.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1421250.0
+    },
+    "TT": {
+      "bullish": 1230893.88,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1230893.88
+    },
+    "OPCH": {
+      "bullish": 1537250.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1537250.0
+    },
+    "RKLB": {
+      "bullish": 0,
+      "bearish": 1157633.0,
+      "prints": 1,
+      "total_notional": 1157633.0
+    },
+    "ET": {
+      "bullish": 0,
+      "bearish": 1053912.785,
+      "prints": 1,
+      "total_notional": 1053912.785
+    },
+    "HIMS": {
+      "bullish": 0,
+      "bearish": 1165798.1,
+      "prints": 1,
+      "total_notional": 1165798.1
+    },
+    "PFGC": {
+      "bullish": 3464559.4400000004,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 3464559.4400000004
+    },
+    "NEE": {
+      "bullish": 0,
+      "bearish": 3147960.0,
+      "prints": 1,
+      "total_notional": 3147960.0
+    },
+    "NEE-V": {
+      "bullish": 0,
+      "bearish": 4679250.0,
+      "prints": 1,
+      "total_notional": 4679250.0
+    },
+    "MSGE": {
+      "bullish": 4663102.48,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 4663102.48
+    },
+    "USFR": {
+      "bullish": 2621866.48,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2621866.48
+    },
+    "SW": {
+      "bullish": 1872767.68,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1872767.68
+    },
+    "EQH": {
+      "bullish": 0,
+      "bearish": 7340192.86,
+      "prints": 1,
+      "total_notional": 7340192.86
+    },
+    "NBOS": {
+      "bullish": 0,
+      "bearish": 16141382.46,
+      "prints": 1,
+      "total_notional": 16141382.46
+    },
+    "XP": {
+      "bullish": 0,
+      "bearish": 1157345.0,
+      "prints": 1,
+      "total_notional": 1157345.0
+    },
+    "EMR": {
+      "bullish": 0,
+      "bearish": 3327223.3424000004,
+      "prints": 2,
+      "total_notional": 3327223.3424000004
+    },
+    "SATS": {
+      "bullish": 1488576.0,
+      "bearish": 1116570.0,
+      "prints": 2,
+      "total_notional": 2605146.0
+    },
+    "MNST": {
+      "bullish": 0,
+      "bearish": 2433258.4,
+      "prints": 1,
+      "total_notional": 2433258.4
+    },
+    "MDGL": {
+      "bullish": 2438074.8,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2438074.8
+    },
+    "THRO": {
+      "bullish": 0,
+      "bearish": 1698640.5,
+      "prints": 1,
+      "total_notional": 1698640.5
+    },
+    "GBIL": {
+      "bullish": 8370262.89,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 8370262.89
+    },
+    "SMTH": {
+      "bullish": 1239565.8,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1239565.8
+    },
+    "CALY": {
+      "bullish": 0,
+      "bearish": 1352157.15,
+      "prints": 1,
+      "total_notional": 1352157.15
+    },
+    "CB": {
+      "bullish": 1786536.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1786536.0
+    },
+    "SOXQ": {
+      "bullish": 15851840.07,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 15851840.07
+    },
+    "EXR": {
+      "bullish": 1728930.15,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1728930.15
+    },
+    "HST": {
+      "bullish": 2960803.75,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2960803.75
+    },
+    "NFLT": {
+      "bullish": 1529651.3,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1529651.3
+    },
+    "ITW": {
+      "bullish": 0,
+      "bearish": 1007400.0,
+      "prints": 1,
+      "total_notional": 1007400.0
+    },
+    "AVEM": {
+      "bullish": 0,
+      "bearish": 3528888.9,
+      "prints": 1,
+      "total_notional": 3528888.9
+    },
+    "BAI": {
+      "bullish": 1325765.52,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1325765.52
+    },
+    "TBIL": {
+      "bullish": 3633148.54,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3633148.54
+    },
+    "SKY": {
+      "bullish": 1203057.705,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1203057.705
+    },
+    "COF": {
+      "bullish": 0,
+      "bearish": 2308811.58,
+      "prints": 1,
+      "total_notional": 2308811.58
+    },
+    "SSAC": {
+      "bullish": 0,
+      "bearish": 2747250.0,
+      "prints": 2,
+      "total_notional": 2747250.0
+    },
+    "SPXS": {
+      "bullish": 0,
+      "bearish": 1717860.0,
+      "prints": 1,
+      "total_notional": 1717860.0
+    },
+    "KDP": {
+      "bullish": 0,
+      "bearish": 1073954.97,
+      "prints": 1,
+      "total_notional": 1073954.97
+    },
+    "CNTA": {
+      "bullish": 0,
+      "bearish": 1159276.41,
+      "prints": 1,
+      "total_notional": 1159276.41
+    },
+    "DBX": {
+      "bullish": 1584234.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1584234.0
+    },
+    "LPLA": {
+      "bullish": 3958503.605,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3958503.605
+    },
+    "VUG": {
+      "bullish": 9442593.7,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 9442593.7
+    },
+    "MLPX": {
+      "bullish": 2211828.84,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2211828.84
+    },
+    "BNDX": {
+      "bullish": 8014519.09,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 8014519.09
+    },
+    "TMHC": {
+      "bullish": 3573000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3573000.0
+    },
+    "WTAI": {
+      "bullish": 0,
+      "bearish": 2424205.49,
+      "prints": 1,
+      "total_notional": 2424205.49
+    },
+    "BITO": {
+      "bullish": 1038538.3903,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1038538.3903
+    },
+    "W": {
+      "bullish": 3037495.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3037495.0
+    },
+    "CYTK": {
+      "bullish": 3155256.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3155256.0
+    },
+    "SE": {
+      "bullish": 0,
+      "bearish": 3263597.19,
+      "prints": 1,
+      "total_notional": 3263597.19
+    },
+    "RDDT": {
+      "bullish": 0,
+      "bearish": 1132300.65,
+      "prints": 1,
+      "total_notional": 1132300.65
+    },
+    "SXI": {
+      "bullish": 1177240.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1177240.0
+    },
+    "UNM": {
+      "bullish": 2279750.0,
+      "bearish": 2783070.0,
+      "prints": 2,
+      "total_notional": 5062820.0
+    },
+    "FISV": {
+      "bullish": 1381118.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1381118.0
+    },
+    "ON": {
+      "bullish": 3757550.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3757550.0
+    },
+    "IBN": {
+      "bullish": 2412911.2,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2412911.2
+    },
+    "RVMD": {
+      "bullish": 0,
+      "bearish": 4528108.04,
+      "prints": 2,
+      "total_notional": 4528108.04
+    },
+    "AOK": {
+      "bullish": 0,
+      "bearish": 1140253.8879,
+      "prints": 1,
+      "total_notional": 1140253.8879
+    },
+    "IWB": {
+      "bullish": 0,
+      "bearish": 2124436.132,
+      "prints": 1,
+      "total_notional": 2124436.132
+    },
+    "FIXD": {
+      "bullish": 2602021.59,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2602021.59
+    },
+    "AXON": {
+      "bullish": 0,
+      "bearish": 3735042.08,
+      "prints": 1,
+      "total_notional": 3735042.08
+    },
+    "USAR": {
+      "bullish": 1734031.53,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1734031.53
+    },
+    "CRGY": {
+      "bullish": 0,
+      "bearish": 1223175.0,
+      "prints": 1,
+      "total_notional": 1223175.0
+    },
+    "SAIA": {
+      "bullish": 0,
+      "bearish": 1078805.94,
+      "prints": 1,
+      "total_notional": 1078805.94
+    },
+    "WFC-Z": {
+      "bullish": 0,
+      "bearish": 1082015.84,
+      "prints": 1,
+      "total_notional": 1082015.84
+    },
+    "SHW": {
+      "bullish": 2720074.4,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 2720074.4
+    },
+    "ALGN": {
+      "bullish": 0,
+      "bearish": 1009403.0,
+      "prints": 1,
+      "total_notional": 1009403.0
+    },
+    "IAI": {
+      "bullish": 0,
+      "bearish": 1773348.189,
+      "prints": 1,
+      "total_notional": 1773348.189
+    },
+    "MBB": {
+      "bullish": 1319246.2752,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1319246.2752
+    },
+    "IUSG": {
+      "bullish": 1301224.08,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1301224.08
+    },
+    "IWD": {
+      "bullish": 1826344.5,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1826344.5
+    },
+    "MELI": {
+      "bullish": 0,
+      "bearish": 1802157.525,
+      "prints": 1,
+      "total_notional": 1802157.525
+    },
+    "BSX": {
+      "bullish": 0,
+      "bearish": 6012500.0,
+      "prints": 1,
+      "total_notional": 6012500.0
+    },
+    "VFLO": {
+      "bullish": 16339265.25,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 16339265.25
+    },
+    "CVX": {
+      "bullish": 1145640.0,
+      "bearish": 1733808.64,
+      "prints": 2,
+      "total_notional": 2879448.6399999997
+    },
+    "IEF": {
+      "bullish": 0,
+      "bearish": 1835889.51,
+      "prints": 1,
+      "total_notional": 1835889.51
+    },
+    "BRKB": {
+      "bullish": 1649951.595,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1649951.595
+    },
+    "BP": {
+      "bullish": 5214396.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 5214396.0
+    },
+    "ITA": {
+      "bullish": 1429331.412,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1429331.412
+    },
+    "CHRW": {
+      "bullish": 0,
+      "bearish": 1396575.0,
+      "prints": 1,
+      "total_notional": 1396575.0
+    },
+    "IHI": {
+      "bullish": 0,
+      "bearish": 2824589.5,
+      "prints": 1,
+      "total_notional": 2824589.5
+    },
+    "XLRE": {
+      "bullish": 0,
+      "bearish": 1769731.5,
+      "prints": 1,
+      "total_notional": 1769731.5
+    },
+    "JACS": {
+      "bullish": 1063000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1063000.0
+    },
+    "CGIC": {
+      "bullish": 4721028.25,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 4721028.25
+    },
+    "EMEQ": {
+      "bullish": 0,
+      "bearish": 16707873.7,
+      "prints": 1,
+      "total_notional": 16707873.7
+    },
+    "PGR": {
+      "bullish": 0,
+      "bearish": 1079901.5,
+      "prints": 1,
+      "total_notional": 1079901.5
+    },
+    "PYLD": {
+      "bullish": 8304334.2082,
+      "bearish": 0,
+      "prints": 2,
+      "total_notional": 8304334.2082
+    },
+    "XOP": {
+      "bullish": 0,
+      "bearish": 2192840.0,
+      "prints": 1,
+      "total_notional": 2192840.0
+    },
+    "AGNC": {
+      "bullish": 0,
+      "bearish": 1024000.0,
+      "prints": 1,
+      "total_notional": 1024000.0
+    },
+    "VNQI": {
+      "bullish": 1578200.439,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1578200.439
+    },
+    "IFS": {
+      "bullish": 1051693.92,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1051693.92
+    },
+    "SCHD": {
+      "bullish": 1321144.64,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1321144.64
+    },
+    "DYNF": {
+      "bullish": 1307500.56,
+      "bearish": 6319257.84,
+      "prints": 2,
+      "total_notional": 7626758.4
+    },
+    "LIN": {
+      "bullish": 0,
+      "bearish": 1291206.06,
+      "prints": 1,
+      "total_notional": 1291206.06
+    },
+    "URTH": {
+      "bullish": 1427472.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1427472.0
+    },
+    "HALO": {
+      "bullish": 9941780.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 9941780.0
+    },
+    "GDXJ": {
+      "bullish": 0,
+      "bearish": 1600268.14,
+      "prints": 1,
+      "total_notional": 1600268.14
+    },
+    "UITB": {
+      "bullish": 0,
+      "bearish": 1095304.4,
+      "prints": 1,
+      "total_notional": 1095304.4
+    },
+    "NEAR": {
+      "bullish": 0,
+      "bearish": 3600257.28,
+      "prints": 1,
+      "total_notional": 3600257.28
+    },
+    "QUAL": {
+      "bullish": 26053892.13,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 26053892.13
+    },
+    "SCI": {
+      "bullish": 0,
+      "bearish": 7385000.0,
+      "prints": 1,
+      "total_notional": 7385000.0
+    },
+    "ITOT": {
+      "bullish": 14549249.28,
+      "bearish": 71277519.6,
+      "prints": 2,
+      "total_notional": 85826768.88
+    },
+    "FDL": {
+      "bullish": 1065303.7259,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1065303.7259
+    },
+    "AJG": {
+      "bullish": 0,
+      "bearish": 1418592.0,
+      "prints": 1,
+      "total_notional": 1418592.0
+    },
+    "TTEK": {
+      "bullish": 0,
+      "bearish": 20660090.4,
+      "prints": 1,
+      "total_notional": 20660090.4
+    },
+    "TOL": {
+      "bullish": 2698035.0012,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2698035.0012
+    },
+    "VLO": {
+      "bullish": 0,
+      "bearish": 1918873.8,
+      "prints": 1,
+      "total_notional": 1918873.8
+    },
+    "DLR": {
+      "bullish": 1201437.6,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1201437.6
+    },
+    "XYZ": {
+      "bullish": 1270786.465,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1270786.465
+    },
+    "FTAI": {
+      "bullish": 0,
+      "bearish": 1119164.44,
+      "prints": 1,
+      "total_notional": 1119164.44
+    },
+    "MSCI": {
+      "bullish": 1011866.04,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1011866.04
+    },
+    "BMNR": {
+      "bullish": 2152878.2,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2152878.2
+    },
+    "SN": {
+      "bullish": 1663438.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1663438.0
+    },
+    "F": {
+      "bullish": 0,
+      "bearish": 1074000.0,
+      "prints": 1,
+      "total_notional": 1074000.0
+    },
+    "UNF": {
+      "bullish": 3479134.72,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3479134.72
+    },
+    "VCRB": {
+      "bullish": 25130349.42,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 25130349.42
+    },
+    "ORA": {
+      "bullish": 0,
+      "bearish": 5862744.0,
+      "prints": 2,
+      "total_notional": 5862744.0
+    },
+    "IBIE": {
+      "bullish": 0,
+      "bearish": 3727072.8,
+      "prints": 1,
+      "total_notional": 3727072.8
+    },
+    "JEPQ": {
+      "bullish": 0,
+      "bearish": 1342700.1852,
+      "prints": 1,
+      "total_notional": 1342700.1852
+    },
+    "REGN": {
+      "bullish": 3055258.65,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3055258.65
+    },
+    "TMO": {
+      "bullish": 0,
+      "bearish": 5522946.0,
+      "prints": 1,
+      "total_notional": 5522946.0
+    },
+    "INFL": {
+      "bullish": 1803620.1,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1803620.1
+    },
+    "SPYG": {
+      "bullish": 0,
+      "bearish": 1157251.2,
+      "prints": 1,
+      "total_notional": 1157251.2
+    },
+    "ISHG": {
+      "bullish": 0,
+      "bearish": 1470211.0,
+      "prints": 1,
+      "total_notional": 1470211.0
+    },
+    "VRSK": {
+      "bullish": 1705414.2,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1705414.2
+    },
+    "XLP": {
+      "bullish": 0,
+      "bearish": 1718764.08,
+      "prints": 1,
+      "total_notional": 1718764.08
+    },
+    "CGUS": {
+      "bullish": 0,
+      "bearish": 1396483.27,
+      "prints": 1,
+      "total_notional": 1396483.27
+    },
+    "FLOT": {
+      "bullish": 1602479.4,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1602479.4
+    },
+    "VRTX": {
+      "bullish": 0,
+      "bearish": 2638694.5,
+      "prints": 1,
+      "total_notional": 2638694.5
+    },
+    "VONV": {
+      "bullish": 1913374.56,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1913374.56
+    },
+    "DFNL": {
+      "bullish": 3122916.61,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3122916.61
+    },
+    "XOVR": {
+      "bullish": 1765854.58,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1765854.58
+    },
+    "SAMT": {
+      "bullish": 0,
+      "bearish": 1640827.3,
+      "prints": 1,
+      "total_notional": 1640827.3
+    },
+    "PWZ": {
+      "bullish": 1386447.92,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1386447.92
+    },
+    "ANET": {
+      "bullish": 0,
+      "bearish": 4047126.59,
+      "prints": 1,
+      "total_notional": 4047126.59
+    },
+    "EWQ": {
+      "bullish": 0,
+      "bearish": 2226501.69,
+      "prints": 1,
+      "total_notional": 2226501.69
+    },
+    "LGLV": {
+      "bullish": 2148959.38,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 2148959.38
+    },
+    "RWL": {
+      "bullish": 1855327.2,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1855327.2
+    },
+    "LRGC": {
+      "bullish": 1482830.7,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1482830.7
+    },
+    "CSL": {
+      "bullish": 2989590.0,
+      "bearish": 1145425.96,
+      "prints": 2,
+      "total_notional": 4135015.96
+    },
+    "MINT": {
+      "bullish": 0,
+      "bearish": 2519886.0561,
+      "prints": 1,
+      "total_notional": 2519886.0561
+    },
+    "IEUR": {
+      "bullish": 1327977.09,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1327977.09
+    },
+    "CTAA": {
+      "bullish": 1976000.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1976000.0
+    },
+    "VT": {
+      "bullish": 3666941.25,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3666941.25
+    },
+    "SM": {
+      "bullish": 1592640.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1592640.0
+    },
+    "SMIZ": {
+      "bullish": 3727133.9,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3727133.9
+    },
+    "DIVI": {
+      "bullish": 3487544.17,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 3487544.17
+    },
+    "CCL": {
+      "bullish": 1052095.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1052095.0
+    },
+    "PSX": {
+      "bullish": 0,
+      "bearish": 2076176.02,
+      "prints": 1,
+      "total_notional": 2076176.02
+    },
+    "PBR": {
+      "bullish": 1090794.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1090794.0
+    },
+    "LEN": {
+      "bullish": 1072860.0,
+      "bearish": 0,
+      "prints": 1,
+      "total_notional": 1072860.0
+    },
+    "HYD": {
+      "bullish": 0,
+      "bearish": 1836441.25,
+      "prints": 1,
+      "total_notional": 1836441.25
+    }
+  }
+}

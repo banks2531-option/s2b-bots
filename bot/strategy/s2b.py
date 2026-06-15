@@ -32,3 +32,26 @@ def select_short_put(chain, spot, atr, cfg):
     if not eligible:
         return None
     return min(eligible, key=lambda o: abs(o.delta - cfg.target_delta))
+
+
+from bot.risk_gate import SpreadOrder
+
+
+def build_spread_order(spot, atr, chain, cfg):
+    """Select short+long puts and build a bull_put_spread SpreadOrder. None if not buildable."""
+    short = select_short_put(chain, spot, atr, cfg)
+    if short is None:
+        return None
+    long_strike = short.strike - cfg.wing_width
+    longs = [o for o in chain if o.strike == long_strike]
+    if not longs:
+        return None
+    long = longs[0]
+    credit = round(short.bid - long.ask, 2)
+    if credit <= 0:
+        return None
+    max_loss = round((cfg.wing_width - credit) * 100, 2)
+    return SpreadOrder(ticker="SPY", structure="bull_put_spread",
+                       short_strike=short.strike, long_strike=long_strike,
+                       credit=credit, spot=spot, atr=atr,
+                       max_loss_per_contract=max_loss, qty=1)

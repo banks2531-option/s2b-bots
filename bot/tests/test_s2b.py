@@ -32,3 +32,33 @@ def test_select_short_put_respects_cushion_and_delta():
 def test_select_short_put_none_when_no_cushion():
     cfg = S2bConfig(target_delta=0.35, wing_width=10.0, min_cushion_atr=5.0)  # demand 5 ATR
     assert select_short_put(_chain(), spot=575.0, atr=6.0, cfg=cfg) is None
+from bot.strategy.s2b import build_spread_order
+from bot.risk_gate import SpreadOrder
+
+
+def test_build_spread_order_builds_bull_put():
+    cfg = S2bConfig(target_delta=0.35, wing_width=10.0, min_cushion_atr=1.0)
+    # add the long wing (568 short -> 558 long) to the chain
+    chain = _chain() + [OptionQuote(strike=558.0, delta=0.18, bid=1.60, ask=1.70)]
+    order = build_spread_order(spot=575.0, atr=6.0, chain=chain, cfg=cfg)
+    assert isinstance(order, SpreadOrder)
+    assert order.structure == "bull_put_spread"
+    assert order.short_strike == 568.0 and order.long_strike == 558.0
+    # credit = short.bid - long.ask = 3.40 - 1.70 = 1.70
+    assert order.credit == 1.70
+    # max loss per contract = (10 - 1.70) * 100 = 830
+    assert order.max_loss_per_contract == 830.0
+    assert order.qty == 1   # sizing sets real qty later
+
+
+def test_build_spread_order_none_when_long_wing_missing():
+    cfg = S2bConfig(target_delta=0.35, wing_width=10.0, min_cushion_atr=1.0)
+    order = build_spread_order(spot=575.0, atr=6.0, chain=_chain(), cfg=cfg)  # no 558 strike
+    assert order is None
+
+
+def test_build_spread_order_none_when_nonpositive_credit():
+    cfg = S2bConfig(target_delta=0.35, wing_width=10.0, min_cushion_atr=1.0)
+    # long wing priced higher than short bid -> credit <= 0
+    chain = _chain() + [OptionQuote(strike=558.0, delta=0.18, bid=3.50, ask=3.60)]
+    assert build_spread_order(spot=575.0, atr=6.0, chain=chain, cfg=cfg) is None

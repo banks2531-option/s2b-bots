@@ -79,3 +79,26 @@ def test_to_tradier_payload_multileg_bull_put():
     assert payload["side[0]"] == "sell_to_open" and payload["quantity[0]"] == 2
     assert payload["option_symbol[1]"] == "SPY260619P00558000"
     assert payload["side[1]"] == "buy_to_open" and payload["quantity[1]"] == 2
+    # C1: credit (net credit limit) must be present so Tradier routes as limit, not market
+    assert payload["price"] == 1.70
+
+
+def test_build_spread_order_fractional_wing_matches():
+    """I2: float-imprecise long_strike (e.g. 568.0 - 10.1 = 557.9000...01) must still match."""
+    cfg = S2bConfig(target_delta=0.35, wing_width=10.1, min_cushion_atr=1.0)
+    chain = _chain() + [OptionQuote(strike=557.9, delta=0.18, bid=1.60, ask=1.70)]
+    order = build_spread_order(spot=575.0, atr=6.0, chain=chain, cfg=cfg)
+    assert order is not None
+    assert abs(order.long_strike - 557.9) < 0.001
+
+
+def test_select_short_put_none_when_only_far_otm():
+    """I3: strikes clearing the cushion but with delta < min_delta must all be excluded."""
+    chain = [
+        OptionQuote(strike=560.0, delta=0.15, bid=1.20, ask=1.30),
+        OptionQuote(strike=555.0, delta=0.10, bid=0.80, ask=0.90),
+        OptionQuote(strike=550.0, delta=0.07, bid=0.50, ask=0.60),
+    ]
+    cfg = S2bConfig(target_delta=0.35, wing_width=10.0, min_cushion_atr=1.0)
+    result = select_short_put(chain, spot=575.0, atr=6.0, cfg=cfg)
+    assert result is None

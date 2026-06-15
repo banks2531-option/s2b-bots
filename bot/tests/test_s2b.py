@@ -62,3 +62,20 @@ def test_build_spread_order_none_when_nonpositive_credit():
     # long wing priced higher than short bid -> credit <= 0
     chain = _chain() + [OptionQuote(strike=558.0, delta=0.18, bid=3.50, ask=3.60)]
     assert build_spread_order(spot=575.0, atr=6.0, chain=chain, cfg=cfg) is None
+from bot.strategy.s2b import to_tradier_payload
+
+
+def test_to_tradier_payload_multileg_bull_put():
+    cfg = S2bConfig(target_delta=0.35, wing_width=10.0, min_cushion_atr=1.0)
+    chain = _chain() + [OptionQuote(strike=558.0, delta=0.18, bid=1.60, ask=1.70)]
+    order = build_spread_order(spot=575.0, atr=6.0, chain=chain, cfg=cfg)
+    payload = to_tradier_payload(order, expiry="2026-06-19", qty=2)
+    assert payload["class"] == "multileg"
+    assert payload["symbol"] == "SPY"
+    assert payload["type"] == "credit"
+    assert payload["duration"] == "day"
+    # short put leg = sell to open; long put leg = buy to open
+    assert payload["option_symbol[0]"] == "SPY260619P00568000"
+    assert payload["side[0]"] == "sell_to_open" and payload["quantity[0]"] == 2
+    assert payload["option_symbol[1]"] == "SPY260619P00558000"
+    assert payload["side[1]"] == "buy_to_open" and payload["quantity[1]"] == 2

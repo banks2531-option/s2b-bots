@@ -55,3 +55,22 @@ def build_spread_order(spot, atr, chain, cfg):
                        short_strike=short.strike, long_strike=long_strike,
                        credit=credit, spot=spot, atr=atr,
                        max_loss_per_contract=max_loss, qty=1)
+
+
+def _occ(symbol, expiry, right, strike):
+    """OCC option symbol, e.g. SPY260619P00568000."""
+    yymmdd = datetime.strptime(expiry, "%Y-%m-%d").strftime("%y%m%d")
+    strike_int = int(round(strike * 1000))
+    return f"{symbol}{yymmdd}{right}{strike_int:08d}"
+
+
+def to_tradier_payload(order, expiry, qty):
+    """Render a bull_put_spread SpreadOrder to a Tradier multileg credit order payload."""
+    sym = order.ticker
+    return {
+        "class": "multileg", "symbol": sym, "type": "credit", "duration": "day",
+        "option_symbol[0]": _occ(sym, expiry, "P", order.short_strike),
+        "side[0]": "sell_to_open", "quantity[0]": qty,
+        "option_symbol[1]": _occ(sym, expiry, "P", order.long_strike),
+        "side[1]": "buy_to_open", "quantity[1]": qty,
+    }

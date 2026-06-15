@@ -37,3 +37,23 @@ def test_regime_spike_halves():
 
 def test_regime_none_inputs_keep_base():
     assert regime_adjusted_risk_pct(0.10, vix_pct_rank=None, vix_1d_change=None) == 0.10
+
+
+# I1 — negative/zero equity must raise in sizing
+def test_contracts_rejects_nonpositive_equity():
+    with pytest.raises(ValueError):
+        contracts_for_risk(-100, 700, 0.10)
+
+
+# I2 — both VIX conditions firing still caps at a single halve
+def test_regime_both_conditions_single_halve():
+    # vix_pct_rank=0.9 (>0.80) AND vix_1d_change=0.2 (>0.15) -> returns base/2, not base/4
+    result = regime_adjusted_risk_pct(0.10, vix_pct_rank=0.9, vix_1d_change=0.2)
+    assert result == 0.05
+
+
+# m3 — VIX rank exactly at threshold is NOT halved (strict >)
+def test_regime_rank_at_threshold_unchanged():
+    # vix_pct_rank=0.80 exactly -> 0.80 is NOT > 0.80, so base unchanged
+    result = regime_adjusted_risk_pct(0.10, vix_pct_rank=0.80, vix_1d_change=0.0)
+    assert result == 0.10

@@ -99,3 +99,28 @@ def test_cooldown_expired_allows():
     gate = RiskGate(RiskConfig())
     d = gate.is_order_allowed(_ok_order(ticker="SPY"), _ok_state(recent_losses={"SPY": 5}))
     assert d.allowed is True
+
+
+# C1 — zero ATR must hard-block credit-spread orders
+def test_zero_atr_credit_spread_rejected():
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(atr=0.0), _ok_state())
+    assert d.allowed is False
+    assert "atr" in d.reason.lower()
+
+
+# C2 — daily-loss halt at exact threshold (boundary)
+def test_daily_loss_halt_at_exact_threshold():
+    # 2% of $20,000 = exactly $400 -> should halt (conservative: halt AT or beyond)
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(), _ok_state(realized_pnl_today=-400.0))
+    assert d.allowed is False
+    assert "daily loss" in d.reason
+
+
+# I4 — cooldown boundary: last session before cooldown expires is still blocked
+def test_cooldown_last_session_blocked():
+    # sessions_since=4 with cooldown_sessions=5 -> still in cooldown
+    gate = RiskGate(RiskConfig())
+    d = gate.is_order_allowed(_ok_order(ticker="SPY"), _ok_state(recent_losses={"SPY": 4}))
+    assert d.allowed is False

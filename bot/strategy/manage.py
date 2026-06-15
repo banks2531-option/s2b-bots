@@ -27,3 +27,26 @@ def decide_exit(current_value, credit, dte, cfg) -> ExitAction:
     if dte <= cfg.time_exit_dte:
         return ExitAction.TIME_EXIT
     return ExitAction.HOLD
+
+
+@dataclass
+class ManagedPosition:
+    ticker: str
+    short_strike: float
+    long_strike: float
+    credit: float
+    qty: int
+    expiry: str        # YYYY-MM-DD
+
+
+def spread_value_mid(short_q, long_q) -> float:
+    """Mid debit-to-close a bull put spread = short_mid - long_mid."""
+    short_mid = (short_q.bid + short_q.ask) / 2.0
+    long_mid = (long_q.bid + long_q.ask) / 2.0
+    return round(short_mid - long_mid, 2)
+
+
+def dte_from_expiry(expiry: str, today: str) -> int:
+    d0 = datetime.strptime(today, "%Y-%m-%d")
+    d1 = datetime.strptime(expiry, "%Y-%m-%d")
+    return (d1 - d0).days

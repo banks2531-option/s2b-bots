@@ -25,3 +25,19 @@ def test_hold_midrange_high_dte():
 def test_stop_takes_priority_over_time_exit():
     # at a loss past the stop AND near expiry -> STOP wins (risk first)
     assert decide_exit(current_value=10.0, credit=3.0, dte=1, cfg=CFG) == ExitAction.STOP
+
+
+from bot.strategy.manage import ManagedPosition, spread_value_mid, dte_from_expiry
+from bot.strategy.s2b import OptionQuote
+
+
+def test_spread_value_mid_cost_to_close():
+    # bull put: short higher strike, long lower. value = short_mid - long_mid
+    short_q = OptionQuote(strike=568.0, delta=0.36, bid=3.40, ask=3.60)   # mid 3.50
+    long_q = OptionQuote(strike=558.0, delta=0.18, bid=1.60, ask=1.80)    # mid 1.70
+    assert spread_value_mid(short_q, long_q) == 1.80   # 3.50 - 1.70
+
+
+def test_dte_from_expiry():
+    assert dte_from_expiry("2026-06-19", today="2026-06-15") == 4
+    assert dte_from_expiry("2026-06-15", today="2026-06-15") == 0

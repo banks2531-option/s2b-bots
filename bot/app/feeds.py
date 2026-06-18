@@ -1,0 +1,135 @@
+"""Production data adapters: pure parsers/calculators injected into Deps (spec §3,§5,§7)."""
+from datetime import datetime, timedelta
+
+
+def pick_weekly_expiry(today: str, min_dte: int = 4) -> str:
+    """Nearest Friday at least min_dte calendar days out (YYYY-MM-DD)."""
+    d = datetime.strptime(today, "%Y-%m-%d")
+    days_to_fri = (4 - d.weekday()) % 7        # 4 = Friday
+    friday = d + timedelta(days=days_to_fri)
+    while (friday - d).days < min_dte:
+        friday += timedelta(days=7)
+    return friday.strftime("%Y-%m-%d")
+
+
+from bot.strategy.s2b import OptionQuote
+
+
+def parse_chain(resp) -> list:
+    """Tradier options-chain JSON -> [OptionQuote] for PUTS with a usable delta (abs)."""
+    options = (resp.get("options") or {}).get("option") or []
+    if isinstance(options, dict):
+        options = [options]
+    out = []
+    for o in options:
+        if o.get("option_type") != "put":
+            continue
+        delta = (o.get("greeks") or {}).get("delta")
+        if delta is None:
+            continue
+        bid = o.get("bid")
+        ask = o.get("ask")
+        if bid is None or ask is None:
+            continue
+        out.append(OptionQuote(strike=float(o["strike"]), delta=abs(float(delta)),
+                               bid=float(bid), ask=float(ask)))
+    return out
+
+
+def parse_equity(resp) -> float:
+    return float(resp["balances"]["total_equity"])
+
+
+def parse_position_legs(resp) -> dict:
+    """Tradier positions JSON -> {occ_symbol: int qty}. Handles 'null' and single-object cases."""
+    positions = (resp.get("positions") or {})
+    if positions in (None, "null"):
+        return {}
+    items = positions.get("position")
+    if not items:
+        return {}
+    if isinstance(items, dict):       # Tradier returns a bare object for a single position
+        items = [items]
+    return {p["symbol"]: int(p["quantity"]) for p in items}
+
+
+def compute_atr(bars, n: int = 14) -> float:
+    """ATR over the last n bars. bars: list of {high, low, close} oldest->newest."""
+    trs = []
+    prev_close = None
+    for b in bars:
+        h, l, c = float(b["high"]), float(b["low"]), float(b["close"])
+        tr = h - l if prev_close is None else max(h - l, abs(h - prev_close), abs(l - prev_close))
+        trs.append(tr)
+        prev_close = c
+    window = trs[-n:]
+    if not window:
+        raise ValueError("compute_atr: no bars")
+    return round(sum(window) / len(window), 4)
+
+
+def vix_regime(vix_series):
+    """Return (pct_rank, 1-day change) of the latest VIX vs the series. pct_rank in [0,1]."""
+    s = list(vix_series)
+    latest = s[-1]
+    pct_rank = sum(1 for x in s if x <= latest) / len(s)
+    change = (latest / s[-2] - 1.0) if len(s) >= 2 and s[-2] else 0.0
+    return round(pct_rank, 4), round(change, 4)
+
+
+import re as _re
+
+
+def parse_occ(occ_symbol: str):
+    """Parse an OCC option symbol -> (ticker, expiry_YYYY-MM-DD, right, strike_float).
+    E.g. 'SPY260619P00568000' -> ('SPY', '2026-06-19', 'P', 568.0)
+    """
+    m = _re.match(r'^([A-Z]+)(\d{6})([CP])(\d{8})$', occ_symbol)
+    if not m:
+        raise ValueError(f"Cannot parse OCC symbol: {occ_symbol}")
+    ticker, yymmdd, right, strike_str = m.groups()
+    expiry = datetime.strptime(yymmdd, "%y%m%d").strftime("%Y-%m-%d")
+    strike = int(strike_str) / 1000.0
+    return (ticker, expiry, right, strike)
+
+
+from bot.strategy.manage import ManagedPosition as _ManagedPosition
+
+
+def reconstruct_spreads(leg_map: dict) -> list:
+    """Reconstruct bull put spreads from a {occ_symbol: signed_qty} leg map.
+    Pairs short legs (qty < 0) with matching long legs (same ticker/expiry, long_strike < short_strike).
+    Returns list of ManagedPosition with credit=0.0 (credit unknown from broker data).
+    """
+    shorts = {}  # (ticker, expiry, strike) -> qty (positive count)
+    longs = {}   # (ticker, expiry, strike) -> qty
+    for sym, qty in leg_map.items():
+        if qty == 0:
+            continue
+        try:
+            ticker, expiry, right, strike = parse_occ(sym)
+        except ValueError:
+            continue
+        if right != "P":
+            continue
+        key = (ticker, expiry, strike)
+        if qty < 0:
+            shorts[key] = abs(qty)
+        else:
+            longs[key] = qty
+
+    result = []
+    for (ticker, expiry, short_strike), short_qty in shorts.items():
+        # Find the matching long put: same ticker/expiry, lower strike, same qty
+        for (lt, le, long_strike), long_qty in longs.items():
+            if lt == ticker and le == expiry and long_strike < short_strike and long_qty == short_qty:
+                result.append(_ManagedPosition(
+                    ticker=ticker,
+                    short_strike=short_strike,
+                    long_strike=long_strike,
+                    credit=0.0,
+                    qty=short_qty,
+                    expiry=expiry,
+                ))
+                break
+    return result

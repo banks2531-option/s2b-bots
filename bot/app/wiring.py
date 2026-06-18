@@ -1,0 +1,85 @@
+"""Production wiring: build Deps from Tradier and the runner (spec §6,§7,§8)."""
+from bot.app import feeds
+from bot.app.orchestrator import Deps, tick
+from bot.strategy.s2b import _occ
+
+
+def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick):
+    """Call tick_fn every poll_s up to `ticks` times; stop early if the bot halts.
+    now_fn/sleep_fn are injected so this is testable; production passes an ET clock + time.sleep."""
+    for i in range(ticks):
+        state = tick_fn(state, deps, now_fn())
+        if state.halted:
+            break
+        if i < ticks - 1:
+            sleep_fn(poll_s)
+    return state
+
+
+from bot.broker.tradier import TradierClient
+from bot.broker.submit import submit_and_verify
+from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_payload
+from bot.strategy.s2b import OptionQuote
+from bot.risk_gate import AccountState
+import time
+
+
+def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
+               poll_s=2, timeout_s=30, base_risk_pct=0.10):
+    """Assemble a production Deps from a Tradier http callable + injected market-data feeds."""
+    client = TradierClient(account_id=account_id, http=http)
+
+    def get_chain(symbol, expiry):
+        resp = http("GET", "/markets/options/chains",
+                    params={"symbol": symbol, "expiration": expiry, "greeks": "true"})
+        return feeds.parse_chain(resp)
+
+    def _quote(symbol):
+        q = http("GET", "/markets/quotes", params={"symbols": symbol})["quotes"]["quote"]
+        bid = q.get("bid")
+        ask = q.get("ask")
+        if bid is None or ask is None:
+            raise ValueError(f"no market for {symbol}")
+        return OptionQuote(0.0, 0.0, float(bid), float(ask))
+
+    def _leg_quotes(pos):
+        short = _quote(_occ(pos.ticker, pos.expiry, "P", pos.short_strike))
+        long = _quote(_occ(pos.ticker, pos.expiry, "P", pos.long_strike))
+        return short, long
+
+    def mark_position(pos):
+        short, long = _leg_quotes(pos)
+        return spread_value_mid(short, long)
+
+    def broker_legs():
+        return feeds.parse_position_legs(http("GET", f"/accounts/{account_id}/positions"))
+
+    def broker_equity():
+        return feeds.parse_equity(http("GET", f"/accounts/{account_id}/balances"))
+
+    def open_spread(payload):
+        state, _ = submit_and_verify(client, payload, poll_s, timeout_s, time.time, time.sleep)
+        return state.value
+
+    def close_spread(pos, action):
+        short, long = _leg_quotes(pos)
+        limit = round(short.ask - long.bid, 2)   # marketable cost-to-close -> fills under stress
+        payload = build_close_payload(pos, limit_price=limit)
+        state, _ = submit_and_verify(client, payload, poll_s, timeout_s, time.time, time.sleep)
+        return state.value
+
+    def account_state(today, concurrent):
+        eq = broker_equity()
+        return AccountState(eq, eq, 0.0, concurrent, 0.0, {}, today)
+
+    return Deps(
+        get_spot=get_spot, get_atr=get_atr, get_chain=get_chain,
+        pick_expiry=lambda today: feeds.pick_weekly_expiry(today),
+        get_vix_regime=get_vix_regime, account_state=account_state,
+        mark_position=mark_position, dte_of=lambda p, today: dte_from_expiry(p.expiry, today),
+        open_spread=open_spread, close_spread=close_spread,
+        broker_positions=lambda: feeds.reconstruct_spreads(broker_legs()),
+        broker_equity=broker_equity, bot_equity=broker_equity,
+        alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
+        base_risk_pct=base_risk_pct,
+    )

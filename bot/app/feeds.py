@@ -28,3 +28,20 @@ def parse_chain(resp) -> list:
         out.append(OptionQuote(strike=float(o["strike"]), delta=abs(float(delta)),
                                bid=float(o["bid"]), ask=float(o["ask"])))
     return out
+
+
+def parse_equity(resp) -> float:
+    return float(resp["balances"]["total_equity"])
+
+
+def parse_position_legs(resp) -> dict:
+    """Tradier positions JSON -> {occ_symbol: int qty}. Handles 'null' and single-object cases."""
+    positions = (resp.get("positions") or {})
+    if positions in (None, "null"):
+        return {}
+    items = positions.get("position")
+    if not items:
+        return {}
+    if isinstance(items, dict):       # Tradier returns a bare object for a single position
+        items = [items]
+    return {p["symbol"]: int(p["quantity"]) for p in items}

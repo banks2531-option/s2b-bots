@@ -26,3 +26,24 @@ def test_parse_chain_puts_only_abs_delta():
     quotes = parse_chain(CHAIN_RESP)
     # calls excluded; the null-delta put excluded; two clean puts remain with ABS delta
     assert quotes == [OptionQuote(568.0, 0.36, 3.40, 3.50), OptionQuote(558.0, 0.18, 1.60, 1.70)]
+
+
+from bot.app.feeds import parse_equity, parse_position_legs
+
+
+def test_parse_equity():
+    assert parse_equity({"balances": {"total_equity": 20123.45}}) == 20123.45
+
+
+def test_parse_position_legs_maps_symbol_to_qty():
+    resp = {"positions": {"position": [
+        {"symbol": "SPY260619P00568000", "quantity": -2.0},
+        {"symbol": "SPY260619P00558000", "quantity": 2.0},
+    ]}}
+    assert parse_position_legs(resp) == {"SPY260619P00568000": -2, "SPY260619P00558000": 2}
+
+
+def test_parse_position_legs_handles_no_positions():
+    assert parse_position_legs({"positions": "null"}) == {}
+    # Tradier returns a single object (not a list) when exactly one position exists
+    assert parse_position_legs({"positions": {"position": {"symbol": "X", "quantity": 1.0}}}) == {"X": 1}

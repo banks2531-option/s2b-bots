@@ -93,3 +93,12 @@ def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
         state.open_positions.append(ManagedPosition(
             "SPY", order.short_strike, order.long_strike, order.credit, order.qty, expiry))
     return state, status
+
+
+def tick(state: BotState, deps: Deps, now) -> BotState:
+    """One bot cycle: reconcile (may halt) -> manage open positions -> enter if eligible."""
+    today = now.strftime("%Y-%m-%d")
+    state, _ = run_reconcile_cycle(state, deps)
+    state, _ = run_management_cycle(state, deps, today)
+    state, _ = run_entry_cycle(state, deps, now)   # internally no-ops if halted / not eligible
+    return state

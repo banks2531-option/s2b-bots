@@ -1,6 +1,7 @@
 from datetime import datetime
+from datetime import datetime
 from bot.app.orchestrator import BotState, Deps
-from bot.app.orchestrator import run_reconcile_cycle, run_management_cycle, run_entry_cycle
+from bot.app.orchestrator import run_reconcile_cycle, run_management_cycle, run_entry_cycle, tick
 from bot.strategy.manage import ManagedPosition
 from bot.strategy.s2b import OptionQuote
 from bot.risk_gate import AccountState
@@ -137,3 +138,30 @@ def test_no_entry_when_already_holding():
     d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct)
     state, info = run_entry_cycle(state, d, datetime(2026, 6, 15, 10, 5))
     assert len(state.open_positions) == 1   # unchanged, no second entry
+
+
+def test_tick_enters_on_clean_monday():
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              broker_positions=lambda: [], open_spread=lambda payload: "filled")
+    state = tick(state, d, datetime(2026, 6, 15, 10, 5))   # Monday, flat, clean reconcile
+    assert len(state.open_positions) == 1
+
+
+def test_tick_reconcile_halt_blocks_entry_same_tick():
+    # broker shows an untracked position -> reconcile halts -> no entry even though it's Monday 10:05
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              broker_positions=lambda: [_pos()], open_spread=lambda payload: "filled")
+    state = tick(state, d, datetime(2026, 6, 15, 10, 5))
+    assert state.halted is True and state.open_positions == []
+
+
+def test_tick_manages_then_holds_no_new_entry_when_holding():
+    pos = _pos()
+    state = BotState(open_positions=[pos])
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              broker_positions=lambda: [_pos()], mark_position=lambda p: 3.0,
+              dte_of=lambda p, today: 5)            # HOLD
+    state = tick(state, d, datetime(2026, 6, 15, 10, 5))
+    assert len(state.open_positions) == 1          # still holding the one, no second entry

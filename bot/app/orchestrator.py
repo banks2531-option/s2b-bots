@@ -49,3 +49,23 @@ def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
         state.halted = True
         state.halt_reason = "reconcile drift"
     return state, drift
+
+
+def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
+    results = monitor_positions(
+        state.open_positions,
+        mark_fn=deps.mark_position,
+        dte_fn=lambda p: deps.dte_of(p, today),
+        close_fn=deps.close_spread,
+        cfg=deps.manage_cfg,
+    )
+    alerts = alerts_for_cycle(results, drift_report=None)
+    if alerts:
+        deps.alert_sink(alerts)
+    # remove only positions whose close actually filled
+    closed_ok = {id(r.position) for r in results if not r.failed}
+    state.open_positions = [p for p in state.open_positions if id(p) not in closed_ok]
+    if should_halt_new_entries(alerts):
+        state.halted = True
+        state.halt_reason = "failed close"
+    return state, results

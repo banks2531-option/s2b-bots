@@ -1,5 +1,5 @@
 from bot.app.orchestrator import BotState, Deps
-from bot.app.orchestrator import run_reconcile_cycle
+from bot.app.orchestrator import run_reconcile_cycle, run_management_cycle
 from bot.strategy.manage import ManagedPosition
 
 
@@ -54,3 +54,35 @@ def test_reconcile_untracked_broker_position_halts_and_alerts():
     state, drift = run_reconcile_cycle(state, d)
     assert state.halted is True and "reconcile" in state.halt_reason
     assert sent and sent[0][0].message  # a critical alert was emitted
+
+
+def test_management_closes_filled_position_and_removes_it():
+    pos = _pos()
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 10.0,           # past stop
+              close_spread=lambda p, a: "filled")
+    state, results = run_management_cycle(state, d, today="2026-06-17")
+    assert len(results) == 1 and results[0].action.value == "stop"
+    assert state.open_positions == []                 # filled close -> removed
+    assert state.halted is False
+
+
+def test_management_failed_close_keeps_position_and_halts():
+    pos = _pos()
+    sent = []
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 10.0, close_spread=lambda p, a: "timeout",
+              alert_sink=lambda alerts: sent.append(alerts))
+    state, results = run_management_cycle(state, d, today="2026-06-17")
+    assert results[0].failed is True
+    assert state.open_positions == [pos]              # NOT removed (close didn't fill)
+    assert state.halted is True and "close" in state.halt_reason
+    assert sent  # alerted
+
+
+def test_management_hold_keeps_position():
+    pos = _pos()
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 3.0, dte_of=lambda p, today: 5)  # midrange, high dte
+    state, results = run_management_cycle(state, d, today="2026-06-17")
+    assert results == [] and state.open_positions == [pos]

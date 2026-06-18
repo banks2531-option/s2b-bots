@@ -27,3 +27,23 @@ def test_drill_stop_that_fills_does_not_halt():
                                 close_fn=lambda p, a: "filled", cfg=ManageConfig())
     assert results[0].failed is False
     assert should_halt_new_entries(alerts_for_cycle(results, drift_report=None)) is False
+
+
+from bot.ops.ledger import reconcile
+
+
+def test_drill_lost_position_on_restart_halts():
+    """Drill: after a crash/restart the bot's tracked set is empty but the broker still holds
+    a live position -> reconcile must flag it untracked and the bot must halt (not blindly trade)."""
+    broker_still_open = [_pos()]
+    bot_thinks_flat = []
+    drift = reconcile(bot_thinks_flat, broker_still_open, bot_equity=20_000.0, broker_equity=20_000.0)
+    assert len(drift.untracked_at_broker) == 1 and drift.should_halt() is True
+    alerts = alerts_for_cycle([], drift_report=drift)
+    assert should_halt_new_entries(alerts) is True
+
+
+def test_drill_phantom_position_halts():
+    """Drill: bot believes a position is open that the broker already closed (phantom) -> halt."""
+    drift = reconcile([_pos()], [], bot_equity=20_000.0, broker_equity=20_000.0)
+    assert len(drift.missing_at_broker) == 1 and drift.should_halt() is True

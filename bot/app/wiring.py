@@ -30,3 +30,14 @@ def reconcile_live(tracked, leg_map, bot_equity, broker_equity) -> DriftReport:
     untracked = [occ for occ, q in leg_map.items() if occ not in referenced and q != 0]
     return DriftReport(missing_at_broker=missing, untracked_at_broker=untracked,
                        qty_mismatch=qty_mismatch, equity_drift=round(bot_equity - broker_equity, 2))
+
+
+def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick):
+    """Call tick_fn every poll_s up to `ticks` times; stop early if the bot halts.
+    now_fn/sleep_fn are injected so this is testable; production passes an ET clock + time.sleep."""
+    for _ in range(ticks):
+        state = tick_fn(state, deps, now_fn())
+        if state.halted:
+            break
+        sleep_fn(poll_s)
+    return state

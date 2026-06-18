@@ -45,3 +45,25 @@ def parse_position_legs(resp) -> dict:
     if isinstance(items, dict):       # Tradier returns a bare object for a single position
         items = [items]
     return {p["symbol"]: int(p["quantity"]) for p in items}
+
+
+def compute_atr(bars, n: int = 14) -> float:
+    """ATR over the last n bars. bars: list of {high, low, close} oldest->newest."""
+    trs = []
+    prev_close = None
+    for b in bars:
+        h, l, c = float(b["high"]), float(b["low"]), float(b["close"])
+        tr = h - l if prev_close is None else max(h - l, abs(h - prev_close), abs(l - prev_close))
+        trs.append(tr)
+        prev_close = c
+    window = trs[-n:]
+    return round(sum(window) / len(window), 4)
+
+
+def vix_regime(vix_series):
+    """Return (pct_rank, 1-day change) of the latest VIX vs the series. pct_rank in [0,1]."""
+    s = list(vix_series)
+    latest = s[-1]
+    pct_rank = sum(1 for x in s if x <= latest) / len(s)
+    change = (latest / s[-2] - 1.0) if len(s) >= 2 and s[-2] else 0.0
+    return round(pct_rank, 4), round(change, 4)

@@ -47,3 +47,21 @@ def test_parse_position_legs_handles_no_positions():
     assert parse_position_legs({"positions": "null"}) == {}
     # Tradier returns a single object (not a list) when exactly one position exists
     assert parse_position_legs({"positions": {"position": {"symbol": "X", "quantity": 1.0}}}) == {"X": 1}
+
+
+from bot.app.feeds import compute_atr, vix_regime
+
+
+def test_compute_atr_simple():
+    # 3 bars, each true range = high-low = 2.0 (no gaps) -> ATR(2) = 2.0
+    bars = [{"high": 10, "low": 8, "close": 9},
+            {"high": 11, "low": 9, "close": 10},
+            {"high": 12, "low": 10, "close": 11}]
+    assert compute_atr(bars, n=2) == 2.0
+
+
+def test_vix_regime_pct_rank_and_change():
+    series = [10, 12, 14, 16, 20]   # latest 20 is the max -> pct_rank 1.0; change 20/16-1 = 0.25
+    pct_rank, change = vix_regime(series)
+    assert pct_rank == 1.0
+    assert round(change, 4) == 0.25

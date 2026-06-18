@@ -10,3 +10,21 @@ def pick_weekly_expiry(today: str, min_dte: int = 4) -> str:
     while (friday - d).days < min_dte:
         friday += timedelta(days=7)
     return friday.strftime("%Y-%m-%d")
+
+
+from bot.strategy.s2b import OptionQuote
+
+
+def parse_chain(resp) -> list:
+    """Tradier options-chain JSON -> [OptionQuote] for PUTS with a usable delta (abs)."""
+    options = (resp.get("options") or {}).get("option") or []
+    out = []
+    for o in options:
+        if o.get("option_type") != "put":
+            continue
+        delta = (o.get("greeks") or {}).get("delta")
+        if delta is None:
+            continue
+        out.append(OptionQuote(strike=float(o["strike"]), delta=abs(float(delta)),
+                               bid=float(o["bid"]), ask=float(o["ask"])))
+    return out

@@ -18,6 +18,8 @@ from bot.strategy.s2b import OptionQuote
 def parse_chain(resp) -> list:
     """Tradier options-chain JSON -> [OptionQuote] for PUTS with a usable delta (abs)."""
     options = (resp.get("options") or {}).get("option") or []
+    if isinstance(options, dict):
+        options = [options]
     out = []
     for o in options:
         if o.get("option_type") != "put":
@@ -25,8 +27,12 @@ def parse_chain(resp) -> list:
         delta = (o.get("greeks") or {}).get("delta")
         if delta is None:
             continue
+        bid = o.get("bid")
+        ask = o.get("ask")
+        if bid is None or ask is None:
+            continue
         out.append(OptionQuote(strike=float(o["strike"]), delta=abs(float(delta)),
-                               bid=float(o["bid"]), ask=float(o["ask"])))
+                               bid=float(bid), ask=float(ask)))
     return out
 
 
@@ -57,6 +63,8 @@ def compute_atr(bars, n: int = 14) -> float:
         trs.append(tr)
         prev_close = c
     window = trs[-n:]
+    if not window:
+        raise ValueError("compute_atr: no bars")
     return round(sum(window) / len(window), 4)
 
 
@@ -67,3 +75,61 @@ def vix_regime(vix_series):
     pct_rank = sum(1 for x in s if x <= latest) / len(s)
     change = (latest / s[-2] - 1.0) if len(s) >= 2 and s[-2] else 0.0
     return round(pct_rank, 4), round(change, 4)
+
+
+import re as _re
+
+
+def parse_occ(occ_symbol: str):
+    """Parse an OCC option symbol -> (ticker, expiry_YYYY-MM-DD, right, strike_float).
+    E.g. 'SPY260619P00568000' -> ('SPY', '2026-06-19', 'P', 568.0)
+    """
+    m = _re.match(r'^([A-Z]+)(\d{6})([CP])(\d{8})$', occ_symbol)
+    if not m:
+        raise ValueError(f"Cannot parse OCC symbol: {occ_symbol}")
+    ticker, yymmdd, right, strike_str = m.groups()
+    expiry = datetime.strptime(yymmdd, "%y%m%d").strftime("%Y-%m-%d")
+    strike = int(strike_str) / 1000.0
+    return (ticker, expiry, right, strike)
+
+
+from bot.strategy.manage import ManagedPosition as _ManagedPosition
+
+
+def reconstruct_spreads(leg_map: dict) -> list:
+    """Reconstruct bull put spreads from a {occ_symbol: signed_qty} leg map.
+    Pairs short legs (qty < 0) with matching long legs (same ticker/expiry, long_strike < short_strike).
+    Returns list of ManagedPosition with credit=0.0 (credit unknown from broker data).
+    """
+    shorts = {}  # (ticker, expiry, strike) -> qty (positive count)
+    longs = {}   # (ticker, expiry, strike) -> qty
+    for sym, qty in leg_map.items():
+        if qty == 0:
+            continue
+        try:
+            ticker, expiry, right, strike = parse_occ(sym)
+        except ValueError:
+            continue
+        if right != "P":
+            continue
+        key = (ticker, expiry, strike)
+        if qty < 0:
+            shorts[key] = abs(qty)
+        else:
+            longs[key] = qty
+
+    result = []
+    for (ticker, expiry, short_strike), short_qty in shorts.items():
+        # Find the matching long put: same ticker/expiry, lower strike, same qty
+        for (lt, le, long_strike), long_qty in longs.items():
+            if lt == ticker and le == expiry and long_strike < short_strike and long_qty == short_qty:
+                result.append(_ManagedPosition(
+                    ticker=ticker,
+                    short_strike=short_strike,
+                    long_strike=long_strike,
+                    credit=0.0,
+                    qty=short_qty,
+                    expiry=expiry,
+                ))
+                break
+    return result

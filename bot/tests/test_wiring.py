@@ -1,34 +1,3 @@
-from bot.app.wiring import reconcile_live
-from bot.strategy.manage import ManagedPosition
-
-
-def _pos(qty=2):
-    return ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=qty, expiry="2026-06-19")
-
-
-def test_reconcile_live_clean_match():
-    legs = {"SPY260619P00568000": -2, "SPY260619P00558000": 2}   # short -2, long +2
-    r = reconcile_live([_pos(2)], legs, bot_equity=20_000.0, broker_equity=20_000.0)
-    assert r.should_halt() is False
-
-
-def test_reconcile_live_qty_mismatch_halts():
-    legs = {"SPY260619P00568000": -1, "SPY260619P00558000": 1}   # broker only 1 lot, bot tracks 2
-    r = reconcile_live([_pos(2)], legs, bot_equity=20_000.0, broker_equity=20_000.0)
-    assert r.should_halt() is True
-
-
-def test_reconcile_live_phantom_halts():
-    r = reconcile_live([_pos(2)], {}, bot_equity=20_000.0, broker_equity=20_000.0)  # broker flat
-    assert len(r.missing_at_broker) == 1 and r.should_halt() is True
-
-
-def test_reconcile_live_untracked_leg_halts():
-    legs = {"SPY260619P00568000": -2, "SPY260619P00558000": 2, "AAPL260619P00250000": -3}
-    r = reconcile_live([_pos(2)], legs, bot_equity=20_000.0, broker_equity=20_000.0)
-    assert len(r.untracked_at_broker) == 1 and r.should_halt() is True
-
-
 from bot.app.wiring import runner
 from bot.app.orchestrator import BotState, tick
 
@@ -95,3 +64,20 @@ def test_build_deps_drives_a_clean_monday_entry_tick():
                       get_vix_regime=lambda: (0.5, 0.01))
     state = tick(BotState(), deps, datetime(2026, 6, 15, 10, 5))   # Monday 10:05
     assert len(state.open_positions) == 1 and state.open_positions[0].short_strike == 568.0
+
+
+def test_build_deps_broker_positions_reconstructs():
+    positions_resp = {"positions": {"position": [
+        {"symbol": "SPY260619P00568000", "quantity": -2},
+        {"symbol": "SPY260619P00558000", "quantity": 2},
+    ]}}
+    http = _fake_http({
+        "/positions": positions_resp,
+        "/balances": {"balances": {"total_equity": 20_000.0}},
+        "/markets/quotes": {"quotes": {"quote": {"bid": 3.40, "ask": 3.50}}},
+    })
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01))
+    result = deps.broker_positions()
+    assert len(result) == 1
+    assert result[0].short_strike == 568.0

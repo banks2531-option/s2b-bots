@@ -37,3 +37,15 @@ class Deps:
     risk_cfg: object = field(default_factory=RiskConfig)
     base_risk_pct: float = 0.10
     account_equity: float = 20_000.0
+
+
+def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
+    drift = reconcile(state.open_positions, deps.broker_positions(),
+                      deps.bot_equity(), deps.broker_equity())
+    alerts = alerts_for_cycle([], drift_report=drift)
+    if alerts:
+        deps.alert_sink(alerts)
+    if should_halt_new_entries(alerts):
+        state.halted = True
+        state.halt_reason = "reconcile drift"
+    return state, drift

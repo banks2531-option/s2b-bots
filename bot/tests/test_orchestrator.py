@@ -1,6 +1,9 @@
+from datetime import datetime
 from bot.app.orchestrator import BotState, Deps
-from bot.app.orchestrator import run_reconcile_cycle, run_management_cycle
+from bot.app.orchestrator import run_reconcile_cycle, run_management_cycle, run_entry_cycle
 from bot.strategy.manage import ManagedPosition
+from bot.strategy.s2b import OptionQuote
+from bot.risk_gate import AccountState
 
 
 def test_botstate_defaults():
@@ -86,3 +89,51 @@ def test_management_hold_keeps_position():
     d = _deps(mark_position=lambda p: 3.0, dte_of=lambda p, today: 5)  # midrange, high dte
     state, results = run_management_cycle(state, d, today="2026-06-17")
     assert results == [] and state.open_positions == [pos]
+
+
+def _chain():
+    return [OptionQuote(572.0, 0.45, 4.50, 4.60), OptionQuote(568.0, 0.36, 3.40, 3.50),
+            OptionQuote(565.0, 0.30, 2.80, 2.90), OptionQuote(560.0, 0.22, 2.00, 2.10),
+            OptionQuote(558.0, 0.18, 1.60, 1.70)]
+
+
+def _acct(today, conc):
+    return AccountState(20_000.0, 20_000.0, 0.0, conc, 0.0, {}, today)
+
+
+def test_entry_opens_position_on_monday_after_10():
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled")
+    now = datetime(2026, 6, 15, 10, 5)   # Monday 10:05
+    state, info = run_entry_cycle(state, d, now)
+    assert len(state.open_positions) == 1
+    assert state.open_positions[0].short_strike == 568.0
+
+
+def test_no_entry_on_tuesday():
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct)
+    state, info = run_entry_cycle(state, d, datetime(2026, 6, 16, 10, 5))  # Tuesday
+    assert state.open_positions == []
+
+
+def test_no_entry_before_10():
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct)
+    state, info = run_entry_cycle(state, d, datetime(2026, 6, 15, 9, 45))  # Mon 09:45
+    assert state.open_positions == []
+
+
+def test_no_entry_when_halted():
+    state = BotState(halted=True, halt_reason="x")
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct)
+    state, info = run_entry_cycle(state, d, datetime(2026, 6, 15, 10, 5))
+    assert state.open_positions == []
+
+
+def test_no_entry_when_already_holding():
+    state = BotState(open_positions=[_pos()])
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct)
+    state, info = run_entry_cycle(state, d, datetime(2026, 6, 15, 10, 5))
+    assert len(state.open_positions) == 1   # unchanged, no second entry

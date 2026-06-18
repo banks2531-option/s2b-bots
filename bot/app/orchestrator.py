@@ -69,3 +69,27 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
         state.halted = True
         state.halt_reason = "failed close"
     return state, results
+
+
+def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
+    today = now.strftime("%Y-%m-%d")
+    if state.halted or not is_entry_day(today) or now.hour < 10 or state.open_positions:
+        return state, None
+    spot = deps.get_spot("SPY")
+    atr = deps.get_atr("SPY")
+    expiry = deps.pick_expiry(today)
+    order = build_spread_order(spot, atr, deps.get_chain("SPY", expiry), deps.s2b_cfg)
+    if order is None:
+        return state, "no_order"
+    pct_rank, change = deps.get_vix_regime()
+    risk = regime_adjusted_risk_pct(deps.base_risk_pct, pct_rank, change)
+    order.qty = contracts_for_risk(deps.account_equity, order.max_loss_per_contract, risk)
+    acct = deps.account_state(today, len(state.open_positions))
+    decision = RiskGate(deps.risk_cfg).is_order_allowed(order, acct)
+    if not decision.allowed:
+        return state, decision.reason
+    status = deps.open_spread(to_tradier_payload(order, expiry, order.qty))
+    if status == "filled":
+        state.open_positions.append(ManagedPosition(
+            "SPY", order.short_strike, order.long_strike, order.credit, order.qty, expiry))
+    return state, status

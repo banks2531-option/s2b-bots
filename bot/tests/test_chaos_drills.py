@@ -47,3 +47,43 @@ def test_drill_phantom_position_halts():
     """Drill: bot believes a position is open that the broker already closed (phantom) -> halt."""
     drift = reconcile([_pos()], [], bot_equity=20_000.0, broker_equity=20_000.0)
     assert len(drift.missing_at_broker) == 1 and drift.should_halt() is True
+
+
+from bot.broker.submit import submit_and_verify
+from bot.broker.order_state import OrderState
+
+
+def _clock():
+    t = {"now": 0.0}
+    return (lambda: t["now"]), (lambda s: t.__setitem__("now", t["now"] + s))
+
+
+class _Broker:
+    def __init__(self, statuses, cancel_raises=False):
+        self._s = list(statuses); self._cancel_raises = cancel_raises; self.cancelled = None
+    def place_order(self, payload): return "555"
+    def get_order(self, oid): return {"id": oid, "status": self._s.pop(0)}
+    def cancel_order(self, oid):
+        self.cancelled = oid
+        if self._cancel_raises:
+            from bot.broker.tradier import BrokerError
+            raise BrokerError("already filled")
+
+
+def test_drill_order_timeout_surfaces_as_failed_close_and_halts():
+    """Drill: the close order never fills -> submit_and_verify returns TIMEOUT, the cycle
+    treats it as a failed close, and the bot halts."""
+    now, sleep = _clock()
+    broker = _Broker(["open", "open", "open", "open"])  # never fills
+    state, _ = submit_and_verify(broker, {"x": 1}, poll_s=1.0, timeout_s=2.0, now=now, sleep=sleep)
+    assert state == OrderState.TIMEOUT and broker.cancelled == "555"
+    # a TIMEOUT close status is not "filled" -> would set ExitResult.failed=True -> halt (see Plan 4/5)
+
+
+def test_drill_fill_wins_race_no_false_halt():
+    """Drill: the order fills exactly as the timeout cancel is attempted -> the re-query must
+    report FILLED (not TIMEOUT), so the bot does NOT falsely halt on a successful close."""
+    now, sleep = _clock()
+    broker = _Broker(["open", "open", "filled"], cancel_raises=True)  # cancel fails; re-query shows filled
+    state, _ = submit_and_verify(broker, {"x": 1}, poll_s=1.0, timeout_s=0.5, now=now, sleep=sleep)
+    assert state == OrderState.FILLED   # fill won the race -> no false TIMEOUT

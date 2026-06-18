@@ -47,6 +47,8 @@ def test_drill_phantom_position_halts():
     """Drill: bot believes a position is open that the broker already closed (phantom) -> halt."""
     drift = reconcile([_pos()], [], bot_equity=20_000.0, broker_equity=20_000.0)
     assert len(drift.missing_at_broker) == 1 and drift.should_halt() is True
+    alerts = alerts_for_cycle([], drift_report=drift)
+    assert should_halt_new_entries(alerts) is True
 
 
 from bot.broker.submit import submit_and_verify
@@ -77,7 +79,11 @@ def test_drill_order_timeout_surfaces_as_failed_close_and_halts():
     broker = _Broker(["open", "open", "open", "open"])  # never fills
     state, _ = submit_and_verify(broker, {"x": 1}, poll_s=1.0, timeout_s=2.0, now=now, sleep=sleep)
     assert state == OrderState.TIMEOUT and broker.cancelled == "555"
-    # a TIMEOUT close status is not "filled" -> would set ExitResult.failed=True -> halt (see Plan 4/5)
+    # the live loop feeds submit_and_verify's status back as the close_fn result:
+    results = monitor_positions([_pos()], mark_fn=lambda p: 10.0, dte_fn=lambda p: 5,
+                                close_fn=lambda p, a: state.value, cfg=ManageConfig())
+    assert results[0].failed is True
+    assert should_halt_new_entries(alerts_for_cycle(results, drift_report=None)) is True
 
 
 def test_drill_fill_wins_race_no_false_halt():

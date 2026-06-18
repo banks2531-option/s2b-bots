@@ -17,6 +17,7 @@ class Alert:
 
 def alerts_for_cycle(exit_results, drift_report, equity_tolerance: float = 50.0):
     """CRITICAL alert for any close that did not fill (a stop that didn't execute) and for ledger drift."""
+    exit_results = exit_results or []
     alerts = []
     for r in exit_results:
         if r.failed:
@@ -28,7 +29,8 @@ def alerts_for_cycle(exit_results, drift_report, equity_tolerance: float = 50.0)
         alerts.append(Alert(Severity.CRITICAL,
             f"reconcile drift: equity={drift_report.equity_drift} "
             f"missing={len(drift_report.missing_at_broker)} "
-            f"untracked={len(drift_report.untracked_at_broker)}"))
+            f"untracked={len(drift_report.untracked_at_broker)} "
+            f"qty_mismatch={len(drift_report.qty_mismatch)}"))
     return alerts
 
 

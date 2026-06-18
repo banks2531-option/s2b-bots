@@ -39,3 +39,14 @@ def test_reconcile_equity_drift_beyond_tolerance_halts():
     r = reconcile([p], [_pos()], bot_equity=20_000.0, broker_equity=19_900.0)  # $100 drift
     assert r.equity_drift == 100.0
     assert r.should_halt(equity_tolerance=50.0) is True
+
+
+def test_reconcile_qty_mismatch_halts():
+    """C1 CRITICAL: bot tracks qty=2 but broker holds qty=1 for the same key
+    -> double-exposure must be detected as a qty mismatch and trigger a halt."""
+    bot_pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=2, expiry="2026-06-19")
+    brk_pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=1, expiry="2026-06-19")
+    r = reconcile([bot_pos], [brk_pos], bot_equity=20_000.0, broker_equity=20_000.0)
+    assert len(r.qty_mismatch) == 1
+    assert r.positions_match() is False
+    assert r.should_halt() is True

@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from bot.broker.tradier import make_http_from_env
 from bot.app import feeds
 from bot.app.wiring import build_deps, runner, make_trade_logger
-from bot.app.orchestrator import BotState
+from bot.app.state_store import load_state
 
 
 def fetch_spot(http, symbol):
@@ -79,8 +79,12 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
           f"ticks={ticks} ===", flush=True)
 
     et_now = lambda: datetime.now(ZoneInfo("America/New_York"))
-    log_path = f"trades_{label.lower().replace('-', '')}.csv"   # per-bot file for the A/B
-    print(f"    trade log -> {log_path}", flush=True)
+    tag = label.lower().replace("-", "")
+    log_path = f"trades_{tag}.csv"          # per-bot trade/P&L file (for the A/B)
+    state_path = f"state_{tag}.json"        # per-bot persisted state (restart-safe)
+    state = load_state(state_path)
+    print(f"    trade log -> {log_path} | state -> {state_path} "
+          f"(resuming {len(state.open_positions)} open position(s), halted={state.halted})", flush=True)
     deps = build_deps(
         http, account_id,
         get_spot=lambda s: fetch_spot(http, s),
@@ -89,8 +93,8 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         entry_days=entry_days, max_open=max_open, shared_account=shared_account,
         trade_log=make_trade_logger(log_path),
     )
-    state = runner(BotState(), deps, now_fn=et_now, sleep_fn=time.sleep,
-                   poll_s=poll_seconds, ticks=ticks)
+    state = runner(state, deps, now_fn=et_now, sleep_fn=time.sleep,
+                   poll_s=poll_seconds, ticks=ticks, state_path=state_path)
     print(f"=== done [{label}] | open={len(state.open_positions)} | halted={state.halted} "
           f"({state.halt_reason}) ===", flush=True)
     return state

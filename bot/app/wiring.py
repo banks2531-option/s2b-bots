@@ -4,6 +4,7 @@ import os as _os
 
 from bot.app import feeds
 from bot.app.orchestrator import Deps, tick
+from bot.app.state_store import save_state
 from bot.strategy.s2b import _occ
 
 _LOG_FIELDS = ["event", "date", "ticker", "short", "long", "expiry", "qty",
@@ -23,11 +24,14 @@ def make_trade_logger(path):
     return log
 
 
-def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick):
+def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick, state_path=None):
     """Call tick_fn every poll_s up to `ticks` times; stop early if the bot halts.
-    now_fn/sleep_fn are injected so this is testable; production passes an ET clock + time.sleep."""
+    now_fn/sleep_fn are injected so this is testable; production passes an ET clock + time.sleep.
+    If state_path is given, persist state after every tick so a restart resumes (not orphans)."""
     for i in range(ticks):
         state = tick_fn(state, deps, now_fn())
+        if state_path:
+            save_state(state, state_path)
         if state.halted:
             break
         if i < ticks - 1:

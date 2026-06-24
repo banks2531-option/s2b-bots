@@ -21,6 +21,7 @@ from bot.broker.tradier import make_http_from_env
 from bot.app import feeds
 from bot.app.wiring import build_deps, runner, make_trade_logger
 from bot.app.state_store import load_state
+from bot.app.orchestrator import tick
 
 
 def fetch_spot(http, symbol):
@@ -93,8 +94,14 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         entry_days=entry_days, max_open=max_open, shared_account=shared_account,
         trade_log=make_trade_logger(log_path),
     )
+    def market_gated_tick(st, dp, now):
+        if not feeds.is_market_hours(now):
+            return st                     # off-hours no-op: no API calls, no marks, no halt
+        return tick(st, dp, now)
+
     state = runner(state, deps, now_fn=et_now, sleep_fn=time.sleep,
-                   poll_s=poll_seconds, ticks=ticks, state_path=state_path)
+                   poll_s=poll_seconds, ticks=ticks, state_path=state_path,
+                   tick_fn=market_gated_tick)
     print(f"=== done [{label}] | open={len(state.open_positions)} | halted={state.halted} "
           f"({state.halt_reason}) ===", flush=True)
     return state

@@ -148,3 +148,20 @@ def test_pick_expiry_holiday_friday_falls_back_to_thursday():
     # the week's Friday 2026-07-03 is a market holiday (absent); Thursday 07-02 is present
     avail = ["2026-06-26", "2026-06-29", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-06", "2026-07-10"]
     assert pick_expiry_from_list(avail, "2026-06-24", min_dte=4) == "2026-07-02"
+
+
+from bot.app.feeds import is_market_hours
+from datetime import datetime as _dt
+from zoneinfo import ZoneInfo as _ZI
+
+
+def _et(y, mo, d, h, mi):
+    return _dt(y, mo, d, h, mi, tzinfo=_ZI("America/New_York"))
+
+
+def test_is_market_hours():
+    assert is_market_hours(_et(2026, 6, 15, 9, 30)) is True    # Mon open
+    assert is_market_hours(_et(2026, 6, 15, 10, 0)) is True    # Mon mid-day
+    assert is_market_hours(_et(2026, 6, 15, 9, 0)) is False    # Mon pre-open
+    assert is_market_hours(_et(2026, 6, 15, 16, 0)) is False   # Mon at close (exclusive)
+    assert is_market_hours(_et(2026, 6, 20, 11, 0)) is False   # Saturday

@@ -135,6 +135,16 @@ def reconstruct_spreads(leg_map: dict) -> list:
     return result
 
 
+def is_market_hours(now) -> bool:
+    """True if `now` (ET datetime) is a weekday within 09:30-15:59 ET. Used to no-op the bot
+    off-hours so it never marks positions on null quotes (which would halt it overnight).
+    NOTE: does not account for market holidays (rare; would surface as a transient halt)."""
+    if now.weekday() >= 5:                      # Sat/Sun
+        return False
+    minutes = now.hour * 60 + now.minute
+    return (9 * 60 + 30) <= minutes < (16 * 60)
+
+
 def parse_expirations(resp) -> list:
     """Tradier /markets/options/expirations JSON -> [YYYY-MM-DD] (handles single/none)."""
     exp = (resp.get("expirations") or {})

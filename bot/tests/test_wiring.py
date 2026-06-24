@@ -55,6 +55,7 @@ def test_build_deps_drives_a_clean_monday_entry_tick():
         {"strike": 565.0, "option_type": "put", "bid": 2.80, "ask": 2.90, "greeks": {"delta": -0.30}},
     ]}}
     http = _fake_http({
+        "/markets/options/expirations": {"expirations": {"date": ["2026-06-19", "2026-06-26"]}},
         "/markets/options/chains": chain,
         "/balances": {"balances": {"total_equity": 20_000.0}},
         "/positions": {"positions": "null"},

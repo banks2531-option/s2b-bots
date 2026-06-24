@@ -72,9 +72,14 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         eq = broker_equity()
         return AccountState(eq, eq, 0.0, concurrent, 0.0, {}, today)
 
+    def pick_expiry(today):
+        # broker-aware: pick from the actual listed expirations so market holidays are handled
+        resp = http("GET", "/markets/options/expirations", params={"symbol": "SPY"})
+        return feeds.pick_expiry_from_list(feeds.parse_expirations(resp), today)
+
     return Deps(
         get_spot=get_spot, get_atr=get_atr, get_chain=get_chain,
-        pick_expiry=lambda today: feeds.pick_weekly_expiry(today),
+        pick_expiry=pick_expiry,
         get_vix_regime=get_vix_regime, account_state=account_state,
         mark_position=mark_position, dte_of=lambda p, today: dte_from_expiry(p.expiry, today),
         open_spread=open_spread, close_spread=close_spread,

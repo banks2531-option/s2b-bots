@@ -135,6 +135,42 @@ def reconstruct_spreads(leg_map: dict) -> list:
     return result
 
 
+def parse_expirations(resp) -> list:
+    """Tradier /markets/options/expirations JSON -> [YYYY-MM-DD] (handles single/none)."""
+    exp = (resp.get("expirations") or {})
+    if exp in (None, "null"):
+        return []
+    dates = exp.get("date")
+    if not dates:
+        return []
+    if isinstance(dates, str):
+        dates = [dates]
+    return list(dates)
+
+
+def pick_expiry_from_list(available, today: str, min_dte: int = 4):
+    """Broker-aware weekly expiry: nearest Friday >= min_dte that the broker actually lists;
+    if that week's Friday is a market holiday (absent), fall back to the latest available
+    trading day in that Mon-Fri week (e.g. the Thursday). None if nothing fits."""
+    avail = set(available)
+    d0 = datetime.strptime(today, "%Y-%m-%d")
+    days_to_fri = (4 - d0.weekday()) % 7
+    friday = d0 + timedelta(days=days_to_fri)
+    while (friday - d0).days < min_dte:
+        friday += timedelta(days=7)
+    for _ in range(8):                                  # scan up to 8 weeks out
+        fstr = friday.strftime("%Y-%m-%d")
+        if fstr in avail:
+            return fstr
+        for k in range(1, 5):                           # holiday Friday -> Thu, Wed, ... of that week
+            wd = friday - timedelta(days=k)
+            wstr = wd.strftime("%Y-%m-%d")
+            if wstr in avail and (wd - d0).days >= min_dte:
+                return wstr
+        friday += timedelta(days=7)
+    return None
+
+
 def parse_history(resp) -> list:
     """Tradier /markets/history daily JSON -> [{high, low, close}] oldest->newest (for compute_atr)."""
     hist = (resp.get("history") or {})

@@ -126,3 +126,25 @@ def test_parse_history_empty_and_single():
     assert parse_history({"history": "null"}) == []
     assert parse_history({"history": {"day": {"date": "x", "high": 5, "low": 4, "close": 4.5}}}) == \
         [{"high": 5.0, "low": 4.0, "close": 4.5}]
+
+
+from bot.app.feeds import parse_expirations, pick_expiry_from_list
+
+
+def test_parse_expirations():
+    assert parse_expirations({"expirations": {"date": ["2026-06-26", "2026-07-02"]}}) == \
+        ["2026-06-26", "2026-07-02"]
+    assert parse_expirations({"expirations": {"date": "2026-06-26"}}) == ["2026-06-26"]
+    assert parse_expirations({"expirations": "null"}) == []
+
+
+def test_pick_expiry_normal_friday():
+    avail = ["2026-06-26", "2026-07-02", "2026-07-10", "2026-07-17"]
+    # Monday 2026-06-22, min_dte 4 -> that-week Friday 06-26 (4 DTE)
+    assert pick_expiry_from_list(avail, "2026-06-22", min_dte=4) == "2026-06-26"
+
+
+def test_pick_expiry_holiday_friday_falls_back_to_thursday():
+    # the week's Friday 2026-07-03 is a market holiday (absent); Thursday 07-02 is present
+    avail = ["2026-06-26", "2026-06-29", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-06", "2026-07-10"]
+    assert pick_expiry_from_list(avail, "2026-06-24", min_dte=4) == "2026-07-02"

@@ -133,3 +133,17 @@ def reconstruct_spreads(leg_map: dict) -> list:
                 ))
                 break
     return result
+
+
+def parse_history(resp) -> list:
+    """Tradier /markets/history daily JSON -> [{high, low, close}] oldest->newest (for compute_atr)."""
+    hist = (resp.get("history") or {})
+    if hist in (None, "null"):
+        return []
+    items = hist.get("day")
+    if not items:
+        return []
+    if isinstance(items, dict):          # single-day responses come back as a bare object
+        items = [items]
+    return [{"high": float(d["high"]), "low": float(d["low"]), "close": float(d["close"])}
+            for d in items]

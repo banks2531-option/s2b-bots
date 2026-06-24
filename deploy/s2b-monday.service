@@ -1,0 +1,17 @@
+[Unit]
+Description=S2b bot - Monday-only (Bot A)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/s2b-bot
+EnvironmentFile=/root/s2b-bot/s2b.env
+ExecStart=/root/s2b-bot/venv/bin/python -m bot.app.run_s2b --shared-account --ticks 100000 --poll-seconds 60
+Restart=on-failure
+RestartSec=15
+StandardOutput=append:/root/s2b-bot/s2b-monday.log
+StandardError=append:/root/s2b-bot/s2b-monday.log
+
+[Install]
+WantedBy=multi-user.target

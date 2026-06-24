@@ -1,0 +1,8 @@
+{
+  "open_positions": [
+    {"ticker": "SPY", "short_strike": 720.0, "long_strike": 710.0, "credit": 1.71, "qty": 7, "expiry": "2026-07-02"}
+  ],
+  "halted": false,
+  "halt_reason": "",
+  "last_entry_date": "2026-06-24"
+}

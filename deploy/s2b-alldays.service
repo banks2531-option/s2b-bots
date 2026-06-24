@@ -1,0 +1,17 @@
+[Unit]
+Description=S2b bot - all-days A/B variant (Bot B)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/s2b-bot
+EnvironmentFile=/root/s2b-bot/s2b.env
+ExecStart=/root/s2b-bot/venv/bin/python -m bot.app.run_s2b_alldays --shared-account --ticks 100000 --poll-seconds 60
+Restart=on-failure
+RestartSec=15
+StandardOutput=append:/root/s2b-bot/s2b-alldays.log
+StandardError=append:/root/s2b-bot/s2b-alldays.log
+
+[Install]
+WantedBy=multi-user.target

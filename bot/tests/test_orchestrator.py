@@ -216,3 +216,44 @@ def test_no_entry_after_hours():
     d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct)
     state, info = run_entry_cycle(state, d, datetime(2026, 6, 15, 16, 30))  # Monday 16:30
     assert state.open_positions == []
+
+
+# ── A/B: all-days variant (entry_days, max_open, one-entry-per-day) ─────────────
+
+ALLDAYS = frozenset({0, 1, 2, 3, 4})
+
+
+def test_alldays_enters_on_tuesday():
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled", entry_days=ALLDAYS, max_open=3)
+    state, _ = run_entry_cycle(state, d, datetime(2026, 6, 16, 10, 5))   # Tuesday 10:05
+    assert len(state.open_positions) == 1
+    assert state.last_entry_date == "2026-06-16"
+
+
+def test_monday_only_bot_skips_tuesday():
+    # the default (Bot A) does NOT enter on Tuesday even with a tradeable chain
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled")   # default entry_days={0}, max_open=1
+    state, _ = run_entry_cycle(state, d, datetime(2026, 6, 16, 10, 5))   # Tuesday
+    assert state.open_positions == []
+
+
+def test_one_entry_per_day_guard():
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled", entry_days=ALLDAYS, max_open=3)
+    now = datetime(2026, 6, 16, 10, 5)
+    state, _ = run_entry_cycle(state, d, now)          # first entry of the day
+    state, _ = run_entry_cycle(state, d, now)          # same day again -> blocked
+    assert len(state.open_positions) == 1
+
+
+def test_alldays_allows_concurrent_up_to_max_open():
+    state = BotState(open_positions=[_pos(), _pos()])  # already holding 2
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled", entry_days=ALLDAYS, max_open=3)
+    state, _ = run_entry_cycle(state, d, datetime(2026, 6, 17, 10, 5))   # Wednesday
+    assert len(state.open_positions) == 3              # entered a 3rd (under the cap)

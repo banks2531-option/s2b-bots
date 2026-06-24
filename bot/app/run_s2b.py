@@ -47,15 +47,18 @@ def fetch_vix_regime(lookback=120):
     return feeds.vix_regime(series)
 
 
-def main(argv=None):
+def parse_args(argv=None):
     import argparse
-    import time
-    from zoneinfo import ZoneInfo
-
     ap = argparse.ArgumentParser(description="Run the S2b bot (sandbox-first).")
     ap.add_argument("--ticks", type=int, default=1, help="number of tick cycles to run")
     ap.add_argument("--poll-seconds", type=int, default=300, help="seconds between ticks")
-    args = ap.parse_args(argv)
+    return ap.parse_args(argv)
+
+
+def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, label="MONDAY"):
+    """Shared bot core. The A/B variable is (entry_days, max_open) — Monday-only vs all-days."""
+    import time
+    from zoneinfo import ZoneInfo
 
     base = os.environ.get("TRADIER_BASE_URL", "https://sandbox.tradier.com/v1")
     account_id = os.environ.get("TRADIER_ACCOUNT_ID")
@@ -67,7 +70,8 @@ def main(argv=None):
 
     http = make_http_from_env()
     mode = "LIVE" if is_live else "SANDBOX"
-    print(f"=== S2b bot | {mode} | account ...{account_id[-4:]} | {base} | ticks={args.ticks} ===", flush=True)
+    print(f"=== S2b bot [{label}] | {mode} | account ...{account_id[-4:]} | {base} | "
+          f"entry_days={sorted(entry_days)} max_open={max_open} ticks={ticks} ===", flush=True)
 
     et_now = lambda: datetime.now(ZoneInfo("America/New_York"))
     deps = build_deps(
@@ -75,12 +79,20 @@ def main(argv=None):
         get_spot=lambda s: fetch_spot(http, s),
         get_atr=lambda s: fetch_atr(http, s, et_now().strftime("%Y-%m-%d")),
         get_vix_regime=fetch_vix_regime,
+        entry_days=entry_days, max_open=max_open,
     )
     state = runner(BotState(), deps, now_fn=et_now, sleep_fn=time.sleep,
-                   poll_s=args.poll_seconds, ticks=args.ticks)
-    print(f"=== done | open={len(state.open_positions)} | halted={state.halted} "
+                   poll_s=poll_seconds, ticks=ticks)
+    print(f"=== done [{label}] | open={len(state.open_positions)} | halted={state.halted} "
           f"({state.halt_reason}) ===", flush=True)
     return state
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    # BOT A: the validated Monday-only S2b.
+    return build_and_run(args.ticks, args.poll_seconds,
+                         entry_days=frozenset({0}), max_open=1, label="MONDAY")
 
 
 if __name__ == "__main__":

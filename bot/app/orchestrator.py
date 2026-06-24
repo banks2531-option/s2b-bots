@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
-from bot.strategy.s2b import is_entry_day, build_spread_order, S2bConfig, to_tradier_payload
+from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition)
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
@@ -16,6 +16,7 @@ class BotState:
     open_positions: list = field(default_factory=list)   # list[ManagedPosition]
     halted: bool = False
     halt_reason: str = ""
+    last_entry_date: str = ""                             # guards one entry per calendar day
 
     def clear_halt(self):
         self.halted = False
@@ -42,6 +43,8 @@ class Deps:
     manage_cfg: object = field(default_factory=ManageConfig)
     risk_cfg: object = field(default_factory=RiskConfig)
     base_risk_pct: float = 0.10
+    entry_days: frozenset = frozenset({0})   # weekdays allowed to enter (0=Mon). A/B variable.
+    max_open: int = 1                        # max concurrent open positions for this bot
 
 
 def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
@@ -83,7 +86,10 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
 def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
     today = now.strftime("%Y-%m-%d")
     # `now` MUST be in US/Eastern (the live wiring is responsible for that). Enter only 10:00-15:59 ET.
-    if state.halted or not is_entry_day(today) or not (10 <= now.hour < 16) or state.open_positions:
+    # Gates: not halted; today is an allowed entry weekday (the A/B variable); within RTH;
+    # under the concurrent-position cap; and not already entered today (one entry per day).
+    if (state.halted or now.weekday() not in deps.entry_days or not (10 <= now.hour < 16)
+            or len(state.open_positions) >= deps.max_open or state.last_entry_date == today):
         return state, None
     spot = deps.get_spot("SPY")
     atr = deps.get_atr("SPY")
@@ -102,6 +108,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
     if status == "filled":
         state.open_positions.append(ManagedPosition(
             "SPY", order.short_strike, order.long_strike, order.credit, order.qty, expiry))
+        state.last_entry_date = today        # one entry per day
     return state, status
 
 

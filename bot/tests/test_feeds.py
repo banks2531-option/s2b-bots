@@ -108,3 +108,21 @@ def test_reconstruct_spreads_pairs_bull_put():
     assert p.long_strike == 558.0
     assert p.qty == 2
     assert p.expiry == "2026-06-19"
+
+
+from bot.app.feeds import parse_history
+
+
+def test_parse_history_to_bars():
+    resp = {"history": {"day": [
+        {"date": "2026-06-01", "open": 100, "high": 102, "low": 99, "close": 101},
+        {"date": "2026-06-02", "open": 101, "high": 103, "low": 100, "close": 102},
+    ]}}
+    assert parse_history(resp) == [{"high": 102.0, "low": 99.0, "close": 101.0},
+                                   {"high": 103.0, "low": 100.0, "close": 102.0}]
+
+
+def test_parse_history_empty_and_single():
+    assert parse_history({"history": "null"}) == []
+    assert parse_history({"history": {"day": {"date": "x", "high": 5, "low": 4, "close": 4.5}}}) == \
+        [{"high": 5.0, "low": 4.0, "close": 4.5}]

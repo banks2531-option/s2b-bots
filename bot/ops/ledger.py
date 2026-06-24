@@ -21,13 +21,27 @@ class DriftReport:
         return (not self.positions_match()) or abs(self.equity_drift) > equity_tolerance
 
 
-def reconcile(bot_positions, broker_positions, bot_equity, broker_equity) -> DriftReport:
+def reconcile(bot_positions, broker_positions, bot_equity, broker_equity,
+              ignore_untracked: bool = False, qty_at_least: bool = False) -> DriftReport:
+    """Compare bot-tracked positions to broker truth.
+
+    Strict mode (default, single-account): halt on any untracked broker position or any
+    qty difference.
+    Shared-account mode (ignore_untracked=True, qty_at_least=True, for running multiple bots
+    on ONE account): ignore positions the bot doesn't track (another bot's), and only flag a
+    qty difference when the broker holds LESS than the bot expects (this bot's own position
+    shrank). A bot still halts on its own phantom position (broker doesn't have it at all).
+    """
     bot_keys = {position_key(p): p for p in bot_positions}
     brk_keys = {position_key(p): p for p in broker_positions}
     missing = [bot_keys[k] for k in bot_keys if k not in brk_keys]
-    untracked = [brk_keys[k] for k in brk_keys if k not in bot_keys]
-    qty_mismatch = [(bot_keys[k], brk_keys[k]) for k in bot_keys
-                    if k in brk_keys and bot_keys[k].qty != brk_keys[k].qty]
+    untracked = [] if ignore_untracked else [brk_keys[k] for k in brk_keys if k not in bot_keys]
+    if qty_at_least:
+        qty_mismatch = [(bot_keys[k], brk_keys[k]) for k in bot_keys
+                        if k in brk_keys and brk_keys[k].qty < bot_keys[k].qty]
+    else:
+        qty_mismatch = [(bot_keys[k], brk_keys[k]) for k in bot_keys
+                        if k in brk_keys and bot_keys[k].qty != brk_keys[k].qty]
     return DriftReport(missing_at_broker=missing, untracked_at_broker=untracked,
                        qty_mismatch=qty_mismatch,
                        equity_drift=round(bot_equity - broker_equity, 2))

@@ -50,3 +50,39 @@ def test_reconcile_qty_mismatch_halts():
     assert len(r.qty_mismatch) == 1
     assert r.positions_match() is False
     assert r.should_halt() is True
+
+
+# ── shared-account mode (multiple bots on ONE account) ─────────────────────────
+
+def _p(short, long, qty, expiry="2026-06-19"):
+    return ManagedPosition("SPY", short, long, credit=3.0, qty=qty, expiry=expiry)
+
+
+def test_shared_account_ignores_untracked_position():
+    # bot flat; broker holds another bot's spread -> with ignore_untracked, no halt
+    other = _p(560.0, 550.0, 2)
+    r = reconcile([], [other], 20_000.0, 20_000.0, ignore_untracked=True, qty_at_least=True)
+    assert r.untracked_at_broker == [] and r.should_halt() is False
+
+
+def test_shared_account_broker_has_more_is_ok():
+    # bot tracks qty 2; broker shows qty 4 (this bot's 2 + another bot's 2) -> at_least passes
+    bot = _p(568.0, 558.0, 2)
+    brk = _p(568.0, 558.0, 4)
+    r = reconcile([bot], [brk], 20_000.0, 20_000.0, ignore_untracked=True, qty_at_least=True)
+    assert r.qty_mismatch == [] and r.should_halt() is False
+
+
+def test_shared_account_broker_has_less_halts():
+    # this bot's own position shrank below tracked qty -> still a real problem -> halt
+    bot = _p(568.0, 558.0, 2)
+    brk = _p(568.0, 558.0, 1)
+    r = reconcile([bot], [brk], 20_000.0, 20_000.0, ignore_untracked=True, qty_at_least=True)
+    assert len(r.qty_mismatch) == 1 and r.should_halt() is True
+
+
+def test_shared_account_still_halts_on_own_phantom():
+    # bot's tracked position is entirely gone at the broker -> halt even in shared mode
+    bot = _p(568.0, 558.0, 2)
+    r = reconcile([bot], [], 20_000.0, 20_000.0, ignore_untracked=True, qty_at_least=True)
+    assert len(r.missing_at_broker) == 1 and r.should_halt() is True

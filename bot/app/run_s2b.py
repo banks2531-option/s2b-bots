@@ -52,10 +52,14 @@ def parse_args(argv=None):
     ap = argparse.ArgumentParser(description="Run the S2b bot (sandbox-first).")
     ap.add_argument("--ticks", type=int, default=1, help="number of tick cycles to run")
     ap.add_argument("--poll-seconds", type=int, default=300, help="seconds between ticks")
+    ap.add_argument("--shared-account", action="store_true",
+                    help="run alongside another bot on ONE account: ignore untracked positions "
+                         "and only halt if THIS bot's own position shrinks below its tracked qty")
     return ap.parse_args(argv)
 
 
-def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, label="MONDAY"):
+def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, label="MONDAY",
+                  shared_account=False):
     """Shared bot core. The A/B variable is (entry_days, max_open) — Monday-only vs all-days."""
     import time
     from zoneinfo import ZoneInfo
@@ -71,7 +75,8 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
     http = make_http_from_env()
     mode = "LIVE" if is_live else "SANDBOX"
     print(f"=== S2b bot [{label}] | {mode} | account ...{account_id[-4:]} | {base} | "
-          f"entry_days={sorted(entry_days)} max_open={max_open} ticks={ticks} ===", flush=True)
+          f"entry_days={sorted(entry_days)} max_open={max_open} shared_account={shared_account} "
+          f"ticks={ticks} ===", flush=True)
 
     et_now = lambda: datetime.now(ZoneInfo("America/New_York"))
     deps = build_deps(
@@ -79,7 +84,7 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         get_spot=lambda s: fetch_spot(http, s),
         get_atr=lambda s: fetch_atr(http, s, et_now().strftime("%Y-%m-%d")),
         get_vix_regime=fetch_vix_regime,
-        entry_days=entry_days, max_open=max_open,
+        entry_days=entry_days, max_open=max_open, shared_account=shared_account,
     )
     state = runner(BotState(), deps, now_fn=et_now, sleep_fn=time.sleep,
                    poll_s=poll_seconds, ticks=ticks)
@@ -92,7 +97,8 @@ def main(argv=None):
     args = parse_args(argv)
     # BOT A: the validated Monday-only S2b.
     return build_and_run(args.ticks, args.poll_seconds,
-                         entry_days=frozenset({0}), max_open=1, label="MONDAY")
+                         entry_days=frozenset({0}), max_open=1, label="MONDAY",
+                         shared_account=args.shared_account)
 
 
 if __name__ == "__main__":

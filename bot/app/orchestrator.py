@@ -45,12 +45,14 @@ class Deps:
     base_risk_pct: float = 0.10
     entry_days: frozenset = frozenset({0})   # weekdays allowed to enter (0=Mon). A/B variable.
     max_open: int = 1                        # max concurrent open positions for this bot
+    shared_account: bool = False             # True when multiple bots share ONE broker account
 
 
 def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
     try:
         drift = reconcile(state.open_positions, deps.broker_positions(),
-                          deps.bot_equity(), deps.broker_equity())
+                          deps.bot_equity(), deps.broker_equity(),
+                          ignore_untracked=deps.shared_account, qty_at_least=deps.shared_account)
     except Exception as exc:  # reconcile failure must NOT prevent management/stops from running
         deps.alert_sink([Alert(Severity.CRITICAL, f"reconcile failed: {exc}")])
         return state, False

@@ -257,3 +257,20 @@ def test_alldays_allows_concurrent_up_to_max_open():
               open_spread=lambda payload: "filled", entry_days=ALLDAYS, max_open=3)
     state, _ = run_entry_cycle(state, d, datetime(2026, 6, 17, 10, 5))   # Wednesday
     assert len(state.open_positions) == 3              # entered a 3rd (under the cap)
+
+
+def test_shared_account_run_reconcile_ignores_untracked():
+    # two bots on one account: this bot is flat, broker shows the OTHER bot's position.
+    # In shared mode it must NOT halt on that untracked position.
+    state = BotState(open_positions=[])
+    d = _deps(broker_positions=lambda: [_pos()], shared_account=True)
+    state, _ = run_reconcile_cycle(state, d)
+    assert state.halted is False
+
+
+def test_strict_account_still_halts_on_untracked():
+    # control: default (strict) mode DOES halt on an untracked broker position
+    state = BotState(open_positions=[])
+    d = _deps(broker_positions=lambda: [_pos()])      # shared_account defaults False
+    state, _ = run_reconcile_cycle(state, d)
+    assert state.halted is True

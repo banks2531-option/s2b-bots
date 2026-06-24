@@ -14,7 +14,8 @@ def main(argv=None):
     args = parse_args(argv)
     # BOT B: same core, all weekdays, up to 3 concurrent positions.
     return build_and_run(args.ticks, args.poll_seconds,
-                         entry_days=frozenset({0, 1, 2, 3, 4}), max_open=3, label="ALL-DAYS")
+                         entry_days=frozenset({0, 1, 2, 3, 4}), max_open=3, label="ALL-DAYS",
+                         shared_account=args.shared_account)
 
 
 if __name__ == "__main__":

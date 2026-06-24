@@ -274,3 +274,27 @@ def test_strict_account_still_halts_on_untracked():
     d = _deps(broker_positions=lambda: [_pos()])      # shared_account defaults False
     state, _ = run_reconcile_cycle(state, d)
     assert state.halted is True
+
+
+# ── per-bot trade logging (for measuring the A/B on a shared account) ───────────
+
+def test_entry_logs_open_trade():
+    recs = []
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled", trade_log=lambda r: recs.append(r))
+    run_entry_cycle(state, d, datetime(2026, 6, 15, 10, 5))   # Monday
+    opens = [r for r in recs if r["event"] == "OPEN"]
+    assert opens and opens[0]["short"] == 568.0 and opens[0]["status"] == "filled"
+
+
+def test_management_logs_close_with_realized_pnl():
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=2, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    # exit mark 1.5 = TP level (credit*0.5); pnl = (3.0 - 1.5) * 100 * 2 = 300
+    d = _deps(mark_position=lambda p: 1.5, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: "filled", trade_log=lambda r: recs.append(r))
+    run_management_cycle(state, d, today="2026-06-19")
+    closes = [r for r in recs if r["event"] == "CLOSE"]
+    assert closes and closes[0]["action"] == "take_profit" and closes[0]["pnl"] == 300.0

@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 
 from bot.broker.tradier import make_http_from_env
 from bot.app import feeds
-from bot.app.wiring import build_deps, runner
+from bot.app.wiring import build_deps, runner, make_trade_logger
 from bot.app.orchestrator import BotState
 
 
@@ -79,12 +79,15 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
           f"ticks={ticks} ===", flush=True)
 
     et_now = lambda: datetime.now(ZoneInfo("America/New_York"))
+    log_path = f"trades_{label.lower().replace('-', '')}.csv"   # per-bot file for the A/B
+    print(f"    trade log -> {log_path}", flush=True)
     deps = build_deps(
         http, account_id,
         get_spot=lambda s: fetch_spot(http, s),
         get_atr=lambda s: fetch_atr(http, s, et_now().strftime("%Y-%m-%d")),
         get_vix_regime=fetch_vix_regime,
         entry_days=entry_days, max_open=max_open, shared_account=shared_account,
+        trade_log=make_trade_logger(log_path),
     )
     state = runner(BotState(), deps, now_fn=et_now, sleep_fn=time.sleep,
                    poll_s=poll_seconds, ticks=ticks)

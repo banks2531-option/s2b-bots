@@ -1,7 +1,26 @@
 """Production wiring: build Deps from Tradier and the runner (spec §6,§7,§8)."""
+import csv as _csv
+import os as _os
+
 from bot.app import feeds
 from bot.app.orchestrator import Deps, tick
 from bot.strategy.s2b import _occ
+
+_LOG_FIELDS = ["event", "date", "ticker", "short", "long", "expiry", "qty",
+               "credit", "action", "exit_value", "pnl", "status"]
+
+
+def make_trade_logger(path):
+    """Return a callable that appends a trade-record dict to a CSV (header written once).
+    Used per-bot so a shared-account A/B can be measured from separate files."""
+    def log(record):
+        exists = _os.path.exists(path)
+        with open(path, "a", newline="") as f:
+            w = _csv.DictWriter(f, fieldnames=_LOG_FIELDS, extrasaction="ignore")
+            if not exists:
+                w.writeheader()
+            w.writerow(record)
+    return log
 
 
 def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick):
@@ -26,6 +45,7 @@ import time
 
 def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                entry_days=frozenset({0}), max_open=1, shared_account=False,
+               trade_log=(lambda record: None),
                poll_s=2, timeout_s=30, base_risk_pct=0.10):
     """Assemble a production Deps from a Tradier http callable + injected market-data feeds."""
     client = TradierClient(account_id=account_id, http=http)
@@ -89,4 +109,5 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
         base_risk_pct=base_risk_pct,
         entry_days=entry_days, max_open=max_open, shared_account=shared_account,
+        trade_log=trade_log,
     )

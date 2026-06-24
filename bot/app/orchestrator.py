@@ -46,6 +46,7 @@ class Deps:
     entry_days: frozenset = frozenset({0})   # weekdays allowed to enter (0=Mon). A/B variable.
     max_open: int = 1                        # max concurrent open positions for this bot
     shared_account: bool = False             # True when multiple bots share ONE broker account
+    trade_log: callable = (lambda record: None)   # (dict) -> None; per-bot trade/P&L log sink
 
 
 def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
@@ -73,6 +74,15 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
         close_fn=deps.close_spread,
         cfg=deps.manage_cfg,
     )
+    for r in results:                                    # per-bot trade log (for A/B measurement)
+        rec = {"event": "CLOSE", "date": today, "ticker": r.position.ticker,
+               "short": r.position.short_strike, "long": r.position.long_strike,
+               "expiry": r.position.expiry, "qty": r.position.qty, "credit": r.position.credit,
+               "action": r.action.value, "exit_value": r.value, "status": r.close_status}
+        if not r.failed and r.value is not None:
+            # realized P&L estimate = (credit collected - debit to close) * 100 * contracts
+            rec["pnl"] = round((r.position.credit - r.value) * 100 * r.position.qty, 2)
+        deps.trade_log(rec)
     alerts = alerts_for_cycle(results, drift_report=None)
     if alerts:
         deps.alert_sink(alerts)
@@ -111,6 +121,9 @@ def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
         state.open_positions.append(ManagedPosition(
             "SPY", order.short_strike, order.long_strike, order.credit, order.qty, expiry))
         state.last_entry_date = today        # one entry per day
+        deps.trade_log({"event": "OPEN", "date": today, "ticker": "SPY",
+                        "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
+                        "qty": order.qty, "credit": order.credit, "status": status})
     return state, status
 
 

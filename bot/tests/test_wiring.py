@@ -82,3 +82,20 @@ def test_build_deps_broker_positions_reconstructs():
     result = deps.broker_positions()
     assert len(result) == 1
     assert result[0].short_strike == 568.0
+
+
+from bot.app.wiring import make_trade_logger
+import csv as _csv
+
+
+def test_make_trade_logger_writes_csv(tmp_path):
+    p = tmp_path / "trades_monday.csv"
+    log = make_trade_logger(str(p))
+    log({"event": "OPEN", "date": "2026-06-15", "ticker": "SPY", "short": 568.0,
+         "long": 558.0, "qty": 2, "credit": 1.7, "status": "filled"})
+    log({"event": "CLOSE", "date": "2026-06-19", "ticker": "SPY", "action": "take_profit",
+         "pnl": 85.0, "status": "filled"})
+    rows = list(_csv.DictReader(open(str(p))))
+    assert len(rows) == 2
+    assert rows[0]["event"] == "OPEN" and rows[0]["credit"] == "1.7"
+    assert rows[1]["event"] == "CLOSE" and rows[1]["pnl"] == "85.0"

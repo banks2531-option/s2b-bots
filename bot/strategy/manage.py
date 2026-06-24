@@ -75,6 +75,7 @@ class ExitResult:
     action: ExitAction
     close_status: str       # e.g. "filled", "timeout", "rejected"
     failed: bool            # True if the close did not reach "filled"
+    value: float = None     # the debit-to-close mark that triggered the exit (for P&L logging)
 
 
 def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
@@ -84,12 +85,13 @@ def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
     results = []
     for p in positions:
         try:
-            action = decide_exit(mark_fn(p), p.credit, dte_fn(p), cfg)
+            value = mark_fn(p)
+            action = decide_exit(value, p.credit, dte_fn(p), cfg)
             if action == ExitAction.HOLD:
                 continue
             status = close_fn(p, action)
             results.append(ExitResult(position=p, action=action, close_status=status,
-                                      failed=(str(status).lower() != "filled")))
+                                      failed=(str(status).lower() != "filled"), value=value))
         except Exception as exc:  # one position's error must NOT block the others' stops
             results.append(ExitResult(position=p, action=ExitAction.ERROR,
                                       close_status=f"error: {exc}", failed=True))

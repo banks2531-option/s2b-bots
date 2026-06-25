@@ -25,15 +25,17 @@ def make_trade_logger(path):
 
 
 def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick, state_path=None):
-    """Call tick_fn every poll_s up to `ticks` times; stop early if the bot halts.
+    """Call tick_fn every poll_s up to `ticks` times.
     now_fn/sleep_fn are injected so this is testable; production passes an ET clock + time.sleep.
-    If state_path is given, persist state after every tick so a restart resumes (not orphans)."""
+    If state_path is given, persist state after every tick so a restart resumes (not orphans).
+
+    A halt does NOT stop the loop: the bot must keep ticking so management/stops keep firing on
+    open positions, and a transient reconcile-drift halt can self-clear once broker truth re-syncs.
+    Entry is gated by state.halted inside the tick; killing the process here would orphan positions."""
     for i in range(ticks):
         state = tick_fn(state, deps, now_fn())
         if state_path:
             save_state(state, state_path)
-        if state.halted:
-            break
         if i < ticks - 1:
             sleep_fn(poll_s)
     return state

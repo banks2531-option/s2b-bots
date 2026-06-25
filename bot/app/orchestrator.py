@@ -11,8 +11,9 @@ from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Se
 
 @dataclass
 class BotState:
-    """Bot state. NOTE: `halted` is sticky — it persists across ticks until an operator
-    explicitly calls clear_halt() after investigating. The bot never self-clears a halt."""
+    """Bot state. NOTE: `halted` persists across ticks (and restarts, via state_store). A
+    "failed close" halt is sticky until an operator calls clear_halt(); a transient "reconcile
+    drift" halt self-clears once a later reconcile comes back clean (see run_reconcile_cycle)."""
     open_positions: list = field(default_factory=list)   # list[ManagedPosition]
     halted: bool = False
     halt_reason: str = ""
@@ -65,6 +66,8 @@ def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
     if should_halt_new_entries(alerts):
         state.halted = True
         state.halt_reason = "reconcile drift"
+    elif state.halted and state.halt_reason == "reconcile drift":
+        state.clear_halt()        # transient drift resolved (broker re-synced) -> resume entries
     return state, True
 
 

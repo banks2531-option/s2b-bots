@@ -18,18 +18,19 @@ def test_runner_calls_tick_n_times_then_stops():
     assert calls["n"] == 3
 
 
-def test_runner_stops_on_halt():
+def test_runner_keeps_running_when_halted():
+    # A halt must NOT kill the process: the bot has to keep ticking so management/stops keep
+    # firing on open positions (and a transient reconcile-drift halt can self-clear). Entries
+    # are gated inside tick by state.halted, not by stopping the runner.
+    calls = {"n": 0}
     def halting_tick(state, deps, now):
+        calls["n"] += 1
         state.halted = True
         return state
-    calls = {"n": 0}
-    def counting_tick(state, deps, now):
-        calls["n"] += 1
-        return halting_tick(state, deps, now)
 
     runner(BotState(), deps=None, now_fn=lambda: 0, sleep_fn=lambda s: None,
-           poll_s=60, ticks=10, tick_fn=counting_tick)
-    assert calls["n"] == 1   # halted after first tick -> stop
+           poll_s=60, ticks=10, tick_fn=halting_tick)
+    assert calls["n"] == 10   # stays alive and keeps managing despite the halt
 
 
 from bot.app.wiring import build_deps

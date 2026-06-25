@@ -49,6 +49,24 @@ def test_reconcile_clean_no_halt():
     assert state.halted is False
 
 
+def test_reconcile_drift_halt_auto_clears_when_clean():
+    # A reconcile-drift halt is transient: once a later reconcile comes back clean (broker truth
+    # re-syncs), the bot resumes entries on its own — no operator intervention, no process restart.
+    state = BotState(open_positions=[_pos()], halted=True, halt_reason="reconcile drift")
+    d = _deps(broker_positions=lambda: [_pos()])      # broker now matches -> clean
+    state, _ = run_reconcile_cycle(state, d)
+    assert state.halted is False and state.halt_reason == ""
+
+
+def test_reconcile_clean_does_not_clear_failed_close_halt():
+    # A clean reconcile must NOT auto-clear a more serious "failed close" halt — only reconcile
+    # drift self-heals; a failed exit order stays halted until an operator investigates.
+    state = BotState(open_positions=[_pos()], halted=True, halt_reason="failed close")
+    d = _deps(broker_positions=lambda: [_pos()])
+    state, _ = run_reconcile_cycle(state, d)
+    assert state.halted is True and state.halt_reason == "failed close"
+
+
 def test_reconcile_untracked_broker_position_halts_and_alerts():
     sent = []
     state = BotState(open_positions=[])               # bot thinks flat

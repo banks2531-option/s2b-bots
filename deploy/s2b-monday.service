@@ -2,13 +2,19 @@
 Description=S2b bot - Monday-only (Bot A)
 After=network-online.target
 Wants=network-online.target
+# If the process exits/crashes >5 times in 10 min, stop auto-restarting and surface a failed
+# unit for an operator (guards against a tight crash loop from a genuine persistent fault).
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Service]
 Type=simple
 WorkingDirectory=/root/s2b-bot
 EnvironmentFile=/root/s2b-bot/s2b.env
 ExecStart=/root/s2b-bot/venv/bin/python -m bot.app.run_s2b --shared-account --ticks 100000 --poll-seconds 60
-Restart=on-failure
+# Always restart (not just on-failure): the bot keeps managing open positions across a clean
+# exit too, so it must come back up regardless of exit code. Transient halts self-clear on tick.
+Restart=always
 RestartSec=15
 StandardOutput=append:/root/s2b-bot/s2b-monday.log
 StandardError=append:/root/s2b-bot/s2b-monday.log

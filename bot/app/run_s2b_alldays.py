@@ -12,10 +12,10 @@ from bot.app.run_s2b import parse_args, build_and_run
 
 def main(argv=None):
     args = parse_args(argv)
-    # BOT B: same core, all weekdays, up to 3 concurrent positions.
+    # BOT B: same core, all weekdays, up to 3 concurrent positions, up to 3 entries/day.
     return build_and_run(args.ticks, args.poll_seconds,
                          entry_days=frozenset({0, 1, 2, 3, 4}), max_open=3, label="ALL-DAYS",
-                         shared_account=args.shared_account)
+                         shared_account=args.shared_account, max_entries_per_day=3)
 
 
 if __name__ == "__main__":

@@ -48,7 +48,7 @@ import time
 
 
 def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
-               entry_days=frozenset({0}), max_open=1, shared_account=False,
+               entry_days=frozenset({0}), max_open=1, max_entries_per_day=1, shared_account=False,
                trade_log=(lambda record: None),
                poll_s=2, timeout_s=30, base_risk_pct=0.10):
     """Assemble a production Deps from a Tradier http callable + injected market-data feeds."""
@@ -112,6 +112,6 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         broker_equity=broker_equity, bot_equity=broker_equity,
         alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
         base_risk_pct=base_risk_pct,
-        entry_days=entry_days, max_open=max_open, shared_account=shared_account,
-        trade_log=trade_log,
+        entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
+        shared_account=shared_account, trade_log=trade_log,
     )

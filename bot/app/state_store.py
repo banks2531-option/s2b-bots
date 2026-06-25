@@ -14,6 +14,7 @@ def save_state(state: BotState, path: str) -> None:
         "halted": state.halted,
         "halt_reason": state.halt_reason,
         "last_entry_date": state.last_entry_date,
+        "entries_today": state.entries_today,
     }
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
@@ -31,4 +32,5 @@ def load_state(path: str) -> BotState:
     return BotState(open_positions=positions,
                     halted=d.get("halted", False),
                     halt_reason=d.get("halt_reason", ""),
-                    last_entry_date=d.get("last_entry_date", ""))
+                    last_entry_date=d.get("last_entry_date", ""),
+                    entries_today=d.get("entries_today", 0))

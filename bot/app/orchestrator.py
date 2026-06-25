@@ -16,7 +16,8 @@ class BotState:
     open_positions: list = field(default_factory=list)   # list[ManagedPosition]
     halted: bool = False
     halt_reason: str = ""
-    last_entry_date: str = ""                             # guards one entry per calendar day
+    last_entry_date: str = ""                             # the day the entries_today counter applies to
+    entries_today: int = 0                                # entries opened so far on last_entry_date
 
     def clear_halt(self):
         self.halted = False
@@ -45,6 +46,7 @@ class Deps:
     base_risk_pct: float = 0.10
     entry_days: frozenset = frozenset({0})   # weekdays allowed to enter (0=Mon). A/B variable.
     max_open: int = 1                        # max concurrent open positions for this bot
+    max_entries_per_day: int = 1             # max NEW positions opened per calendar day
     shared_account: bool = False             # True when multiple bots share ONE broker account
     trade_log: callable = (lambda record: None)   # (dict) -> None; per-bot trade/P&L log sink
 
@@ -97,11 +99,14 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
 
 def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
     today = now.strftime("%Y-%m-%d")
+    if state.last_entry_date != today:
+        state.entries_today = 0          # new calendar day -> reset the daily entry counter
     # `now` MUST be in US/Eastern (the live wiring is responsible for that). Enter only 10:00-15:59 ET.
-    # Gates: not halted; today is an allowed entry weekday (the A/B variable); within RTH;
-    # under the concurrent-position cap; and not already entered today (one entry per day).
+    # Gates: not halted; allowed entry weekday (A/B variable); within RTH; under the concurrent-
+    # position cap; and under the per-day entry cap.
     if (state.halted or now.weekday() not in deps.entry_days or not (10 <= now.hour < 16)
-            or len(state.open_positions) >= deps.max_open or state.last_entry_date == today):
+            or len(state.open_positions) >= deps.max_open
+            or state.entries_today >= deps.max_entries_per_day):
         return state, None
     spot = deps.get_spot("SPY")
     atr = deps.get_atr("SPY")
@@ -120,7 +125,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
     if status == "filled":
         state.open_positions.append(ManagedPosition(
             "SPY", order.short_strike, order.long_strike, order.credit, order.qty, expiry))
-        state.last_entry_date = today        # one entry per day
+        state.last_entry_date = today
+        state.entries_today += 1             # count toward the per-day entry cap
         deps.trade_log({"event": "OPEN", "date": today, "ticker": "SPY",
                         "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
                         "qty": order.qty, "credit": order.credit, "status": status})

@@ -60,7 +60,7 @@ def parse_args(argv=None):
 
 
 def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, label="MONDAY",
-                  shared_account=False):
+                  shared_account=False, max_entries_per_day=1):
     """Shared bot core. The A/B variable is (entry_days, max_open) — Monday-only vs all-days."""
     import time
     from zoneinfo import ZoneInfo
@@ -76,8 +76,8 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
     http = make_http_from_env()
     mode = "LIVE" if is_live else "SANDBOX"
     print(f"=== S2b bot [{label}] | {mode} | account ...{account_id[-4:]} | {base} | "
-          f"entry_days={sorted(entry_days)} max_open={max_open} shared_account={shared_account} "
-          f"ticks={ticks} ===", flush=True)
+          f"entry_days={sorted(entry_days)} max_open={max_open} max_entries/day={max_entries_per_day} "
+          f"shared_account={shared_account} ticks={ticks} ===", flush=True)
 
     et_now = lambda: datetime.now(ZoneInfo("America/New_York"))
     tag = label.lower().replace("-", "")
@@ -91,8 +91,8 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         get_spot=lambda s: fetch_spot(http, s),
         get_atr=lambda s: fetch_atr(http, s, et_now().strftime("%Y-%m-%d")),
         get_vix_regime=fetch_vix_regime,
-        entry_days=entry_days, max_open=max_open, shared_account=shared_account,
-        trade_log=make_trade_logger(log_path),
+        entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
+        shared_account=shared_account, trade_log=make_trade_logger(log_path),
     )
     def market_gated_tick(st, dp, now):
         if not feeds.is_market_hours(now):

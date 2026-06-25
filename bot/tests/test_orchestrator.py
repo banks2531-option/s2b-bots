@@ -298,3 +298,26 @@ def test_management_logs_close_with_realized_pnl():
     run_management_cycle(state, d, today="2026-06-19")
     closes = [r for r in recs if r["event"] == "CLOSE"]
     assert closes and closes[0]["action"] == "take_profit" and closes[0]["pnl"] == 300.0
+
+
+# ── per-day entry cap (max_entries_per_day) ────────────────────────────────────
+
+def test_three_entries_per_day_cap():
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled",
+              entry_days=ALLDAYS, max_open=9, max_entries_per_day=3)
+    now = datetime(2026, 6, 16, 10, 5)        # Tuesday; repeated same-day ticks
+    for _ in range(6):
+        run_entry_cycle(state, d, now)
+    assert state.entries_today == 3            # capped at 3 entries this day
+    assert len(state.open_positions) == 3
+
+
+def test_entries_today_resets_next_day():
+    state = BotState(last_entry_date="2026-06-16", entries_today=3, open_positions=[])
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled",
+              entry_days=ALLDAYS, max_open=9, max_entries_per_day=3)
+    run_entry_cycle(state, d, datetime(2026, 6, 17, 10, 5))   # next day -> counter resets, can enter
+    assert state.entries_today == 1 and len(state.open_positions) == 1

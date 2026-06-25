@@ -110,6 +110,18 @@ def test_reconstruct_spreads_pairs_bull_put():
     assert p.expiry == "2026-06-19"
 
 
+def test_reconstruct_spreads_overlapping_pairs_nearest_long():
+    # Two adjacent spreads sharing the same expiry: 721/711 and 720/710. Each short must pair
+    # with its NEAREST long below it and consume that leg — not greedily grab the lowest long
+    # (which would mis-pair 721/710 + 720/710 and orphan 711, faking a "missing" position).
+    legs = {"SPY260702P00710000": 7, "SPY260702P00711000": 7,
+            "SPY260702P00720000": -7, "SPY260702P00721000": -7}
+    result = reconstruct_spreads(legs)
+    pairs = sorted((p.short_strike, p.long_strike) for p in result)
+    assert pairs == [(720.0, 710.0), (721.0, 711.0)]
+    assert all(p.qty == 7 for p in result)
+
+
 from bot.app.feeds import parse_history
 
 

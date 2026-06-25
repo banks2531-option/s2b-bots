@@ -98,8 +98,11 @@ from bot.strategy.manage import ManagedPosition as _ManagedPosition
 
 def reconstruct_spreads(leg_map: dict) -> list:
     """Reconstruct bull put spreads from a {occ_symbol: signed_qty} leg map.
-    Pairs short legs (qty < 0) with matching long legs (same ticker/expiry, long_strike < short_strike).
-    Returns list of ManagedPosition with credit=0.0 (credit unknown from broker data).
+    Pairs each short leg (qty < 0) with the NEAREST long leg below it (same ticker/expiry,
+    matching qty) and consumes that long so it can't be reused. Processing shorts high-strike
+    first means adjacent/overlapping spreads (e.g. 721/711 + 720/710) reconstruct correctly
+    instead of both shorts grabbing the lowest long (which orphaned a leg and faked a "missing"
+    position -> spurious reconcile halt). Returns ManagedPosition with credit=0.0 (unknown from broker).
     """
     shorts = {}  # (ticker, expiry, strike) -> qty (positive count)
     longs = {}   # (ticker, expiry, strike) -> qty
@@ -119,19 +122,23 @@ def reconstruct_spreads(leg_map: dict) -> list:
             longs[key] = qty
 
     result = []
-    for (ticker, expiry, short_strike), short_qty in shorts.items():
-        # Find the matching long put: same ticker/expiry, lower strike, same qty
-        for (lt, le, long_strike), long_qty in longs.items():
-            if lt == ticker and le == expiry and long_strike < short_strike and long_qty == short_qty:
-                result.append(_ManagedPosition(
-                    ticker=ticker,
-                    short_strike=short_strike,
-                    long_strike=long_strike,
-                    credit=0.0,
-                    qty=short_qty,
-                    expiry=expiry,
-                ))
-                break
+    # Highest short strike first; pair with the nearest (highest) long strictly below it, then
+    # remove that long from the pool so a later short can't reuse it.
+    for (ticker, expiry, short_strike), short_qty in sorted(shorts.items(), key=lambda kv: -kv[0][2]):
+        candidates = [(ls, lt, le) for (lt, le, ls), lq in longs.items()
+                      if lt == ticker and le == expiry and ls < short_strike and lq == short_qty]
+        if not candidates:
+            continue
+        long_strike, lt, le = max(candidates)        # nearest long below the short
+        del longs[(lt, le, long_strike)]             # consume it
+        result.append(_ManagedPosition(
+            ticker=ticker,
+            short_strike=short_strike,
+            long_strike=long_strike,
+            credit=0.0,
+            qty=short_qty,
+            expiry=expiry,
+        ))
     return result
 
 

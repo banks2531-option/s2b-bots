@@ -85,6 +85,18 @@ def test_build_deps_broker_positions_reconstructs():
     assert result[0].short_strike == 568.0
 
 
+def test_build_deps_risk_gate_caps_track_max_open():
+    # The risk gate's concurrency + total-risk caps must be derived from max_open so they can't
+    # drift out of sync with the orchestrator (which would let the bot think it can hold N while
+    # the gate blocks at a lower number). 5 positions at 10%/trade -> total-risk cap >= 50%.
+    http = _fake_http({"/balances": {"balances": {"total_equity": 20_000.0}}})
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), max_open=5, base_risk_pct=0.10)
+    assert deps.max_open == 5
+    assert deps.risk_cfg.max_concurrent == 5
+    assert deps.risk_cfg.max_total_risk_pct >= 0.50 - 1e-9
+
+
 from bot.app.wiring import make_trade_logger
 import csv as _csv
 

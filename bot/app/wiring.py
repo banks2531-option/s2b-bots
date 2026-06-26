@@ -45,7 +45,7 @@ from bot.broker.tradier import TradierClient
 from bot.broker.submit import submit_and_verify
 from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_payload
 from bot.strategy.s2b import OptionQuote
-from bot.risk_gate import AccountState
+from bot.risk_gate import AccountState, RiskConfig
 import time
 
 
@@ -55,6 +55,13 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                poll_s=2, timeout_s=30, base_risk_pct=0.10):
     """Assemble a production Deps from a Tradier http callable + injected market-data feeds."""
     client = TradierClient(account_id=account_id, http=http)
+
+    # Derive the risk-gate caps from max_open so the gate can never block below the book size the
+    # orchestrator targets. A book of max_open positions at base_risk_pct each needs a total-risk
+    # cap of at least max_open * base_risk_pct (floored at the original 0.30).
+    risk_cfg = RiskConfig(max_risk_pct=base_risk_pct,
+                          max_total_risk_pct=max(0.30, round(max_open * base_risk_pct, 4)),
+                          max_concurrent=max_open)
 
     def get_chain(symbol, expiry):
         resp = http("GET", "/markets/options/chains",
@@ -113,7 +120,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         broker_positions=lambda: feeds.reconstruct_spreads(broker_legs()),
         broker_equity=broker_equity, bot_equity=broker_equity,
         alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
-        base_risk_pct=base_risk_pct,
+        base_risk_pct=base_risk_pct, risk_cfg=risk_cfg,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=trade_log,
     )

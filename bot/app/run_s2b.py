@@ -89,15 +89,17 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
 
     from bot.regime.logger import make_regime_logger
     regime_log = make_regime_logger(f"regime_{tag}.csv")
-    # build a UW http callable from env if a token is present (else None -> neutral flow)
+    # build a UW http callable from env if a token is present (else None -> neutral flow).
+    # The UW edge (Cloudflare) rejects a default/empty User-Agent with a 403/1010, so set one.
     uw_http = None
-    uw_tok = os.environ.get("UW_TOKEN")
+    uw_tok = os.environ.get("UW_API_TOKEN") or os.environ.get("UW_TOKEN")
     if uw_tok:
         import urllib.request, json as _json
         def uw_http(method, path, params=None):
             url = "https://api.unusualwhales.com" + path
-            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {uw_tok}",
-                                                       "Accept": "application/json"})
+            req = urllib.request.Request(url, headers={
+                "Authorization": f"Bearer {uw_tok}", "Accept": "application/json",
+                "User-Agent": "s2b-regime/0.1 (+https://unusualwhales.com)"})
             return _json.load(urllib.request.urlopen(req, timeout=15))
 
     deps = build_deps(

@@ -86,6 +86,20 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
     state = load_state(state_path)
     print(f"    trade log -> {log_path} | state -> {state_path} "
           f"(resuming {len(state.open_positions)} open position(s), halted={state.halted})", flush=True)
+
+    from bot.regime.logger import make_regime_logger
+    regime_log = make_regime_logger(f"regime_{tag}.csv")
+    # build a UW http callable from env if a token is present (else None -> neutral flow)
+    uw_http = None
+    uw_tok = os.environ.get("UW_TOKEN")
+    if uw_tok:
+        import urllib.request, json as _json
+        def uw_http(method, path, params=None):
+            url = "https://api.unusualwhales.com" + path
+            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {uw_tok}",
+                                                       "Accept": "application/json"})
+            return _json.load(urllib.request.urlopen(req, timeout=15))
+
     deps = build_deps(
         http, account_id,
         get_spot=lambda s: fetch_spot(http, s),
@@ -93,6 +107,7 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         get_vix_regime=fetch_vix_regime,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=make_trade_logger(log_path),
+        regime_log=regime_log, uw_http=uw_http,
     )
     def market_gated_tick(st, dp, now):
         if not feeds.is_market_hours(now):

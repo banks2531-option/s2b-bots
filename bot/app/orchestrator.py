@@ -51,6 +51,8 @@ class Deps:
     max_entries_per_day: int = 1             # max NEW positions opened per calendar day
     shared_account: bool = False             # True when multiple bots share ONE broker account
     trade_log: callable = (lambda record: None)   # (dict) -> None; per-bot trade/P&L log sink
+    regime_provider: callable = None                 # () -> RegimeState | None ; Phase 0: logged only
+    regime_log: callable = (lambda state, ts, event: None)   # (RegimeState, ts, event) -> None
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -172,10 +174,19 @@ def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
 
 
 def tick(state: BotState, deps: Deps, now) -> BotState:
-    """One bot cycle: reconcile (may halt) -> manage open positions -> enter if eligible."""
+    """One bot cycle: reconcile (may halt) -> manage open positions -> enter if eligible.
+    PHASE 0: also compute + shadow-log the market regime. This MUST NOT change any decision above,
+    so it runs last, inside a try/except that swallows everything (a regime fault never halts trading)."""
     today = now.strftime("%Y-%m-%d")
     state, reconcile_ok = run_reconcile_cycle(state, deps)
     state, _ = run_management_cycle(state, deps, today)   # ALWAYS runs (stops must fire)
     if reconcile_ok:
         state, _ = run_entry_cycle(state, deps, now)
+    if deps.regime_provider is not None:                  # Phase 0 instrument: observe only
+        try:
+            rs = deps.regime_provider()
+            if rs is not None:
+                deps.regime_log(rs, now.isoformat(), "TICK")
+        except Exception as exc:
+            deps.alert_sink([Alert(Severity.INFO, f"regime log skipped: {exc}")])
     return state

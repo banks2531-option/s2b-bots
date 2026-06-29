@@ -9,7 +9,7 @@ def parse_market_tide(payload) -> tuple:
     """UW market-tide-shaped payload -> (flow_bias, flow_extreme).
     bias: 'bullish' if net call premium > net put premium, else 'bearish' (ties -> 'neutral').
     extreme: True when the dominant side is >= EXTREME_RATIO times the other."""
-    rows = (payload or {}).get("data") or []
+    rows = (payload if isinstance(payload, dict) else {}).get("data") or []
     if not rows:
         return ("neutral", False)
     r = rows[-1]                                   # most recent bucket

@@ -8,7 +8,7 @@ class RegimeState:
     # ── raw context (None/"neutral" = unknown, so a missing feed is never mistaken for a signal) ──
     vix_level: float = None
     vix_pct_rank: float = None        # vs trailing ~120 trading days
-    vix_term_slope: float = None      # VIX/VIX3M - 1 ; < 0 = backwardation = stress
+    vix_term_slope: float = None      # 3M/front - 1 ; < 0 = backwardation (front>3M) = stress
     atr_pct: float = None             # ATR(14)/spot
     trend_bias: str = "neutral"       # "up" | "down" | "neutral"
     equity_drawdown: float = 0.0      # fraction below the bot's own equity peak (>= 0)

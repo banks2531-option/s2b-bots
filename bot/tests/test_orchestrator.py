@@ -49,6 +49,43 @@ def test_reconcile_clean_no_halt():
     assert state.halted is False
 
 
+def test_reconcile_removes_position_missing_for_two_ticks():
+    # A position the broker no longer has is closed (a filled close we failed to record, assignment,
+    # or expiry). After a debounce (to survive a transient empty positions read) the bot stops
+    # tracking it -- instead of halting and retrying a close forever for a position that's gone
+    # (the live retry-storm bug of 2026-06-29).
+    pos = _pos()
+    state = BotState(open_positions=[pos])
+    d = _deps(broker_positions=lambda: [])           # broker flat -> pos missing
+    state, _ = run_reconcile_cycle(state, d)         # tick 1: debounce, still tracked
+    assert len(state.open_positions) == 1 and state.halted is False
+    state, _ = run_reconcile_cycle(state, d)         # tick 2: confirmed gone -> removed
+    assert state.open_positions == [] and state.halted is False
+
+
+def test_reconcile_missing_then_present_resets_debounce():
+    # A one-tick transient empty read must NOT drop a position the broker still holds.
+    pos = _pos()
+    state = BotState(open_positions=[pos])
+    d_gone = _deps(broker_positions=lambda: [])
+    d_back = _deps(broker_positions=lambda: [_pos()])
+    state, _ = run_reconcile_cycle(state, d_gone)     # missing once (streak 1)
+    state, _ = run_reconcile_cycle(state, d_back)     # reappears -> streak resets
+    state, _ = run_reconcile_cycle(state, d_back)
+    assert len(state.open_positions) == 1             # never removed
+
+
+def test_reconcile_removal_clears_failed_close_halt():
+    # The storm scenario: management flagged "failed close" (the close actually filled at broker).
+    # Once reconcile confirms the position is gone, that halt is resolved automatically.
+    pos = _pos()
+    state = BotState(open_positions=[pos], halted=True, halt_reason="failed close")
+    d = _deps(broker_positions=lambda: [])
+    state, _ = run_reconcile_cycle(state, d)          # streak 1
+    state, _ = run_reconcile_cycle(state, d)          # removed -> halt cleared
+    assert state.open_positions == [] and state.halted is False and state.halt_reason == ""
+
+
 def test_reconcile_drift_halt_auto_clears_when_clean():
     # A reconcile-drift halt is transient: once a later reconcile comes back clean (broker truth
     # re-syncs), the bot resumes entries on its own — no operator intervention, no process restart.

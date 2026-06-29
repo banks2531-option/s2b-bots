@@ -19,6 +19,7 @@ class BotState:
     halt_reason: str = ""
     last_entry_date: str = ""                             # the day the entries_today counter applies to
     entries_today: int = 0                                # entries opened so far on last_entry_date
+    missing_streak: dict = field(default_factory=dict)    # position_key -> consecutive missing-at-broker reconciles
 
     def clear_halt(self):
         self.halted = False
@@ -52,6 +53,10 @@ class Deps:
     trade_log: callable = (lambda record: None)   # (dict) -> None; per-bot trade/P&L log sink
 
 
+MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
+                               # a position (debounce vs a transient empty positions read)
+
+
 def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
     try:
         drift = reconcile(state.open_positions, deps.broker_positions(),
@@ -60,10 +65,40 @@ def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
     except Exception as exc:  # reconcile failure must NOT prevent management/stops from running
         deps.alert_sink([Alert(Severity.CRITICAL, f"reconcile failed: {exc}")])
         return state, False
-    alerts = alerts_for_cycle([], drift_report=drift)
-    if alerts:
-        deps.alert_sink(alerts)
-    if should_halt_new_entries(alerts):
+
+    # A position the broker no longer has is closed (a filled close we failed to record, assignment,
+    # or expiry). Debounce-remove it instead of halting and retrying a close forever for a position
+    # that's gone (the 2026-06-29 retry storm). The debounce survives a one-tick transient empty read.
+    missing_keys = {position_key(p) for p in drift.missing_at_broker}
+    removed = []
+    for p in state.open_positions:
+        k = position_key(p)
+        if k in missing_keys:
+            state.missing_streak[k] = state.missing_streak.get(k, 0) + 1
+            if state.missing_streak[k] >= MISSING_REMOVE_THRESHOLD:
+                removed.append(p)
+        else:
+            state.missing_streak.pop(k, None)     # present at broker -> reset its debounce
+    if removed:
+        rem_keys = {position_key(p) for p in removed}
+        state.open_positions = [p for p in state.open_positions if position_key(p) not in rem_keys]
+        for p in removed:
+            state.missing_streak.pop(position_key(p), None)
+        deps.alert_sink([Alert(Severity.WARN,
+            f"reconciled-away (closed at broker) {p.ticker} {p.short_strike}/{p.long_strike}")
+            for p in removed])
+        if state.halted and state.halt_reason in ("failed close", "reconcile drift"):
+            state.clear_halt()                    # the phantom that caused the halt is gone
+
+    # Halt only on drift the debounce does NOT resolve: an untracked broker position (strict mode),
+    # a qty mismatch, or an equity gap. Missing positions are handled above, not halted on.
+    other_drift = (bool(drift.untracked_at_broker) or bool(drift.qty_mismatch)
+                   or abs(drift.equity_drift) > 50.0)
+    if other_drift:
+        deps.alert_sink([Alert(Severity.CRITICAL,
+            f"reconcile drift: equity={drift.equity_drift} "
+            f"missing={len(drift.missing_at_broker)} untracked={len(drift.untracked_at_broker)} "
+            f"qty_mismatch={len(drift.qty_mismatch)}")])
         state.halted = True
         state.halt_reason = "reconcile drift"
     elif state.halted and state.halt_reason == "reconcile drift":

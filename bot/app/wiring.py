@@ -47,6 +47,7 @@ from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_p
 from bot.strategy.s2b import OptionQuote
 from bot.risk_gate import AccountState, RiskConfig
 import time
+import datetime as _datetime
 
 
 def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
@@ -121,9 +122,9 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         try:
             eq = broker_equity()
             _peak["v"] = max(_peak["v"], eq or 0.0)
-            today = __import__("datetime").date.today().strftime("%Y-%m-%d")
-            start = (__import__("datetime").date.today()
-                     - __import__("datetime").timedelta(days=90)).strftime("%Y-%m-%d")
+            today = _datetime.date.today().strftime("%Y-%m-%d")
+            start = (_datetime.date.today()
+                     - _datetime.timedelta(days=90)).strftime("%Y-%m-%d")
             hist = http("GET", "/markets/history",
                         params={"symbol": "SPY", "interval": "daily", "start": start, "end": today})
             bars = feeds.parse_history(hist)

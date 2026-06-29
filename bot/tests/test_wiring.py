@@ -112,3 +112,19 @@ def test_make_trade_logger_writes_csv(tmp_path):
     assert len(rows) == 2
     assert rows[0]["event"] == "OPEN" and rows[0]["credit"] == "1.7"
     assert rows[1]["event"] == "CLOSE" and rows[1]["pnl"] == "85.0"
+
+
+def test_build_deps_attaches_regime_provider_that_returns_state():
+    http = _fake_http({
+        "/balances": {"balances": {"total_equity": 20000.0}},
+        "/positions": {"positions": "null"},
+        "/markets/history": {"history": {"day": [
+            {"date": "2026-06-01", "high": 101, "low": 99, "close": 100}] * 30}},
+    })
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01),
+                      regime_log=lambda s, ts, e: None)
+    assert deps.regime_provider is not None
+    rs = deps.regime_provider()           # must return a RegimeState, never raise
+    from bot.regime.state import RegimeState
+    assert isinstance(rs, RegimeState)

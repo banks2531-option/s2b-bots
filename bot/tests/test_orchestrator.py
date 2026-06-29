@@ -376,3 +376,28 @@ def test_entries_today_resets_next_day():
               entry_days=ALLDAYS, max_open=9, max_entries_per_day=3)
     run_entry_cycle(state, d, datetime(2026, 6, 17, 10, 5))   # next day -> counter resets, can enter
     assert state.entries_today == 1 and len(state.open_positions) == 1
+
+
+# ── Phase 0 regime instrumentation: compute + shadow-log, ZERO behavior change ──
+
+def test_tick_logs_regime_without_changing_behavior():
+    # regime logging must not alter the entry decision: clean Monday still enters exactly one.
+    logged = []
+    from bot.regime.state import RegimeState
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              broker_positions=lambda: [], open_spread=lambda payload: "filled")
+    d.regime_provider = lambda: RegimeState(vix_level=18.0)
+    d.regime_log = lambda s, ts, event: logged.append((s, event))
+    state = tick(state, d, datetime(2026, 6, 15, 10, 5))
+    assert len(state.open_positions) == 1            # behavior identical to test_tick_enters_on_clean_monday
+    assert logged and logged[0][0].vix_level == 18.0  # and the regime was logged
+
+
+def test_tick_regime_failure_never_breaks_tick():
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              broker_positions=lambda: [], open_spread=lambda payload: "filled")
+    d.regime_provider = lambda: (_ for _ in ()).throw(RuntimeError("regime feed down"))
+    state = tick(state, d, datetime(2026, 6, 15, 10, 5))
+    assert len(state.open_positions) == 1            # entry still happened; regime error swallowed

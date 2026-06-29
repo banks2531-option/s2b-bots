@@ -166,6 +166,14 @@ greenlight it.
 
 ---
 
+## 6b. Pre-Phase-1 hardening (deferred from Phase 0 review, 2026-06-29)
+Carried as non-blocking follow-ups before Phase 1 raises regime fetch frequency or wires it to behavior:
+1. **yfinance hang guard** — `vix_term.fetch_vix_term` has no network timeout; a TCP *stall* (not an
+   exception) could delay the next tick on the live 60s loop. Mitigate with a watchdog timeout or by
+   caching the VIX term/SPY history across N ticks (also cuts redundant per-tick fetches).
+2. **`regime_<tag>.csv` rotation** — the shadow log appends one row per tick forever; add daily-suffix
+   or size-based rotation before Phase 1 increases cadence.
+
 ## 7. What this is NOT
 Not a return to "predict the market with whale flow." The center of gravity is **risk control**;
 prediction is a gated experiment that must earn its place. We still have exactly **one** OOS-validated

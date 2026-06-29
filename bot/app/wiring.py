@@ -47,11 +47,13 @@ from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_p
 from bot.strategy.s2b import OptionQuote
 from bot.risk_gate import AccountState, RiskConfig
 import time
+import datetime as _datetime
 
 
 def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                entry_days=frozenset({0}), max_open=1, max_entries_per_day=1, shared_account=False,
                trade_log=(lambda record: None),
+               regime_log=(lambda s, ts, e: None), uw_http=None,
                poll_s=2, timeout_s=30, base_risk_pct=0.10):
     """Assemble a production Deps from a Tradier http callable + injected market-data feeds."""
     client = TradierClient(account_id=account_id, http=http)
@@ -111,6 +113,30 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         resp = http("GET", "/markets/options/expirations", params={"symbol": "SPY"})
         return feeds.pick_expiry_from_list(feeds.parse_expirations(resp), today)
 
+    from bot.regime.engine import compute_regime_state
+    from bot.regime.vix_term import fetch_vix_term
+    from bot.regime.flow_uw import flow_context
+
+    _peak = {"v": 0.0}
+    def regime_provider():
+        try:
+            eq = broker_equity()
+            _peak["v"] = max(_peak["v"], eq or 0.0)
+            today = _datetime.date.today().strftime("%Y-%m-%d")
+            start = (_datetime.date.today()
+                     - _datetime.timedelta(days=90)).strftime("%Y-%m-%d")
+            hist = http("GET", "/markets/history",
+                        params={"symbol": "SPY", "interval": "daily", "start": start, "end": today})
+            bars = feeds.parse_history(hist)
+            flow = flow_context(uw_http) if uw_http is not None else ("neutral", False)
+            return compute_regime_state(
+                vix=fetch_vix_term(), bars=bars,
+                positions=feeds.reconstruct_spreads(broker_legs()),
+                equity=eq, equity_peak=_peak["v"], flow=flow)
+        except Exception:
+            from bot.regime.state import RegimeState
+            return RegimeState()
+
     return Deps(
         get_spot=get_spot, get_atr=get_atr, get_chain=get_chain,
         pick_expiry=pick_expiry,
@@ -123,4 +149,5 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         base_risk_pct=base_risk_pct, risk_cfg=risk_cfg,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=trade_log,
+        regime_provider=regime_provider, regime_log=regime_log,
     )

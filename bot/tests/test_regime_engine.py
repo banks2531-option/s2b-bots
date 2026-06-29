@@ -33,10 +33,15 @@ def test_compute_regime_state_never_raises_on_bad_inputs():
     assert st.trend_bias == "neutral"     # degraded, not crashed
 
 
-def test_make_regime_logger_writes_row(tmp_path):
-    p = tmp_path / "regime.csv"
-    log = make_regime_logger(str(p))
+def test_make_regime_logger_writes_dated_row(tmp_path):
     from bot.regime.state import RegimeState
+    prefix = str(tmp_path / "regime")
+    log = make_regime_logger(prefix)
     log(RegimeState(vix_level=18.0), ts="2026-06-29T10:00", event="TICK")
-    rows = list(csv.DictReader(open(p)))
+    dated = tmp_path / "regime_20260629.csv"          # rotates daily by the ts date
+    assert dated.exists()
+    rows = list(csv.DictReader(open(dated)))
     assert rows[0]["vix_level"] == "18.0" and rows[0]["event"] == "TICK"
+    # a row on a different day lands in a different file
+    log(RegimeState(vix_level=19.0), ts="2026-06-30T10:00", event="TICK")
+    assert (tmp_path / "regime_20260630.csv").exists()

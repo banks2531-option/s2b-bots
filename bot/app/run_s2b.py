@@ -88,7 +88,7 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
           f"(resuming {len(state.open_positions)} open position(s), halted={state.halted})", flush=True)
 
     from bot.regime.logger import make_regime_logger
-    regime_log = make_regime_logger(f"regime_{tag}.csv")
+    regime_log = make_regime_logger(f"regime_{tag}")   # daily-rotated: regime_{tag}_YYYYMMDD.csv
     # build a UW http callable from env if a token is present (else None -> neutral flow).
     # The UW edge (Cloudflare) rejects a default/empty User-Agent with a 403/1010, so set one.
     uw_http = None

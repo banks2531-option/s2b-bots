@@ -114,6 +114,19 @@ def test_make_trade_logger_writes_csv(tmp_path):
     assert rows[1]["event"] == "CLOSE" and rows[1]["pnl"] == "85.0"
 
 
+def test_build_deps_threads_narrow_wing_and_small_account_risk():
+    # the small-account live variant needs a narrow wing + a higher per-trade % (one narrow spread
+    # is already a large fraction of a tiny account). Both must flow through build_deps.
+    from bot.strategy.s2b import S2bConfig
+    http = _fake_http({"/balances": {"balances": {"total_equity": 402.0}}})
+    deps = build_deps(http, account_id="6YB71948", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), max_open=1,
+                      s2b_cfg=S2bConfig(wing_width=2), base_risk_pct=0.45)
+    assert deps.s2b_cfg.wing_width == 2
+    assert deps.risk_cfg.max_risk_pct == 0.45
+    assert deps.risk_cfg.max_concurrent == 1
+
+
 def test_build_deps_attaches_regime_provider_that_returns_state():
     http = _fake_http({
         "/balances": {"balances": {"total_equity": 20000.0}},

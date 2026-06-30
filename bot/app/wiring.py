@@ -54,8 +54,11 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                entry_days=frozenset({0}), max_open=1, max_entries_per_day=1, shared_account=False,
                trade_log=(lambda record: None),
                regime_log=(lambda s, ts, e: None), uw_http=None,
-               poll_s=2, timeout_s=30, base_risk_pct=0.10):
-    """Assemble a production Deps from a Tradier http callable + injected market-data feeds."""
+               poll_s=2, timeout_s=30, base_risk_pct=0.10, s2b_cfg=None):
+    """Assemble a production Deps from a Tradier http callable + injected market-data feeds.
+    s2b_cfg overrides the spread geometry (default = standard $10-wing S2bConfig)."""
+    from bot.strategy.s2b import S2bConfig
+    s2b_cfg = s2b_cfg if s2b_cfg is not None else S2bConfig()
     client = TradierClient(account_id=account_id, http=http)
 
     # Derive the risk-gate caps from max_open so the gate can never block below the book size the
@@ -146,7 +149,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         broker_positions=lambda: feeds.reconstruct_spreads(broker_legs()),
         broker_equity=broker_equity, bot_equity=broker_equity,
         alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
-        base_risk_pct=base_risk_pct, risk_cfg=risk_cfg,
+        base_risk_pct=base_risk_pct, risk_cfg=risk_cfg, s2b_cfg=s2b_cfg,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=trade_log,
         regime_provider=regime_provider, regime_log=regime_log,

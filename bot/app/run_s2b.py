@@ -60,8 +60,10 @@ def parse_args(argv=None):
 
 
 def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, label="MONDAY",
-                  shared_account=False, max_entries_per_day=1):
-    """Shared bot core. The A/B variable is (entry_days, max_open) — Monday-only vs all-days."""
+                  shared_account=False, max_entries_per_day=1, s2b_cfg=None, base_risk_pct=0.10):
+    """Shared bot core. The A/B variable is (entry_days, max_open) — Monday-only vs all-days.
+    s2b_cfg overrides the spread geometry (e.g. a narrow wing for a small live account); base_risk_pct
+    sizes the per-trade budget (raised for a tiny account where one spread is already a large % )."""
     import time
     from zoneinfo import ZoneInfo
 
@@ -75,9 +77,10 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
 
     http = make_http_from_env()
     mode = "LIVE" if is_live else "SANDBOX"
+    wing = (s2b_cfg.wing_width if s2b_cfg is not None else 10)
     print(f"=== S2b bot [{label}] | {mode} | account ...{account_id[-4:]} | {base} | "
           f"entry_days={sorted(entry_days)} max_open={max_open} max_entries/day={max_entries_per_day} "
-          f"shared_account={shared_account} ticks={ticks} ===", flush=True)
+          f"wing=${wing} risk/trade={base_risk_pct:.0%} shared_account={shared_account} ticks={ticks} ===", flush=True)
 
     et_now = lambda: datetime.now(ZoneInfo("America/New_York"))
     tag = label.lower().replace("-", "")
@@ -110,6 +113,7 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=make_trade_logger(log_path),
         regime_log=regime_log, uw_http=uw_http,
+        s2b_cfg=s2b_cfg, base_risk_pct=base_risk_pct,
     )
     def market_gated_tick(st, dp, now):
         if not feeds.is_market_hours(now):

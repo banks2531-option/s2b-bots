@@ -1,0 +1,23 @@
+[Unit]
+Description=S2b bot - LIVE small-account ($1 wing, REAL MONEY, account 6YB71948)
+After=network-online.target
+Wants=network-online.target
+# Crash-loop guard: >5 restarts in 10 min -> stop and surface a failed unit for an operator.
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/root/s2b-bot
+# Credentials live ONLY in this env file (written by the operator, not in git): production Tradier
+# token + account 6YB71948 + TRADIER_BASE_URL=api.tradier.com + I_UNDERSTAND_THIS_IS_LIVE=yes.
+# Without it the bot refuses to start (C8 guard) — so this unit is inert until the operator arms it.
+EnvironmentFile=/root/s2b-bot/s2b-live.env
+ExecStart=/root/s2b-bot/venv/bin/python -m bot.app.run_s2b_live --ticks 100000 --poll-seconds 60
+Restart=always
+RestartSec=15
+StandardOutput=append:/root/s2b-bot/s2b-live.log
+StandardError=append:/root/s2b-bot/s2b-live.log
+
+[Install]
+WantedBy=multi-user.target

@@ -38,40 +38,51 @@ import json, csv, os, subprocess, urllib.request
 from datetime import datetime, timezone
 
 APP = "/root/s2b-bot"
-BOTS = {"MONDAY": ("state_monday.json", "trades_monday.csv", "s2b-monday.service"),
-        "ALLDAYS": ("state_alldays.json", "trades_alldays.csv", "s2b-alldays.service")}
+# each bot: state, trade log, service, and the env file holding ITS creds (sandbox vs production)
+BOTS = {"MONDAY":  ("state_monday.json",  "trades_monday.csv",  "s2b-monday.service",  "s2b.env"),
+        "ALLDAYS": ("state_alldays.json", "trades_alldays.csv", "s2b-alldays.service", "s2b.env"),
+        "LIVE":    ("state_live.json",    "trades_live.csv",    "s2b-live.service",    "s2b-live.env")}
 
-# Tradier creds (read on droplet only)
-env = {}
-p = os.path.join(APP, "s2b.env")
-if os.path.exists(p):
-    for line in open(p):
-        line = line.strip()
-        if "=" in line and not line.startswith("#"):
-            k, v = line.split("=", 1)
-            env[k] = v
-TOK = env.get("TRADIER_TOKEN", "")
-BASE = env.get("TRADIER_BASE_URL", "https://sandbox.tradier.com/v1")
-ACCT = env.get("TRADIER_ACCOUNT_ID", "")
+def load_env(fn):
+    e, p = {}, os.path.join(APP, fn)
+    if os.path.exists(p):
+        for line in open(p):
+            line = line.strip()
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1); e[k] = v
+    return e
 
-def api(path):
-    req = urllib.request.Request(BASE + path,
-        headers={"Authorization": "Bearer " + TOK, "Accept": "application/json"})
-    return json.load(urllib.request.urlopen(req, timeout=15))
+_ctx = {}
+def ctx(env_file):
+    """Per-env Tradier context (sandbox bots share s2b.env; LIVE uses s2b-live.env / production)."""
+    if env_file in _ctx:
+        return _ctx[env_file]
+    e = load_env(env_file)
+    tok = e.get("TRADIER_TOKEN", ""); base = e.get("TRADIER_BASE_URL", "https://sandbox.tradier.com/v1")
+    acct = e.get("TRADIER_ACCOUNT_ID", "")
+    def api(path):
+        req = urllib.request.Request(base + path,
+            headers={"Authorization": "Bearer " + tok, "Accept": "application/json"})
+        return json.load(urllib.request.urlopen(req, timeout=15))
+    def quotes(symbols):
+        if not symbols:
+            return {}
+        try:
+            d = api("/markets/quotes?symbols=" + ",".join(symbols))["quotes"]["quote"]
+            d = d if isinstance(d, list) else [d]
+            return {x["symbol"]: x for x in d}
+        except Exception:
+            return {}
+    try:
+        equity = float(api("/accounts/%s/balances" % acct)["balances"]["total_equity"])
+    except Exception:
+        equity = None
+    c = {"api": api, "quotes": quotes, "equity": equity, "live": "sandbox" not in base}
+    _ctx[env_file] = c
+    return c
 
 def occ(strike, expiry):
     return "SPY%sP%08d" % (expiry[2:].replace("-", ""), int(strike * 1000))
-
-# batch-quote every leg we need + market context in one call
-def quotes(symbols):
-    if not symbols:
-        return {}
-    try:
-        d = api("/markets/quotes?symbols=" + ",".join(symbols))["quotes"]["quote"]
-        d = d if isinstance(d, list) else [d]
-        return {x["symbol"]: x for x in d}
-    except Exception:
-        return {}
 
 def is_active(svc):
     try:
@@ -83,46 +94,32 @@ def is_active(svc):
 today = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d")
 out = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"), "bots": {}}
 
-# equity once (shared account)
-try:
-    equity = float(api("/accounts/%s/balances" % ACCT)["balances"]["total_equity"])
-except Exception:
-    equity = None
-
-# collect every open leg symbol across both bots, plus market context
-need = ["SPY", "VIX"]
-states = {}
-for tag, (sf, cf, svc) in BOTS.items():
-    sp = os.path.join(APP, sf)
-    st = json.load(open(sp)) if os.path.exists(sp) else {"open_positions": []}
-    states[tag] = st
-    for pos in st.get("open_positions", []):
-        need.append(occ(pos["short_strike"], pos["expiry"]))
-        need.append(occ(pos["long_strike"], pos["expiry"]))
-qmap = quotes(sorted(set(need)))
-
-def mid(sym):
-    o = qmap.get(sym)
-    if not o or o.get("bid") is None or o.get("ask") is None:
-        return None
-    return (o["bid"] + o["ask"]) / 2.0
-
-spy = qmap.get("SPY", {})
-vix = qmap.get("VIX", {})
+# market context (SPY/VIX) from the sandbox feed
+mq = ctx("s2b.env")["quotes"](["SPY", "VIX"])
+spy = mq.get("SPY", {}); vix = mq.get("VIX", {})
 out["market"] = {
     "SPY": {"last": spy.get("last"), "chg": spy.get("change_percentage"),
             "low": spy.get("low"), "high": spy.get("high")},
     "VIX": {"last": vix.get("last"), "chg": vix.get("change_percentage")},
 }
 
-for tag, (sf, cf, svc) in BOTS.items():
-    st = states[tag]
+for tag, (sf, cf, svc, envf) in BOTS.items():
+    c = ctx(envf)
+    sp = os.path.join(APP, sf)
+    st = json.load(open(sp)) if os.path.exists(sp) else {"open_positions": []}
+    legs = []
+    for pos in st.get("open_positions", []):
+        legs.append(occ(pos["short_strike"], pos["expiry"])); legs.append(occ(pos["long_strike"], pos["expiry"]))
+    qmap = c["quotes"](sorted(set(legs)))
+    def mid(sym, _qmap=qmap):
+        o = _qmap.get(sym)
+        if not o or o.get("bid") is None or o.get("ask") is None:
+            return None
+        return (o["bid"] + o["ask"]) / 2.0
     open_live = []
     unreal = 0.0
     for pos in st.get("open_positions", []):
-        sm = occ(pos["short_strike"], pos["expiry"])
-        lm = occ(pos["long_strike"], pos["expiry"])
-        smid, lmid = mid(sm), mid(lm)
+        smid, lmid = mid(occ(pos["short_strike"], pos["expiry"])), mid(occ(pos["long_strike"], pos["expiry"]))
         val = (smid - lmid) if (smid is not None and lmid is not None) else None
         pnl = None
         if val is not None:
@@ -153,10 +150,10 @@ for tag, (sf, cf, svc) in BOTS.items():
                     realized_today += pnl
                 closed.append(r)
     out["bots"][tag] = {
-        "running": is_active(svc),
+        "running": is_active(svc), "live": c["live"],
         "halted": st.get("halted", False), "halt_reason": st.get("halt_reason", ""),
         "entries_today": st.get("entries_today"), "last_entry": st.get("last_entry_date"),
-        "equity": equity, "open_live": open_live, "unrealized": round(unreal, 2),
+        "equity": c["equity"], "open_live": open_live, "unrealized": round(unreal, 2),
         "realized_today": round(realized_today, 2), "realized_all": round(realized_all, 2),
         "closed": closed, "today_rows": today_rows, "rejected": rejected,
     }
@@ -260,11 +257,15 @@ def render_market(m):
     return "<div class='market'>%s%s<span>%s</span></div>" % (fmt(spy, "SPY"), rng, fmt(vix, "VIX"))
 
 
-BOT_LABEL = {"MONDAY": "Bot A · Monday-only", "ALLDAYS": "Bot B · all-days"}
+BOT_LABEL = {"MONDAY": "Bot A · Monday-only (sandbox)",
+             "ALLDAYS": "Bot B · all-days (sandbox)",
+             "LIVE": "Bot C · LIVE $1-wing all-days (REAL MONEY)"}
 
 
 def render_bot_overview(tag, b):
     status = pill(b["running"] and not b["halted"], "RUNNING", "HALTED" if b["halted"] else "STOPPED")
+    if b.get("live"):
+        status += " <span class='pill pill-down'>● REAL MONEY</span>"
     if b["halted"]:
         status += " <span class='pill pill-warn'>halt: %s</span>" % html.escape(b.get("halt_reason") or "")
     net = (b.get("realized_today") or 0) + (b.get("unrealized") or 0)
@@ -347,8 +348,9 @@ def render_history(tag, b):
 
 def render_html(data, refresh):
     bots = data["bots"]
-    overview = "".join(render_bot_overview(t, bots[t]) for t in ("MONDAY", "ALLDAYS") if t in bots)
-    history = "".join(render_history(t, bots[t]) for t in ("MONDAY", "ALLDAYS") if t in bots)
+    order = ("LIVE", "ALLDAYS", "MONDAY")   # show the real-money bot first
+    overview = "".join(render_bot_overview(t, bots[t]) for t in order if t in bots)
+    history = "".join(render_history(t, bots[t]) for t in order if t in bots)
     return """<!doctype html><html><head><meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
 <meta http-equiv='refresh' content='%d'>
@@ -382,7 +384,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Build the S2b A/B dashboard.")
     ap.add_argument("--once", action="store_true", help="generate once and exit")
     ap.add_argument("--watch", action="store_true", help="regenerate on a loop")
-    ap.add_argument("--interval", type=int, default=60, help="seconds between regenerations (watch)")
+    ap.add_argument("--interval", type=int, default=300, help="seconds between regenerations (watch); default 5 min")
     args = ap.parse_args(argv)
     if args.watch:
         print("watching — regenerating every %ds (Ctrl-C to stop)" % args.interval)

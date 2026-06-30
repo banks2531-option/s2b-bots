@@ -36,4 +36,5 @@ sleep 5
 echo "[3/3] started -> active=$(systemctl is-active s2b-live.service)"
 echo "--- banner ---"
 tail -6 s2b-live.log 2>/dev/null || true
-echo "Monday-only: idle until the next Monday RTH before any real trade. Disarm: systemctl disable --now s2b-live.service"
+echo "ALL-DAYS: will place its first real trade on the next weekday RTH tick (10:00-15:59 ET)."
+echo "Disarm: systemctl disable --now s2b-live.service && rm /root/s2b-bot/s2b-live.env"

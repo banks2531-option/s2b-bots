@@ -1,16 +1,18 @@
-"""S2b bot — LIVE small-account variant (real money).
+"""S2b bot — LIVE small-account variant (real money), ALL-DAYS.
 
-Same validated Monday SPY bull-put-spread core as Bot A, but geometry + sizing calibrated for a
-tiny real-money account (~$400) that cannot margin a standard $10-wide spread:
-  - NARROW WING ($1): max loss ~$80/contract instead of ~$863, so one contract fits the account
-    at the lowest feasible per-trade risk (~20%).
-  - one position at a time (max_open=1), Monday-only entry (the validated edge).
+Same S2b bull-put-spread core as Bot B (all-days), geometry + sizing calibrated for a tiny
+real-money account (~$400) that cannot margin a standard $10-wide spread:
+  - NARROW WING ($1): max loss ~$85/contract instead of ~$863, so a contract fits at the lowest
+    feasible per-trade risk (~21%).
+  - ALL weekdays (Mon-Fri), up to 3 concurrent positions. ($402 buying power / ~$85 margin per
+    spread caps the feasible book at ~4; 3 keeps a reserve. Bot B's 5 won't fit a $400 account.)
   - risk caps KEPT INTACT; base_risk_pct is raised only so the indivisible 1-contract minimum
-    (already ~20% of a $400 account) isn't auto-blocked. Every structural guard still applies:
+    (already ~21% of a $400 account) isn't auto-blocked. Every structural guard still applies:
     total-risk cap, max_concurrent, settled-cash, ATR cushion, daily-loss halt.
 
-This is a HIGHER-VARIANCE COUSIN of the validated edge, not the edge itself: a $1 wing leaves almost
-no room between the 2x stop and max loss, so the trade is closer to binary. Use deliberately.
+TWO HONEST CAVEATS: (1) a $1 wing leaves almost no room between the 2x stop and max loss, so each
+trade is closer to binary; (2) our own research found the ALL-DAYS schedule DILUTES S2b's edge vs
+Monday-only (it failed the 2x-cost stress). This is a higher-variance cousin of the validated edge.
 
 Requires (C8: config from environment only):
   TRADIER_TOKEN, TRADIER_ACCOUNT_ID, TRADIER_BASE_URL=https://api.tradier.com/v1,
@@ -29,10 +31,10 @@ BASE_RISK_PCT = 0.25    # one $1-wide spread is ~20% of $400; cap must permit th
 
 def main(argv=None):
     args = parse_args(argv)
-    # LIVE: Monday-only, single position, narrow wing, small-account sizing. Caps intact.
+    # LIVE: all weekdays, up to 3 concurrent, narrow wing, small-account sizing. Caps intact.
     return build_and_run(args.ticks, args.poll_seconds,
-                         entry_days=frozenset({0}), max_open=1, label="LIVE",
-                         shared_account=args.shared_account, max_entries_per_day=1,
+                         entry_days=frozenset({0, 1, 2, 3, 4}), max_open=3, label="LIVE",
+                         shared_account=args.shared_account, max_entries_per_day=3,
                          s2b_cfg=S2bConfig(wing_width=WING_WIDTH), base_risk_pct=BASE_RISK_PCT)
 
 

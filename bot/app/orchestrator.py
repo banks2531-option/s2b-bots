@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
 from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload
-from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition)
+from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction)
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 
@@ -54,6 +54,7 @@ class Deps:
     regime_provider: callable = None                 # () -> RegimeState | None
     regime_log: callable = (lambda state, ts, event: None)   # (RegimeState, ts, event) -> None
     trend_gate_enabled: bool = False                 # Phase 1: pause entries when SPY < 200d MA (risk_off)
+    degross_on_risk_off: bool = False                # Phase 1.5: close held positions in a risk_off downtrend
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -138,6 +139,48 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
     return state, results
 
 
+def run_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> tuple:
+    """PHASE 1.5 defensive de-gross (validated 76yr trend-following, p=0.001): on a CONFIRMED downtrend
+    (regime.trend_regime == 'risk_off'), REDUCE exposure by closing the positions management chose to
+    hold — the put-selling analog of trend-following's "go to flat in a downtrend". Phase 1 already
+    pauses new entries, so once flat the book stays flat until risk_on returns (no whipsaw).
+
+    Best-effort and fail-safe: opt-in (deps.degross_on_risk_off); only acts on a positive risk_off (a
+    regime fault → None → no liquidation); a close that doesn't fill is alerted and retried next tick
+    but NEVER halts (de-gross is discretionary risk reduction, not a stop — no retry-storm, no sticky
+    halt); one position's error does not block de-grossing the others."""
+    if not (deps.degross_on_risk_off and regime is not None
+            and getattr(regime, "trend_regime", "unknown") == "risk_off"):
+        return state, []
+    closed = []
+    for p in list(state.open_positions):
+        try:
+            value = deps.mark_position(p)
+            status = deps.close_spread(p, ExitAction.DEGROSS)
+        except Exception as exc:   # one position's error must NOT block the others' de-gross
+            deps.alert_sink([Alert(Severity.WARN,
+                f"de-gross close error {p.ticker} {p.short_strike}/{p.long_strike}: {exc}")])
+            continue
+        if str(status).lower() == "filled":
+            closed.append(p)
+            rec = {"event": "DEGROSS", "date": today, "ticker": p.ticker,
+                   "short": p.short_strike, "long": p.long_strike, "expiry": p.expiry,
+                   "qty": p.qty, "credit": p.credit, "action": ExitAction.DEGROSS.value,
+                   "exit_value": value, "status": status}
+            if value is not None:
+                rec["pnl"] = round((p.credit - value) * 100 * p.qty, 2)
+            deps.trade_log(rec)
+        else:                      # didn't fill: alert + retry next tick, but do NOT halt
+            deps.alert_sink([Alert(Severity.WARN,
+                f"de-gross close not filled ({status}) {p.ticker} {p.short_strike}/{p.long_strike}")])
+    if closed:
+        ck = {position_key(p) for p in closed}
+        state.open_positions = [p for p in state.open_positions if position_key(p) not in ck]
+        deps.alert_sink([Alert(Severity.WARN,
+            f"de-grossed {len(closed)} position(s) on a confirmed risk_off downtrend")])
+    return state, closed
+
+
 def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
     if state.last_entry_date != today:
@@ -186,9 +229,10 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
 
 
 def tick(state: BotState, deps: Deps, now) -> BotState:
-    """One bot cycle: compute regime -> reconcile (may halt) -> manage -> enter if eligible.
-    The regime is computed UP FRONT so PHASE 1's trend gate can pause entries in a downtrend; it is
-    still shadow-logged. A regime fault returns None (no gate) and never halts trading."""
+    """One bot cycle: compute regime -> reconcile (may halt) -> manage -> de-gross -> enter if eligible.
+    The regime is computed UP FRONT so PHASE 1's trend gate can pause entries and PHASE 1.5 can
+    de-gross held positions in a confirmed downtrend; it is still shadow-logged. A regime fault returns
+    None (no gate, no de-gross) and never halts trading."""
     today = now.strftime("%Y-%m-%d")
     regime = None
     if deps.regime_provider is not None:
@@ -199,6 +243,7 @@ def tick(state: BotState, deps: Deps, now) -> BotState:
             regime = None
     state, reconcile_ok = run_reconcile_cycle(state, deps)
     state, _ = run_management_cycle(state, deps, today)   # ALWAYS runs (stops must fire)
+    state, _ = run_degross_cycle(state, deps, today, regime)  # PHASE 1.5: ALWAYS runs (risk reduction)
     if reconcile_ok:
         state, _ = run_entry_cycle(state, deps, now, regime)
     if regime is not None:

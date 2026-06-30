@@ -115,6 +115,7 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         regime_log=regime_log, uw_http=uw_http,
         s2b_cfg=s2b_cfg, base_risk_pct=base_risk_pct,
         trend_gate_enabled=True,        # Phase 1: pause put-selling when SPY < 200d MA (validated 76yr)
+        degross_on_risk_off=True,       # Phase 1.5: close held positions in a confirmed risk_off downtrend
     )
     def market_gated_tick(st, dp, now):
         if not feeds.is_market_hours(now):

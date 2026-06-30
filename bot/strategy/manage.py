@@ -11,6 +11,7 @@ class ExitAction(str, Enum):
     TAKE_PROFIT = "take_profit"
     STOP = "stop"
     TIME_EXIT = "time_exit"
+    DEGROSS = "degross"        # Phase 1.5: defensive de-gross of a held position in a risk_off downtrend
     ERROR = "error"
 
 

@@ -462,3 +462,119 @@ def test_tick_regime_failure_never_breaks_tick():
     d.regime_provider = lambda: (_ for _ in ()).throw(RuntimeError("regime feed down"))
     state = tick(state, d, datetime(2026, 6, 15, 10, 5))
     assert len(state.open_positions) == 1            # entry still happened; regime error swallowed
+
+
+# ── Phase 1.5: de-gross EXISTING positions on a confirmed risk_off downtrend ────
+
+from bot.app.orchestrator import run_degross_cycle
+
+
+def test_degross_closes_held_positions_on_risk_off():
+    # Validated trend-following analog: in a confirmed downtrend (SPY<200d MA), don't just pause new
+    # entries (Phase 1) — REDUCE exposure by closing the positions management chose to hold.
+    from bot.regime.state import RegimeState
+    state = BotState(open_positions=[_pos()])
+    d = _deps(close_spread=lambda p, a: "filled", degross_on_risk_off=True)
+    state, closed = run_degross_cycle(state, d, today="2026-06-17",
+                                      regime=RegimeState(trend_regime="risk_off"))
+    assert len(closed) == 1 and state.open_positions == []
+
+
+def test_degross_noop_when_risk_on():
+    from bot.regime.state import RegimeState
+    state = BotState(open_positions=[_pos()])
+    d = _deps(close_spread=lambda p, a: "filled", degross_on_risk_off=True)
+    state, closed = run_degross_cycle(state, d, today="2026-06-17",
+                                      regime=RegimeState(trend_regime="risk_on"))
+    assert closed == [] and len(state.open_positions) == 1   # uptrend -> hold, do not liquidate
+
+
+def test_degross_noop_when_flag_disabled():
+    # opt-in: with the flag off, a risk_off regime does NOT liquidate (back-compat)
+    from bot.regime.state import RegimeState
+    state = BotState(open_positions=[_pos()])
+    d = _deps(close_spread=lambda p, a: "filled", degross_on_risk_off=False)
+    state, closed = run_degross_cycle(state, d, today="2026-06-17",
+                                      regime=RegimeState(trend_regime="risk_off"))
+    assert closed == [] and len(state.open_positions) == 1
+
+
+def test_degross_noop_when_regime_none():
+    # fail-safe: a regime FAULT (None) must never trigger mass liquidation
+    state = BotState(open_positions=[_pos()])
+    d = _deps(close_spread=lambda p, a: "filled", degross_on_risk_off=True)
+    state, closed = run_degross_cycle(state, d, today="2026-06-17", regime=None)
+    assert closed == [] and len(state.open_positions) == 1
+
+
+def test_degross_failed_close_keeps_position_and_does_not_halt():
+    # de-gross is DISCRETIONARY risk reduction, not a stop: a close that doesn't fill is alerted and
+    # retried next tick, but must NOT halt (no retry-storm, no sticky halt).
+    from bot.regime.state import RegimeState
+    sent = []
+    state = BotState(open_positions=[_pos()])
+    d = _deps(close_spread=lambda p, a: "timeout", degross_on_risk_off=True,
+              alert_sink=lambda alerts: sent.append(alerts))
+    state, closed = run_degross_cycle(state, d, today="2026-06-17",
+                                      regime=RegimeState(trend_regime="risk_off"))
+    assert closed == [] and len(state.open_positions) == 1   # not removed (close didn't fill)
+    assert state.halted is False                              # never halts
+    assert sent                                              # but alerted
+
+
+def test_degross_logs_close_with_realized_pnl():
+    from bot.regime.state import RegimeState
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=2, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    # exit mark 2.0; pnl = (3.0 - 2.0) * 100 * 2 = 200
+    d = _deps(mark_position=lambda p: 2.0, close_spread=lambda p, a: "filled",
+              degross_on_risk_off=True, trade_log=lambda r: recs.append(r))
+    run_degross_cycle(state, d, today="2026-06-17", regime=RegimeState(trend_regime="risk_off"))
+    deg = [r for r in recs if r["event"] == "DEGROSS"]
+    assert deg and deg[0]["action"] == "degross" and deg[0]["pnl"] == 200.0
+
+
+def test_degross_one_position_error_does_not_block_others():
+    # one position's close raising must not prevent de-grossing the rest
+    from bot.regime.state import RegimeState
+    p1 = ManagedPosition("SPY", 568.0, 558.0, 3.0, 1, "2026-06-19")
+    p2 = ManagedPosition("SPY", 560.0, 550.0, 3.0, 1, "2026-06-19")
+    state = BotState(open_positions=[p1, p2])
+
+    def close(p, a):
+        if p.short_strike == 568.0:
+            raise ConnectionError("feed down")
+        return "filled"
+
+    d = _deps(close_spread=close, degross_on_risk_off=True)
+    state, closed = run_degross_cycle(state, d, today="2026-06-17",
+                                      regime=RegimeState(trend_regime="risk_off"))
+    assert len(closed) == 1 and state.open_positions == [p1]   # p2 closed, p1 (errored) retained
+
+
+def test_tick_degrosses_on_risk_off_and_does_not_reenter():
+    # integration: a held position in a confirmed downtrend is de-grossed in the SAME tick, and the
+    # Phase 1 gate prevents any re-entry, so the book goes (and stays) flat.
+    from bot.regime.state import RegimeState
+    state = BotState(open_positions=[_pos()])
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              broker_positions=lambda: [_pos()], mark_position=lambda p: 3.0, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: "filled", open_spread=lambda payload: "filled",
+              trend_gate_enabled=True, degross_on_risk_off=True)
+    d.regime_provider = lambda: RegimeState(trend_regime="risk_off")
+    state = tick(state, d, datetime(2026, 6, 15, 10, 5))      # Monday, but risk_off
+    assert state.open_positions == []                         # de-grossed, no re-entry
+
+
+def test_tick_degross_runs_even_when_halted():
+    # risk reduction must fire even under a halt (like stops): a halted bot in a downtrend still
+    # de-grosses its exposure.
+    from bot.regime.state import RegimeState
+    state = BotState(open_positions=[_pos()], halted=True, halt_reason="failed close")
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              broker_positions=lambda: [_pos()], mark_position=lambda p: 3.0, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: "filled", degross_on_risk_off=True)
+    d.regime_provider = lambda: RegimeState(trend_regime="risk_off")
+    state = tick(state, d, datetime(2026, 6, 15, 10, 5))
+    assert state.open_positions == []                         # de-grossed despite the halt

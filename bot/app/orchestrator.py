@@ -154,6 +154,12 @@ def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
     order = build_spread_order(spot, atr, deps.get_chain("SPY", expiry), deps.s2b_cfg)
     if order is None:
         return state, "no_order"
+    # Never STACK an identical spread (same strikes+expiry): the broker aggregates same-symbol legs,
+    # but the position model keys on (ticker,short,long,expiry), so a duplicate collapses to one key
+    # and breaks reconcile (qty_mismatch -> halt). Skip until a different strike or the position closes.
+    if any(p.short_strike == order.short_strike and p.long_strike == order.long_strike
+           and p.expiry == expiry for p in state.open_positions):
+        return state, "duplicate_strikes"
     acct = deps.account_state(today, len(state.open_positions))
     pct_rank, change = deps.get_vix_regime()
     risk = regime_adjusted_risk_pct(deps.base_risk_pct, pct_rank, change)

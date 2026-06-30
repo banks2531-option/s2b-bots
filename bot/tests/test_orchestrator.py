@@ -152,6 +152,19 @@ def _chain():
             OptionQuote(558.0, 0.18, 1.60, 1.70)]
 
 
+def _shifting_chain():
+    """A get_chain whose strikes step down 5pts each call -> each entry is a DISTINCT spread
+    (as if SPY drifted), so concurrency/per-day caps can be exercised without the dedup blocking."""
+    calls = {"n": 0}
+    def get_chain(sym, exp):
+        off = calls["n"] * 5.0
+        calls["n"] += 1
+        return [OptionQuote(572.0 - off, 0.45, 4.50, 4.60), OptionQuote(568.0 - off, 0.36, 3.40, 3.50),
+                OptionQuote(565.0 - off, 0.30, 2.80, 2.90), OptionQuote(560.0 - off, 0.22, 2.00, 2.10),
+                OptionQuote(558.0 - off, 0.18, 1.60, 1.70)]
+    return get_chain
+
+
 def _acct(today, conc):
     return AccountState(20_000.0, 20_000.0, 0.0, conc, 0.0, {}, today)
 
@@ -209,6 +222,19 @@ def test_tick_reconcile_halt_blocks_entry_same_tick():
               broker_positions=lambda: [_pos()], open_spread=lambda payload: "filled")
     state = tick(state, d, datetime(2026, 6, 15, 10, 5))
     assert state.halted is True and state.open_positions == []
+
+
+def test_entry_skips_duplicate_strikes():
+    # the strategy would pick 568/558 (from _chain); with that exact spread already open and room
+    # under max_open, the entry must DEDUP (not stack an identical spread -> broker aggregates it
+    # and reconcile would qty-mismatch/halt, the 2026-06-30 live incident).
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=1, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct, max_open=3,
+              pick_expiry=lambda today: "2026-06-19", open_spread=lambda payload: "filled")
+    state, info = run_entry_cycle(state, d, datetime(2026, 6, 15, 10, 5))   # Monday, room under cap
+    assert info == "duplicate_strikes"
+    assert len(state.open_positions) == 1          # no identical second spread added
 
 
 def test_tick_manages_then_holds_no_new_entry_when_holding():
@@ -307,11 +333,12 @@ def test_one_entry_per_day_guard():
 
 
 def test_alldays_allows_concurrent_up_to_max_open():
-    state = BotState(open_positions=[_pos(), _pos()])  # already holding 2
-    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
-              open_spread=lambda payload: "filled", entry_days=ALLDAYS, max_open=3)
-    state, _ = run_entry_cycle(state, d, datetime(2026, 6, 17, 10, 5))   # Wednesday
-    assert len(state.open_positions) == 3              # entered a 3rd (under the cap)
+    state = BotState()
+    d = _deps(get_chain=_shifting_chain(), account_state=_acct, open_spread=lambda payload: "filled",
+              entry_days=ALLDAYS, max_open=3, max_entries_per_day=9)
+    for _ in range(4):
+        run_entry_cycle(state, d, datetime(2026, 6, 17, 10, 5))   # Wednesday, distinct strikes each
+    assert len(state.open_positions) == 3              # fills to the cap with DISTINCT spreads
 
 
 def test_shared_account_run_reconcile_ignores_untracked():
@@ -359,10 +386,10 @@ def test_management_logs_close_with_realized_pnl():
 
 def test_three_entries_per_day_cap():
     state = BotState()
-    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+    d = _deps(get_chain=_shifting_chain(), account_state=_acct,
               open_spread=lambda payload: "filled",
               entry_days=ALLDAYS, max_open=9, max_entries_per_day=3)
-    now = datetime(2026, 6, 16, 10, 5)        # Tuesday; repeated same-day ticks
+    now = datetime(2026, 6, 16, 10, 5)        # Tuesday; repeated same-day ticks, distinct strikes
     for _ in range(6):
         run_entry_cycle(state, d, now)
     assert state.entries_today == 3            # capped at 3 entries this day

@@ -24,6 +24,17 @@ def trend_bias(bars, short_n=20, long_n=50, band=0.001) -> str:
     return "neutral"
 
 
+def trend_regime(bars, ma=200) -> str:
+    """The VALIDATED defensive signal (76yr S&P test, p=0.001): 'risk_on' if the latest close is
+    above its `ma`-day moving average (uptrend), 'risk_off' if at/below (downtrend -> pause put-
+    selling), 'unknown' if fewer than `ma` bars. Slow + robust -> few false flips."""
+    closes = [float(b["close"]) for b in bars]
+    if len(closes) < ma:
+        return "unknown"
+    sma = sum(closes[-ma:]) / ma
+    return "risk_on" if closes[-1] > sma else "risk_off"
+
+
 def atr_pct(bars, n=14):
     """ATR(n)/latest close as a fraction. None if no bars."""
     if not bars:

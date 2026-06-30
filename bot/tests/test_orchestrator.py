@@ -224,6 +224,40 @@ def test_tick_reconcile_halt_blocks_entry_same_tick():
     assert state.halted is True and state.open_positions == []
 
 
+def test_trend_gate_pauses_entry_in_downtrend():
+    # Phase 1 validated guard: a confirmed downtrend (regime.trend_regime == 'risk_off') pauses new
+    # put-selling even on a clean entry day.
+    from bot.regime.state import RegimeState
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled", trend_gate_enabled=True)
+    state, info = run_entry_cycle(state, d, datetime(2026, 6, 15, 10, 5),
+                                  RegimeState(trend_regime="risk_off"))
+    assert info == "trend_paused" and len(state.open_positions) == 0
+
+
+def test_trend_gate_allows_entry_in_uptrend_and_when_unknown():
+    from bot.regime.state import RegimeState
+    for tr in ("risk_on", "unknown"):
+        state = BotState()
+        d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+                  open_spread=lambda payload: "filled", trend_gate_enabled=True)
+        state, info = run_entry_cycle(state, d, datetime(2026, 6, 15, 10, 5),
+                                      RegimeState(trend_regime=tr))
+        assert len(state.open_positions) == 1, "should enter when trend=%s" % tr
+
+
+def test_trend_gate_off_ignores_regime():
+    # gate disabled -> a risk_off regime does NOT block (back-compat / opt-in)
+    from bot.regime.state import RegimeState
+    state = BotState()
+    d = _deps(get_chain=lambda sym, exp: _chain(), account_state=_acct,
+              open_spread=lambda payload: "filled", trend_gate_enabled=False)
+    state, info = run_entry_cycle(state, d, datetime(2026, 6, 15, 10, 5),
+                                  RegimeState(trend_regime="risk_off"))
+    assert len(state.open_positions) == 1
+
+
 def test_entry_skips_duplicate_strikes():
     # the strategy would pick 568/558 (from _chain); with that exact spread already open and room
     # under max_open, the entry must DEDUP (not stack an identical spread -> broker aggregates it

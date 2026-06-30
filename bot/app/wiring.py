@@ -54,7 +54,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                entry_days=frozenset({0}), max_open=1, max_entries_per_day=1, shared_account=False,
                trade_log=(lambda record: None),
                regime_log=(lambda s, ts, e: None), uw_http=None,
-               poll_s=2, timeout_s=30, base_risk_pct=0.10, s2b_cfg=None):
+               poll_s=2, timeout_s=30, base_risk_pct=0.10, s2b_cfg=None, trend_gate_enabled=False):
     """Assemble a production Deps from a Tradier http callable + injected market-data feeds.
     s2b_cfg overrides the spread geometry (default = standard $10-wing S2bConfig)."""
     from bot.strategy.s2b import S2bConfig
@@ -126,8 +126,8 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
             eq = broker_equity()
             _peak["v"] = max(_peak["v"], eq or 0.0)
             today = _datetime.date.today().strftime("%Y-%m-%d")
-            start = (_datetime.date.today()
-                     - _datetime.timedelta(days=90)).strftime("%Y-%m-%d")
+            start = (_datetime.date.today()       # ~300 calendar days -> ~200 trading days for the 200d MA gate
+                     - _datetime.timedelta(days=320)).strftime("%Y-%m-%d")
             hist = http("GET", "/markets/history",
                         params={"symbol": "SPY", "interval": "daily", "start": start, "end": today})
             bars = feeds.parse_history(hist)
@@ -153,4 +153,5 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=trade_log,
         regime_provider=regime_provider, regime_log=regime_log,
+        trend_gate_enabled=trend_gate_enabled,
     )

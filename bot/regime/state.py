@@ -10,7 +10,8 @@ class RegimeState:
     vix_pct_rank: float = None        # vs trailing ~120 trading days
     vix_term_slope: float = None      # 3M/front - 1 ; < 0 = backwardation (front>3M) = stress
     atr_pct: float = None             # ATR(14)/spot
-    trend_bias: str = "neutral"       # "up" | "down" | "neutral"
+    trend_bias: str = "neutral"       # "up" | "down" | "neutral" (20/50d, context only)
+    trend_regime: str = "unknown"     # "risk_on" | "risk_off" | "unknown" (200d MA — the VALIDATED gate)
     equity_drawdown: float = 0.0      # fraction below the bot's own equity peak (>= 0)
     concentration: float = 0.0        # 0..1, higher = more clustered book
     flow_bias: str = "neutral"        # UW: "bullish" | "bearish" | "neutral"

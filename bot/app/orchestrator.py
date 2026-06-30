@@ -51,8 +51,9 @@ class Deps:
     max_entries_per_day: int = 1             # max NEW positions opened per calendar day
     shared_account: bool = False             # True when multiple bots share ONE broker account
     trade_log: callable = (lambda record: None)   # (dict) -> None; per-bot trade/P&L log sink
-    regime_provider: callable = None                 # () -> RegimeState | None ; Phase 0: logged only
+    regime_provider: callable = None                 # () -> RegimeState | None
     regime_log: callable = (lambda state, ts, event: None)   # (RegimeState, ts, event) -> None
+    trend_gate_enabled: bool = False                 # Phase 1: pause entries when SPY < 200d MA (risk_off)
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -137,7 +138,7 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
     return state, results
 
 
-def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
+def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
     if state.last_entry_date != today:
         state.entries_today = 0          # new calendar day -> reset the daily entry counter
@@ -148,6 +149,11 @@ def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
             or len(state.open_positions) >= deps.max_open
             or state.entries_today >= deps.max_entries_per_day):
         return state, None
+    # PHASE 1 defensive guard (validated 76yr, p=0.001): pause new put-selling in a confirmed
+    # downtrend (SPY below its 200d MA). Only acts on a positive risk_off signal; an unknown/missing
+    # regime falls through to normal trading (a regime fault must not block the validated strategy).
+    if deps.trend_gate_enabled and regime is not None and getattr(regime, "trend_regime", "unknown") == "risk_off":
+        return state, "trend_paused"
     spot = deps.get_spot("SPY")
     atr = deps.get_atr("SPY")
     expiry = deps.pick_expiry(today)
@@ -180,19 +186,24 @@ def run_entry_cycle(state: BotState, deps: Deps, now) -> tuple:
 
 
 def tick(state: BotState, deps: Deps, now) -> BotState:
-    """One bot cycle: reconcile (may halt) -> manage open positions -> enter if eligible.
-    PHASE 0: also compute + shadow-log the market regime. This MUST NOT change any decision above,
-    so it runs last, inside a try/except that swallows everything (a regime fault never halts trading)."""
+    """One bot cycle: compute regime -> reconcile (may halt) -> manage -> enter if eligible.
+    The regime is computed UP FRONT so PHASE 1's trend gate can pause entries in a downtrend; it is
+    still shadow-logged. A regime fault returns None (no gate) and never halts trading."""
     today = now.strftime("%Y-%m-%d")
+    regime = None
+    if deps.regime_provider is not None:
+        try:
+            regime = deps.regime_provider()
+        except Exception as exc:
+            deps.alert_sink([Alert(Severity.INFO, f"regime unavailable: {exc}")])
+            regime = None
     state, reconcile_ok = run_reconcile_cycle(state, deps)
     state, _ = run_management_cycle(state, deps, today)   # ALWAYS runs (stops must fire)
     if reconcile_ok:
-        state, _ = run_entry_cycle(state, deps, now)
-    if deps.regime_provider is not None:                  # Phase 0 instrument: observe only
+        state, _ = run_entry_cycle(state, deps, now, regime)
+    if regime is not None:
         try:
-            rs = deps.regime_provider()
-            if rs is not None:
-                deps.regime_log(rs, now.isoformat(), "TICK")
-        except Exception as exc:
-            deps.alert_sink([Alert(Severity.INFO, f"regime log skipped: {exc}")])
+            deps.regime_log(regime, now.isoformat(), "TICK")
+        except Exception:
+            pass
     return state

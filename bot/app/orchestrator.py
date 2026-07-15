@@ -11,6 +11,7 @@ from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
 from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier, _percentile
+from bot.strategy.cost_gate import cost_gate_eval
 from bot.portfolio.risk_budget import (size_qty, cap_to_budgets, remaining_stop_risk,
                                         planned_stop_loss_per_contract, structural_max_loss_per_contract)
 from bot.portfolio.gap_stress import gap_stress_losses
@@ -365,6 +366,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     exec_credit = None       # §4 conservative expected-executable credit; set once quote guards pass
     credit_telemetry = None  # §3: credit_ratio/credit_pctl40/credit_sample_count/credit_threshold/
                               # credit_quality_mult; set once the credit-tiers block runs (credit_tiers on)
+    cost_telemetry = None    # §5: cost_gross_target/cost_round_trip/cost_target_ratio; set once the
+                              # transaction-cost gate block runs (transaction_cost_gate on)
 
     def _log_decision(reason, spot=None, atr=None, expiry=None, order=None):
         """§1/§12: write a DECISION record (reason + active flags + best-effort exposure telemetry)
@@ -386,6 +389,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             rec["expected_executable_credit"] = round(exec_credit, 4)
         if credit_telemetry is not None:   # §3: credit-tier decision inputs, once computed
             rec.update(credit_telemetry)
+        if cost_telemetry is not None:   # §5: cost-gate decision inputs, once computed
+            rec.update(cost_telemetry)
         rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order))
         try:
             deps.trade_log(rec)
@@ -488,6 +493,24 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         if mult == 0.0:
             _log_decision("credit_too_low", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "credit_too_low"
+    # Transaction-cost profitability gate (partner review v2 §5), OPT-IN via
+    # deps.features.transaction_cost_gate. Runs AFTER the credit-tier decision above (so a candidate
+    # already rejected as credit_too_low never reaches here) and BEFORE sizing. Rejects a candidate
+    # whose 50%-take-profit gross target doesn't clear min_target_to_cost_ratio x the estimated
+    # round-trip cost (synthetic commissions + entry/exit slippage). Sizes off exec_credit (the
+    # conservative expected-executable credit, §4) -- falls back to order.credit if it wasn't
+    # computed (quote guards skipped because the order has no attached quotes).
+    if deps.features.transaction_cost_gate:
+        credit_for_cost = exec_credit if exec_credit is not None else order.credit
+        cost_eval = cost_gate_eval(credit_for_cost, deps.features)
+        cost_telemetry = {
+            "cost_gross_target": cost_eval["gross_target"],
+            "cost_round_trip": cost_eval["round_trip_cost"],
+            "cost_target_ratio": cost_eval["target_to_cost_ratio"],
+        }
+        if not cost_eval["passes"]:
+            _log_decision("cost_gate", spot=spot, atr=atr, expiry=expiry, order=order)
+            return state, "cost_gate"
     # Never STACK an identical spread (same strikes+expiry): the broker aggregates same-symbol legs,
     # but the position model keys on (ticker,short,long,expiry), so a duplicate collapses to one key
     # and breaks reconcile (qty_mismatch -> halt). Skip until a different strike or the position closes.

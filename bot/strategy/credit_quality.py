@@ -28,7 +28,7 @@ def full_size_threshold(prior_ratios, floor, ceiling, min_signals, p=40):
     enough data to adapt yet). Once warmed up, adapt to the pth percentile of prior candidate
     ratios, clamped to [floor, ceiling] so a hot or cold run of signals can't drag the threshold
     out of the sane range."""
-    if len(prior_ratios) < min_signals:
+    if not prior_ratios or len(prior_ratios) < min_signals:
         return floor
     return min(ceiling, max(floor, _percentile(prior_ratios, p)))
 

@@ -27,7 +27,7 @@ def size_qty(risk_equity, credit, wing_width, f, quality_multiplier=1.0):
     if psl <= 0 or struct <= 0:
         return 0
     qty_entry = math.floor(risk_equity * f.max_entry_stop_risk_pct / psl)
-    qty_structural = math.floor(risk_equity * 0.05 / struct)
+    qty_structural = math.floor(risk_equity * f.max_trade_structural_risk_pct / struct)
     return math.floor(min(qty_entry, qty_structural) * quality_multiplier)
 
 
@@ -41,7 +41,8 @@ def _max_q_for_budget(qty, budget, book_amount, per_contract_amount):
     return min(qty, math.floor(remaining / per_contract_amount))
 
 
-def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_fn, risk_equity, f):
+def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_fn, risk_equity, f,
+                   foreign_exposure=None):
     """Reduce qty (down to 0) until adding this trade keeps every budget satisfied:
     same-day stop (f.max_same_day_stop_risk_pct), expiry stop (f.max_expiry_stop_risk_pct),
     total stop (f.max_total_stop_risk_pct), total structural (f.max_total_structural_risk_pct).
@@ -50,9 +51,18 @@ def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_
     wing_width, p.credit) * p.qty. 'same-day' = p.entry_date == today; 'expiry' = p.expiry == expiry.
     The proposed trade's per-contract stop = planned_stop_loss_per_contract(credit, wing_width,
     f.expected_stop_slippage); per-contract structural = structural_max_loss_per_contract(wing_width, credit).
+
+    foreign_exposure (partner review v2 §2): optional {"stop":..., "structural":...} dollar-risk from
+    SPY spreads at the broker that this bot did NOT open (see bot.portfolio.exposure.foreign_spy_exposure).
+    Defaults to None -> treated as zero, so omitting it is byte-identical to before. Foreign exposure
+    counts ONLY toward the TOTAL stop/structural budgets (this bot's own same-day/expiry budgets stay
+    this-bot-only -- a foreign position isn't "this bot's" same-day or same-expiry risk).
+
     Return the largest 0<=q<=qty that fits ALL budgets (0 if none fit)."""
     if qty <= 0:
         return 0
+    if foreign_exposure is None:
+        foreign_exposure = {"stop": 0.0, "structural": 0.0}
 
     same_day_stop = 0.0
     expiry_stop = 0.0
@@ -67,6 +77,8 @@ def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_
             same_day_stop += stop_risk
         if p.expiry == expiry:
             expiry_stop += stop_risk
+    total_stop += foreign_exposure.get("stop", 0.0) or 0.0
+    total_structural += foreign_exposure.get("structural", 0.0) or 0.0
 
     per_contract_stop = planned_stop_loss_per_contract(credit, wing_width, f.expected_stop_slippage)
     per_contract_structural = structural_max_loss_per_contract(wing_width, credit)

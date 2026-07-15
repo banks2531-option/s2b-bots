@@ -44,6 +44,7 @@ class S2bFeatures:
     max_expiry_stop_risk_pct: float = 0.03
     max_total_stop_risk_pct: float = 0.04
     max_total_structural_risk_pct: float = 0.15
+    max_trade_structural_risk_pct: float = 0.05   # per-trade structural cap used by size_qty (§9)
     max_gap_stress_loss_pct: float = 0.06
     expected_stop_slippage: float = 0.10
     daily_pnl_halt_pct: float = 0.02

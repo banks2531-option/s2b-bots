@@ -12,6 +12,7 @@ from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_
 from bot.portfolio.risk_budget import (size_qty, cap_to_budgets, remaining_stop_risk,
                                         planned_stop_loss_per_contract, structural_max_loss_per_contract)
 from bot.portfolio.gap_stress import gap_stress_losses
+from bot.portfolio import exposure
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 
@@ -75,6 +76,8 @@ class Deps:
     features: object = field(default_factory=S2bFeatures)   # partner review v2 feature flags + thresholds (opt-in, OFF by default)
     risk_equity: callable = None            # () -> float; min(allocated_equity, broker_equity) (partner review v2 §2)
     account_spy_exposure: callable = None   # () -> {"structural": float, "stop": float} across EVERY SPY spread at the broker
+    account_spy_spreads: callable = None    # () -> list[ManagedPosition]; the RAW broker-wide SPY spread list (own + foreign),
+                                             # used to derive foreign-only exposure via exposure.foreign_spy_exposure (§2)
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -452,10 +455,17 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # same-day/expiry/total stop or total structural risk limits. quality_multiplier is
         # stubbed at 1.0 here; a later phase wires expected_executable_credit/quality scoring in.
         req = deps.risk_equity()
+        # Foreign SPY positions at the broker (opened by another bot/human, not this one) MUST count
+        # toward this bot's TOTAL stop/structural budgets (partner review v2 §2). Derived from the
+        # raw broker-wide spread list minus this bot's own open positions (by strikes+expiry), so
+        # this bot's own book is never double-counted. No spread-list feed wired -> zero (unchanged).
+        foreign_spreads = deps.account_spy_spreads() if deps.account_spy_spreads is not None else []
+        foreign = exposure.foreign_spy_exposure(foreign_spreads, state.open_positions)
         qty = size_qty(req, order.credit, deps.s2b_cfg.wing_width, deps.features,
                        quality_multiplier=1.0)
         qty = cap_to_budgets(qty, order.credit, deps.s2b_cfg.wing_width, expiry, today,
-                             state.open_positions, deps.mark_position, req, deps.features)
+                             state.open_positions, deps.mark_position, req, deps.features,
+                             foreign_exposure=foreign)
         if qty <= 0:
             _log_decision("risk_budget", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "risk_budget"

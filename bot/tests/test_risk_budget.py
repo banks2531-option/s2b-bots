@@ -86,6 +86,19 @@ def test_size_qty_zero_or_negative_constraints_reject():
     assert size_qty(100_000.0, 10.0, 10.0, f) == 0   # credit == wing_width -> structural is 0
 
 
+def test_size_qty_uses_features_max_trade_structural_risk_pct_not_hardcoded():
+    # same inputs as test_size_qty_structural_constraint_binds (struct=950, qty_entry=13), but with
+    # max_trade_structural_risk_pct doubled to 0.10 -> qty_structural = floor(200000*0.10/950) = 21,
+    # so the entry constraint (13) now binds instead of the structural one (proof the field, not a
+    # hardcoded 0.05, drives this branch).
+    f = S2bFeatures(max_trade_structural_risk_pct=0.10)
+    assert size_qty(200_000.0, 0.5, 10.0, f) == 13
+
+
+def test_size_qty_default_max_trade_structural_risk_pct_is_unchanged():
+    assert S2bFeatures().max_trade_structural_risk_pct == 0.05
+
+
 # ── cap_to_budgets: reduce qty to fit book limits, 0 when a budget is exhausted ─
 
 def _pos(credit, qty, expiry, entry_date):
@@ -132,6 +145,62 @@ def test_cap_to_budgets_qty_zero_input_stays_zero():
     f = S2bFeatures()
     assert cap_to_budgets(0, 2.0, 10.0, "2026-07-18", "2026-07-14", [], lambda p: p.credit,
                            100_000.0, f) == 0
+
+
+def test_cap_to_budgets_no_foreign_exposure_arg_matches_default_none_regression():
+    """Omitting foreign_exposure entirely must behave exactly like passing foreign_exposure=None
+    (which in turn must behave exactly like before this param existed) -- a pure regression check."""
+    f = S2bFeatures()
+    risk_equity = 100_000.0
+    expiry = "2026-07-18"
+    open_positions = [_pos(2.0, 5, expiry, "2026-07-10")]
+    mark_fn = lambda p: p.credit
+    q_omitted = cap_to_budgets(5, 2.0, 10.0, expiry, "2026-07-14", open_positions, mark_fn, risk_equity, f)
+    q_explicit_none = cap_to_budgets(5, 2.0, 10.0, expiry, "2026-07-14", open_positions, mark_fn,
+                                      risk_equity, f, foreign_exposure=None)
+    q_explicit_zero = cap_to_budgets(5, 2.0, 10.0, expiry, "2026-07-14", open_positions, mark_fn,
+                                      risk_equity, f, foreign_exposure={"stop": 0.0, "structural": 0.0})
+    assert q_omitted == q_explicit_none == q_explicit_zero == 2   # same as
+    # test_cap_to_budgets_reduces_qty_for_nearly_full_expiry_budget
+
+
+def test_cap_to_budgets_large_foreign_exposure_tightens_total_stop_budget():
+    f = S2bFeatures()   # max_total_stop_risk_pct=0.04 -> budget = 100000*0.04 = 4000
+    risk_equity = 100_000.0
+    expiry = "2026-07-18"
+    # no book at all -- only foreign exposure eats the TOTAL stop budget.
+    # foreign stop = 3600 -> remaining = 400 -> per-contract stop (credit=2.0, wing=10) = 410
+    # -> floor(400/410) = 0 -> capped to 0 by the total-stop budget alone.
+    foreign = {"stop": 3600.0, "structural": 0.0}
+    q = cap_to_budgets(5, 2.0, 10.0, expiry, "2026-07-14", [], lambda p: p.credit,
+                        risk_equity, f, foreign_exposure=foreign)
+    assert q == 0
+
+
+def test_cap_to_budgets_large_foreign_exposure_tightens_total_structural_budget():
+    f = S2bFeatures()   # max_total_structural_risk_pct=0.15 -> budget = 100000*0.15 = 15000
+    risk_equity = 100_000.0
+    expiry = "2026-07-18"
+    # foreign structural = 14200 -> remaining = 800 -> per-contract structural (credit=2.0, wing=10)
+    # = 800 -> floor(800/800) = 1 -> capped to 1 by the total-structural budget alone.
+    foreign = {"stop": 0.0, "structural": 14200.0}
+    q = cap_to_budgets(5, 2.0, 10.0, expiry, "2026-07-14", [], lambda p: p.credit,
+                        risk_equity, f, foreign_exposure=foreign)
+    assert q == 1
+
+
+def test_cap_to_budgets_foreign_exposure_combines_with_own_book_in_total_budgets():
+    f = S2bFeatures()
+    risk_equity = 100_000.0
+    expiry = "2026-07-18"
+    # own book: same expiry, PRIOR day, credit=2.0 qty=3 -> stop=(6.0-2.0+0.10)*100*3=1230;
+    # structural = (10-2.0)*100*3 = 2400. Plus foreign stop=2500 -> total_stop=3730;
+    # total budget = 100000*0.04=4000 -> remaining=270 -> floor(270/410)=0
+    open_positions = [_pos(2.0, 3, expiry, "2026-07-10")]
+    foreign = {"stop": 2500.0, "structural": 0.0}
+    q = cap_to_budgets(5, 2.0, 10.0, expiry, "2026-07-14", open_positions, lambda p: p.credit,
+                        risk_equity, f, foreign_exposure=foreign)
+    assert q == 0
 
 
 def test_cap_to_budgets_excludes_incurred_loss_from_book_risk():
@@ -210,6 +279,40 @@ def test_orchestrator_aggregate_risk_budget_on_rejects_when_capped_to_zero():
     state, info = run_entry_cycle(state, d, MONDAY)
     assert info == "risk_budget"
     assert state.open_positions == []
+
+
+def test_orchestrator_foreign_spy_position_tightens_total_budget_for_new_entry():
+    """partner review v2 §2: a foreign SPY spread at the broker (not opened by this bot) must count
+    toward this bot's TOTAL stop/structural budget and can, by itself, reject an entry that would
+    otherwise have filled (see test_orchestrator_aggregate_risk_budget_on_sizes_via_budget: with NO
+    foreign exposure this exact setup fills 1 contract)."""
+    state = BotState()
+    f = S2bFeatures(aggregate_risk_budget=True)
+    # unrelated strikes/expiry (this bot has no open positions yet, so nothing to accidentally
+    # match-and-exclude anyway); credit=0.0 (foreign/unknown) -> conservative full-width stop =
+    # 10*100*4 = 4000, which alone consumes the entire max_total_stop_risk_pct budget
+    # (100_000 * 0.04 = 4000), leaving 0 room for the proposed trade's 410-per-contract stop.
+    foreign_spread = ManagedPosition("SPY", 600.0, 590.0, 0.0, 4, "2099-01-01")
+    d = _deps(features=f, account_spy_spreads=lambda: [foreign_spread])
+
+    state, info = run_entry_cycle(state, d, MONDAY)
+
+    assert info == "risk_budget"
+    assert state.open_positions == []
+
+
+def test_orchestrator_no_account_spy_spreads_feed_is_unaffected_regression():
+    """Deps.account_spy_spreads defaults to None (no feed wired) -> foreign exposure must be treated
+    as zero, exactly reproducing the pre-Fix-A behavior."""
+    state = BotState()
+    f = S2bFeatures(aggregate_risk_budget=True)
+    d = _deps(features=f)   # no account_spy_spreads override -> None
+    assert d.account_spy_spreads is None
+
+    state, info = run_entry_cycle(state, d, MONDAY)
+
+    assert info == "filled"
+    assert state.open_positions[0].qty == 1   # unchanged from test_orchestrator_aggregate_risk_budget_on_sizes_via_budget
 
 
 def test_orchestrator_aggregate_risk_budget_off_by_default_unchanged():

@@ -20,7 +20,7 @@ def make_trade_logger(path, include_cost_columns=False, include_decision_columns
     """Return a callable that appends a trade-record dict to a CSV (header written once).
     Used per-bot so a shared-account A/B can be measured from separate files.
 
-    include_cost_columns=False (default) keeps the original 11-column CSV shape byte-identical --
+    include_cost_columns=False (default) keeps the original 12-column CSV shape byte-identical --
     critical for the real-money live bot (run_s2b_live.py), whose actual_fill_accounting is always
     OFF. Pass True only for a bot with the flag on, so its gross_pnl/net_pnl columns are populated.
 
@@ -210,4 +210,5 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         features=features,
         risk_equity=lambda: exposure.risk_equity(features.allocated_equity, broker_equity()),
         account_spy_exposure=lambda: exposure.account_spy_exposure(feeds.reconstruct_spreads(broker_legs())),
+        account_spy_spreads=lambda: feeds.reconstruct_spreads(broker_legs()),
     )

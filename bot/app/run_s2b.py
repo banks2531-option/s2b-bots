@@ -94,7 +94,7 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
 
     # resolve features here (rather than only inside build_deps) so the trade logger's CSV column
     # set can be gated on the same flag -- the live bot (features=None -> all-off) must keep its
-    # original 11-column trades_live.csv byte-identical (spec §8 / partner review fix).
+    # original 12-column trades_live.csv byte-identical (spec §8 / partner review fix).
     resolved_features = features if features is not None else S2bFeatures()
 
     from bot.regime.logger import make_regime_logger

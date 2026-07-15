@@ -151,7 +151,13 @@ class MarkoutTracker:
         Best-effort: a symbol missing from the batch -> that spread's mark is None (handled by
         resolve_due's None-guards); never raises. Returns a coverage dict
         {"quotes_requested": <#unique legs requested>, "quotes_missing": <#legs absent from batch>}
-        so a caller can see how many legs the batch failed to cover."""
+        so a caller can see how many legs the batch failed to cover.
+
+        NOTE (differs from plain resolve_due): to avoid quoting a spread we can't yet act on, an item
+        younger than the first horizon (<1 min) is skipped entirely this cycle, so its MFE/MAE (and
+        any filled TP/stop crossing) is deferred until the 1-min horizon is due. resolve_due updates
+        every pending item every call; the deferral is immaterial at minute-scale horizons vs
+        second-scale ticks, and by the 1-min mark the item is quoted like any other."""
         # 1. unique due spreads -> their two OCC leg symbols (deduped across all pending items)
         due_legs = {}          # _spread_key -> (short_sym, long_sym)
         symbols = set()

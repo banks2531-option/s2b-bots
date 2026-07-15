@@ -511,6 +511,38 @@ def test_markout_signal_dedup_within_15min_window():
     assert len(state.markout_pending) == 3
 
 
+def test_markout_dedup_key_includes_filled_so_reject_then_fill_both_record():
+    """A candidate REJECTED and then FILLED at the same strikes in the same 15-min window must
+    record BOTH markouts -- the fill's follow-up is the richer one (filled=True carries
+    tp_value/stop_value and drives time-to-TP/time-to-stop), and the reject->fill transition is
+    exactly the filled-vs-rejected comparison §14 exists to measure. `filled` is part of the dedup
+    key, so the fill is NOT deduped away by the earlier reject (Task 4 review fix)."""
+    logged = []
+    thin_chain = [   # 568/558, too thin -> cost_gate reject
+        OptionQuote(strike=568.0, delta=0.36, bid=0.50, ask=0.55),
+        OptionQuote(strike=558.0, delta=0.18, bid=0.10, ask=0.15),
+    ]
+    d_reject = _base_deps(features=S2bFeatures(markout_tracking=True, transaction_cost_gate=True),
+                          get_chain=lambda sym, exp: thin_chain,
+                          markout_log=lambda rec: logged.append(rec))
+    # fill deps: same 568/558 strikes, rich enough to fill; only markout_tracking on (legacy sizing)
+    d_fill = _base_deps(features=S2bFeatures(markout_tracking=True),
+                        get_chain=lambda sym, exp: _pos_chain(),
+                        markout_log=lambda rec: logged.append(rec))
+    state = BotState()
+    # poll 1 (10:05, bucket15==2): REJECT the 568/558 candidate -> markout filled=False
+    state, info = run_entry_cycle(state, d_reject, datetime(2026, 6, 15, 10, 5))
+    assert info == "cost_gate"
+    assert len(state.markout_pending) == 1
+    assert state.markout_pending[0]["filled"] is False
+    # poll 2 (10:08, SAME window, SAME strikes): FILL -> a SECOND, filled=True markout (not deduped)
+    state, info = run_entry_cycle(state, d_fill, datetime(2026, 6, 15, 10, 8))
+    assert info == "filled"
+    assert len(state.markout_pending) == 2
+    assert state.markout_pending[1]["filled"] is True
+    assert state.markout_pending[1]["tp_value"] is not None   # the richer fill-only follow-up fields
+
+
 def test_bot_c_both_flags_off_does_zero_markout_work():
     """Bot C (live, real money): regime_shadow_monitor=False AND markout_tracking=False must do
     ZERO markout work -- no pending, no obs key, no log writes, and option_quotes never called."""

@@ -603,20 +603,24 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         Dedup (Priority-0 fix item 4): a bot polling every few minutes re-evaluates the SAME
         candidate spread dozens of times a day; without dedup each poll would spawn its own pending
         markout, flooding the research log with near-duplicate follow-ups of one signal. Reusing the
-        item-3 dedup notion, we key on (date, expiry, short, long, bucket15) and skip recording when
-        this candidate matches the last one recorded -- so repeated identical candidates in one
-        15-minute window spawn at most one pending markout; a new window or a new strike spawns another."""
+        item-3 dedup notion, we key on (date, expiry, short, long, bucket15, filled) and skip
+        recording when this candidate matches the last one recorded -- so repeated identical
+        candidates in one 15-minute window spawn at most one pending markout; a new window or a new
+        strike spawns another. `filled` is part of the key on purpose: a candidate that is rejected
+        and then FILLED at the same strikes in the same window must still capture the fill's richer
+        follow-up (filled=True carries tp_value/stop_value and drives time-to-TP/time-to-stop) -- the
+        reject->fill transition is exactly the filled-vs-rejected comparison §14 exists to measure."""
         try:
             minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET
             bucket15 = minutes_since_open // 15
+            filled = (reason == "filled")
             key = {"date": today, "expiry": expiry, "short": order.short_strike,
-                   "long": order.long_strike, "bucket15": bucket15}
+                   "long": order.long_strike, "bucket15": bucket15, "filled": filled}
             if state.markout_obs_last == key:
-                return                       # same candidate already recorded this 15-min window
+                return                       # same candidate+outcome already recorded this 15-min window
             state.markout_seq += 1
             tracker = MarkoutTracker.from_state(state.markout_pending, deps.markout_log)
             cfg = deps.manage_cfg
-            filled = (reason == "filled")
             tracker.record_signal(now, {
                 "signal_id": f"{today}-{state.markout_seq}", "ticker": order.ticker,
                 "short_strike": order.short_strike, "long_strike": order.long_strike,

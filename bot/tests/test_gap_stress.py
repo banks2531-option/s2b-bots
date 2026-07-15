@@ -42,6 +42,9 @@ def test_bs_grid_reports_larger_loss_than_intrinsic_for_743_733():
     intrinsic = stressed_spread_loss(**kw, drop_atr=1.5)
     bs = stressed_spread_loss_bs(**kw, drop_atr=1.5, dte=9, short_iv=0.18, long_iv=0.20, f=f)
     assert bs > intrinsic          # BS shows a worse (larger) loss than intrinsic
+    # Pin the exact worst-cell $ (0.18/0.20 IVs, default grid) so a cell-selection or qty-scaling
+    # regression is caught, not just the inequality above.
+    assert bs == pytest.approx(3901.65, abs=0.01)
 
 
 # ── gap_stress_losses: sums across positions, for all three drops ──────────────
@@ -89,8 +92,10 @@ def test_gap_stress_ok_true_when_1_5_atr_loss_within_budget():
 
 from datetime import datetime
 
-from bot.app.orchestrator import BotState, Deps, run_entry_cycle
-from bot.strategy.s2b import OptionQuote
+import types
+
+from bot.app.orchestrator import BotState, Deps, run_entry_cycle, _make_gap_iv_resolver
+from bot.strategy.s2b import OptionQuote, _occ
 from bot.risk_gate import AccountState
 from bot.features import S2bFeatures
 
@@ -290,3 +295,82 @@ def test_orchestrator_bs_gap_stress_logged_equals_enforced_and_exceeds_intrinsic
     bs_loss = _run("bs")
     intrinsic_loss = _run("intrinsic")
     assert bs_loss > intrinsic_loss
+
+
+# ── iv_fn IV-source priority: real greeks -> VIX-derived -> fallback (item 5 A + nit B3) ─
+
+def test_iv_fn_vix_derived_and_fallback_sources():
+    # nit B3: direct iv_fn unit test. No greeks dep wired -> the VIX-derived / fallback branch only.
+    d = _deps(features=S2bFeatures())   # gap_fallback_iv defaults 0.20
+    pos = _pos(743.0, 733.0, 1.39, 8)
+    _, iv_fn = _make_gap_iv_resolver(d, None)                                   # regime=None
+    assert iv_fn(pos) == (0.20, 0.20)                                           # -> gap_fallback_iv
+    _, iv_fn = _make_gap_iv_resolver(d, types.SimpleNamespace(vix_level=16.0))  # real VIX 16
+    assert iv_fn(pos) == (0.16, 0.16)                                           # -> 16/100
+    _, iv_fn = _make_gap_iv_resolver(d, types.SimpleNamespace(vix_level=0))     # VIX 0 (bad)
+    assert iv_fn(pos) == (0.20, 0.20)                                           # -> gap_fallback_iv
+
+
+def test_iv_fn_real_greeks_per_leg_with_fallback():
+    # A6(a)+(b): real per-leg mid_iv from the batched fetch is preferred; a leg missing from the
+    # fetch falls back (here to VIX-derived, since a positive vix_level is supplied).
+    pos = _pos(743.0, 733.0, 1.39, 8)   # _pos expiry 2026-07-18
+    short_sym = _occ("SPY", "2026-07-18", "P", 743.0)
+    fetch = lambda syms: {short_sym: 0.31}          # only the SHORT leg has real greeks
+    d = _deps(features=S2bFeatures(), option_greeks_iv=fetch)
+    prime, iv_fn = _make_gap_iv_resolver(d, types.SimpleNamespace(vix_level=16.0))
+    prime([pos])
+    assert iv_fn(pos) == (0.31, 0.16)               # short=real mid_iv, long=VIX-derived fallback
+
+
+def test_orchestrator_greeks_fetch_batched_and_memoized_single_call():
+    # A6(c) batched + A6(d) memoized: a full Bot-B cycle issues EXACTLY ONE greeks fetch, and that
+    # single call carries every unique leg symbol in the gap-stress book (proposed + foreign).
+    calls = []
+    def fetch(syms):
+        calls.append(list(syms))
+        return {s: 0.19 for s in syms}
+    foreign = ManagedPosition("SPY", 572.0, 562.0, credit=0.0, qty=3, expiry="2026-06-19",
+                               entry_date="2026-06-10")
+    log = []
+    state = BotState()
+    f = S2bFeatures(aggregate_risk_budget=True, decision_logging=True, max_gap_stress_loss_pct=1.0)
+    d = _deps(features=f, trade_log=lambda rec: log.append(rec),
+              account_spy_spreads=lambda: [foreign], option_greeks_iv=fetch)
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert info == "filled"
+    assert len(calls) == 1                                # one fetch shared across all 3 sites
+    got = set(calls[0])
+    for strike in (568.0, 558.0, 572.0, 562.0):          # proposed 568/558 + foreign 572/562
+        assert _occ("SPY", "2026-06-19", "P", strike) in got
+
+
+def test_orchestrator_bot_c_triggers_zero_greeks_fetch():
+    # A6(e) GUARDRAIL: both gates OFF (live Bot C) -> gap-stress paths never run -> ZERO greeks calls.
+    calls = []
+    fetch = lambda syms: (calls.append(list(syms)) or {})
+    state = BotState()
+    d = _deps(option_greeks_iv=fetch)    # default features -> aggregate_risk_budget & decision_logging OFF
+    assert d.features.aggregate_risk_budget is False and d.features.decision_logging is False
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert info == "filled"
+    assert calls == []                                   # Bot C fetched nothing (byte-identical)
+
+
+def test_orchestrator_logged_equals_enforced_under_real_greeks():
+    # A6(f): with real per-leg mid_iv, the §12 DECISION agg_gap_stress_1_5 still == the §10 OPEN
+    # gap_stress_1_5 (all three sites share the one memoized fetch + iv_fn).
+    fetch = lambda syms: {s: 0.22 for s in syms}
+    foreign = ManagedPosition("SPY", 572.0, 562.0, credit=0.0, qty=3, expiry="2026-06-19",
+                               entry_date="2026-06-10")
+    log = []
+    state = BotState()
+    f = S2bFeatures(aggregate_risk_budget=True, decision_logging=True, max_gap_stress_loss_pct=1.0)
+    d = _deps(features=f, trade_log=lambda rec: log.append(rec),
+              account_spy_spreads=lambda: [foreign], option_greeks_iv=fetch)
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert info == "filled"
+    decision = next(r for r in log if r["event"] == "DECISION" and r["decision"] == "filled")
+    open_rec = next(r for r in log if r["event"] == "OPEN")
+    assert decision["agg_gap_stress_1_5"] == pytest.approx(open_rec["gap_stress_1_5"])
+    assert open_rec["gap_stress_1_5"] != 0.0

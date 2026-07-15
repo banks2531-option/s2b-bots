@@ -3,7 +3,7 @@ from dataclasses import dataclass, field, replace
 
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
-from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload
+from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload, _occ
 from bot.strategy.execution_price import (quotes_valid, package_too_wide,
                                            expected_executable_credit, spot_moved_too_far)
 from bot.features import S2bFeatures
@@ -98,6 +98,11 @@ class Deps:
     account_spy_exposure: callable = None   # () -> {"structural": float, "stop": float} across EVERY SPY spread at the broker
     account_spy_spreads: callable = None    # () -> list[ManagedPosition]; the RAW broker-wide SPY spread list (own + foreign),
                                              # used to derive foreign-only exposure via exposure.foreign_spy_exposure (§2)
+    option_greeks_iv: callable = None       # (list[occ_symbol]) -> {occ_symbol: mid_iv float}; ONE batched Tradier
+                                             # greeks fetch for the BS gap-stress iv_fn (Priority-0 fix item 5). None ->
+                                             # iv_fn uses VIX-derived/gap_fallback_iv only. ONLY invoked on the gated
+                                             # Bot-B gap-stress paths (via _make_gap_iv_resolver's lazy prime), so the
+                                             # ungated live Bot C never calls it (zero new API traffic).
     shadow_data: callable = _default_shadow_data   # () -> dict of §13 raw inputs (partner review v2 §13).
                                              # ONLY called when deps.features.regime_shadow_monitor is on;
                                              # best-effort, wired for real in bot.app.wiring.build_deps.
@@ -396,8 +401,81 @@ def run_markout_cycle(state: BotState, deps: Deps, now) -> None:
         pass
 
 
+def _make_gap_iv_resolver(deps, regime):
+    """Build the (prime, iv_fn) pair used by the BS gap-stress reprice (Priority-0 fix item 5).
+
+    Per-leg IV is sourced in priority order:
+      1. REAL market mid_iv per leg -- from a SINGLE batched, memoized Tradier greeks fetch
+         (deps.option_greeks_iv), primed once per entry cycle from the whole gap-stress book;
+      2. VIX-derived (regime.vix_level / 100, a 30d annualized vol);
+      3. features.gap_fallback_iv.
+
+    iv_fn ALWAYS returns a positive (short_iv, long_iv) -- never None/raises/<=0 -- so foreign
+    spreads and any leg whose greeks are missing still get a finite stress. The stressed put-skew
+    bump is applied ON TOP of these real IVs inside the BS grid (features.gap_skew_bump), separately.
+
+    GUARDRAIL: the greeks fetch is LAZY -- it only runs when `prime` is actually called, which only
+    happens on the gated gap-stress paths (aggregate_risk_budget enforcement / decision_logging
+    telemetry). Both are OFF on the live Bot C, so Bot C triggers ZERO greeks fetches. Factored out
+    of run_entry_cycle so iv_fn/prime are unit-testable in isolation."""
+    base_iv = deps.features.gap_fallback_iv
+    vl = getattr(regime, "vix_level", None) if regime is not None else None
+    if isinstance(vl, (int, float)) and vl > 0:
+        base_iv = float(vl) / 100.0
+    if not (base_iv and base_iv > 0):
+        base_iv = deps.features.gap_fallback_iv
+
+    cache = {}          # OCC option symbol -> real market mid_iv (>0)
+    fetched = [False]   # one-shot latch: the batched greeks fetch happens AT MOST once per cycle
+
+    def leg_symbol(p, strike):
+        return _occ(getattr(p, "ticker", "SPY") or "SPY", getattr(p, "expiry", None), "P", strike)
+
+    def prime(book):
+        """Batched, memoized real-greeks fetch for EVERY leg symbol in `book` (own + foreign +
+        proposed). One deps.option_greeks_iv call for all symbols; runs at most once per cycle;
+        skipped entirely when deps.option_greeks_iv is unwired. Best-effort -- never raises."""
+        if fetched[0]:
+            return
+        fetched[0] = True   # latch BEFORE the call so even a raising fetch can't retry-storm
+        if deps.option_greeks_iv is None:
+            return
+        syms = set()
+        for p in book:
+            if not getattr(p, "expiry", None):
+                continue
+            try:
+                syms.add(leg_symbol(p, p.short_strike))
+                syms.add(leg_symbol(p, p.long_strike))
+            except Exception:
+                pass
+        if not syms:
+            return
+        try:
+            got = deps.option_greeks_iv(sorted(syms)) or {}
+            for k, v in got.items():
+                if v is not None and v > 0:
+                    cache[k] = float(v)
+        except Exception:
+            pass
+
+    def iv_fn(position):
+        """(short_iv, long_iv): real per-leg mid_iv when cached (>0), else VIX-derived, else fallback."""
+        out = []
+        for strike in (position.short_strike, position.long_strike):
+            v = None
+            try:
+                v = cache.get(leg_symbol(position, strike))
+            except Exception:
+                v = None
+            out.append(v if (v is not None and v > 0) else base_iv)
+        return (out[0], out[1])
+
+    return prime, iv_fn
+
+
 def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None, expiry=None, order=None,
-                        foreign_positions=(), iv_fn=None):
+                        foreign_positions=(), iv_fn=None, prime_iv=None):
     """Best-effort per-entry exposure snapshot for the DECISION log (partner review v2 §12): positions
     opened today, positions in the target expiration, distance between adjacent short strikes
     (including the proposed spread, when one exists), aggregate remaining stop risk, aggregate
@@ -444,8 +522,12 @@ def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None,
             # telemetry/credit nuance to be revisited in the gap-stress rework (Task 5).
             positions_for_stress = (list(state.open_positions) + list(foreign_positions)
                                     + ([order] if order is not None else []))
-            # Priority-0 fix item 5: same BS model + IV source + `today` as the §10 enforcement calc
-            # below, so this logged agg_gap_stress_1_5 stays == the enforced/OPEN-row gap_stress_1_5.
+            # Priority-0 fix item 5: same BS model + IV source + `today` as the §10 enforcement calc,
+            # so this logged agg_gap_stress_1_5 stays == the enforced/OPEN-row gap_stress_1_5 (holds
+            # exactly when risk_credit == order.credit; see the enforcement-site note). prime_iv is the
+            # SAME memoized resolver, so the batched greeks fetch is shared (no extra call here).
+            if prime_iv is not None:
+                prime_iv(positions_for_stress)
             tel["agg_gap_stress_1_5"] = gap_stress_losses(
                 positions_for_stress, spot, atr, deps.s2b_cfg.wing_width,
                 today=today, iv_fn=iv_fn, f=deps.features)[1.5]
@@ -459,27 +541,11 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     if state.last_entry_date != today:
         state.entries_today = 0          # new calendar day -> reset the daily entry counter
 
-    # Priority-0 fix item 5: per-leg IV source for the BS gap-stress reprice. The entry-path quote
-    # (OptionQuote) carries NO IV -- only the §13 shadow greeks fetch does -- so there is no per-leg
-    # IV on the book's positions/proposed order. We source a single usable annualized IV from the
-    # VIX level when it is available to the orchestrator (regime.vix_level, a 30d annualized vol in
-    # %, /100), else features.gap_fallback_iv. Per-leg differentiation (stressed put skew) is applied
-    # inside the BS shock grid (gap_skew_bump), not here. ALWAYS returns a positive (short_iv, long_iv)
-    # -- never None/raises -- so foreign/other-expiry legs still get a finite stress. Built once and
-    # shared by all three gap-stress call sites (telemetry + enforcement) so logged == enforced.
-    _base_iv = deps.features.gap_fallback_iv
-    try:
-        _vix_level = getattr(regime, "vix_level", None) if regime is not None else None
-        if _vix_level is not None and _vix_level > 0:
-            _base_iv = float(_vix_level) / 100.0
-    except Exception:
-        _base_iv = deps.features.gap_fallback_iv
-    if not (_base_iv and _base_iv > 0):
-        _base_iv = deps.features.gap_fallback_iv
-
-    def iv_fn(_position):
-        """(short_iv, long_iv) annualized for a book position/proposed leg. Never None/raises."""
-        return (_base_iv, _base_iv)
+    # Priority-0 fix item 5: per-leg IV source for the BS gap-stress reprice, built once and shared by
+    # ALL THREE gap-stress call sites (telemetry + enforcement + shrink-loop) so logged == enforced.
+    # The resolver primes a batched, memoized real-greeks fetch (mid_iv) lazily -- see
+    # _make_gap_iv_resolver -- so an ungated live-path bot never triggers a fetch.
+    _prime_leg_ivs, iv_fn = _make_gap_iv_resolver(deps, regime)
 
     exec_credit = None       # §4 conservative expected-executable credit; set once quote guards pass
     credit_telemetry = None  # §3: credit_ratio/credit_pctl40/credit_sample_count/credit_threshold/
@@ -554,7 +620,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         if risk_budget_telemetry is not None:   # item 7: which budget bound a risk_budget reject
             rec.update(risk_budget_telemetry)
         rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order,
-                                        foreign_positions=foreign_position_list, iv_fn=iv_fn))
+                                        foreign_positions=foreign_position_list, iv_fn=iv_fn,
+                                        prime_iv=_prime_leg_ivs))
         try:
             deps.trade_log(rec)
         except Exception:
@@ -761,9 +828,14 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # view -- the real `order` object, used for the broker payload/OPEN record below, is left
         # untouched).
         gap_budget = deps.features.max_gap_stress_loss_pct * req
-        # Priority-0 fix item 5: BS shock-grid reprice (worst-cell) instead of intrinsic-only. Same
-        # iv_fn/today/features as the §12 DECISION-telemetry calc above -> logged == enforced.
+        # Priority-0 fix item 5: BS shock-grid reprice (worst-cell) instead of intrinsic-only. Uses
+        # the SAME memoized iv_fn/today/features as the §12 DECISION-telemetry calc, so the logged
+        # agg_gap_stress_1_5 matches this enforced/OPEN-row gap_stress_1_5 -- exactly when
+        # risk_credit == order.credit (they diverge only on the credit-tier/cost-gate path, where the
+        # proposed leg is stressed at exec_credit here vs order.credit in telemetry; deferred nuance).
+        # prime_leg_ivs runs the single batched greeks fetch for the whole book (memoized thereafter).
         gap_stress_book = state.open_positions + foreign_position_list + [replace(order, credit=risk_credit)]
+        _prime_leg_ivs(gap_stress_book)
         gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width,
                                        today=today, iv_fn=iv_fn, f=deps.features)
         while order.qty > 0 and gap_losses[1.5] > gap_budget:

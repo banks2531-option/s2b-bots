@@ -35,12 +35,12 @@ def stressed_spread_loss_bs(short_strike, long_strike, credit, qty, spot, atr, d
     S = spot - drop_atr * atr
     worst = 0.0
     for iv_bump in f.gap_iv_shocks:
-        for skew_extra in (0.0, f.gap_skew_bump):      # normal, stressed skew (short leg bumped more)
+        for skew_extra in (0.0, f.gap_skew_bump):      # worst-case: bump the SHORT leg to maximize debit
             sp = bs_put(S, short_strike, T, short_iv + iv_bump + skew_extra, f.risk_free_rate)
             lp = bs_put(S, long_strike,  T, long_iv  + iv_bump,             f.risk_free_rate)
             mid = sp - lp
-            nat = mid * (1.0 + f.gap_stress_widen)      # stressed-natural close
-            worst = max(worst, mid, nat)
+            nat = mid * (1.0 + f.gap_stress_widen)      # stressed-natural close (nat >= mid, since
+            worst = max(worst, nat)                     # short>long puts -> mid>=0 and widen>0)
     worst = min(wing_width, max(0.0, worst))
     return (worst - credit) * 100.0 * qty
 

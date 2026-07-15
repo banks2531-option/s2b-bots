@@ -68,6 +68,29 @@ def test_build_deps_drives_a_clean_monday_entry_tick():
     assert len(state.open_positions) == 1 and state.open_positions[0].short_strike == 568.0
 
 
+def test_option_greeks_iv_batched_maps_mid_iv_with_smv_vol_fallback():
+    # Priority-0 fix item 5: the wired batched greeks fetch parses mid_iv (falling back to smv_vol)
+    # for a multi-symbol /markets/quotes call, in ONE request, dropping symbols without a usable IV.
+    calls = []
+    def http(method, path, params=None, data=None):
+        calls.append((path, params))
+        return {"quotes": {"quote": [
+            {"symbol": "SPY260619P00568000", "greeks": {"mid_iv": 0.21}},
+            {"symbol": "SPY260619P00558000", "greeks": {"smv_vol": 0.24}},   # mid_iv missing -> smv_vol
+            {"symbol": "SPY260619P00560000", "greeks": {"mid_iv": 0.0}},      # non-positive -> dropped
+            {"symbol": "SPY260619P00565000", "greeks": {}},                    # no IV -> dropped
+        ]}}
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01))
+    syms = ["SPY260619P00568000", "SPY260619P00558000", "SPY260619P00560000", "SPY260619P00565000"]
+    got = deps.option_greeks_iv(syms)
+    assert got == {"SPY260619P00568000": 0.21, "SPY260619P00558000": 0.24}
+    quote_calls = [c for c in calls if c[0] == "/markets/quotes"]
+    assert len(quote_calls) == 1                                   # single batched request
+    assert quote_calls[0][1]["symbols"] == ",".join(syms)          # all symbols in one call
+    assert quote_calls[0][1]["greeks"] == "true"
+
+
 def test_build_deps_broker_positions_reconstructs():
     positions_resp = {"positions": {"position": [
         {"symbol": "SPY260619P00568000", "quantity": -2},

@@ -179,6 +179,39 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
     def broker_equity():
         return feeds.parse_equity(http("GET", f"/accounts/{account_id}/balances"))
 
+    def option_greeks_iv(symbols):
+        """Priority-0 fix item 5: ONE batched Tradier greeks fetch for the BS gap-stress iv_fn.
+        [OCC option symbol] -> {symbol: mid_iv}. A single /markets/quotes call (greeks=true) for the
+        whole gap-stress book. Best-effort: any symbol without a usable mid_iv (falls back to smv_vol)
+        is simply absent from the map, so the orchestrator's iv_fn falls back per leg. NEVER raises.
+        Only ever called on the gated Bot-B gap-stress paths, so Bot C issues no such request."""
+        out = {}
+        if not symbols:
+            return out
+        try:
+            resp = http("GET", "/markets/quotes",
+                        params={"symbols": ",".join(symbols), "greeks": "true"})
+            quotes = (resp.get("quotes") or {}).get("quote") or []
+            if isinstance(quotes, dict):
+                quotes = [quotes]
+            for q in quotes:
+                sym = q.get("symbol")
+                greeks = q.get("greeks") or {}
+                iv = greeks.get("mid_iv")
+                if iv is None:
+                    iv = greeks.get("smv_vol")
+                if sym is None or iv is None:
+                    continue
+                try:
+                    ivf = float(iv)
+                except (TypeError, ValueError):
+                    continue
+                if ivf > 0:
+                    out[sym] = ivf
+        except Exception:
+            pass
+        return out
+
     def _to_execution_result(state, order, payload):
         """Build an ExecutionResult (spec §8) from a terminal OrderState + the raw Tradier order.
         Falls back to the requested/submitted values whenever the broker doesn't report an actual
@@ -597,4 +630,5 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         risk_equity=lambda: exposure.risk_equity(features.allocated_equity, broker_equity()),
         account_spy_exposure=lambda: exposure.account_spy_exposure(feeds.reconstruct_spreads(broker_legs())),
         account_spy_spreads=lambda: feeds.reconstruct_spreads(broker_legs()),
+        option_greeks_iv=option_greeks_iv,
     )

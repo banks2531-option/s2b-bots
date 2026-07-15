@@ -6,6 +6,7 @@ from bot.app import feeds
 from bot.app.orchestrator import Deps, tick
 from bot.app.state_store import save_state
 from bot.strategy.s2b import _occ
+from bot.strategy.cost_gate import one_side_commission_per_contract
 from bot.features import S2bFeatures
 
 _LOG_FIELDS = ["event", "date", "ticker", "short", "long", "expiry", "qty",
@@ -195,7 +196,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
             regulatory_fees = float(raw_reg_fees or 0.0)
         else:                                             # sandbox reports none -> synthetic fallback
             # one side (2 legs); the paired open+close orders sum to round_trip_commission_per_contract
-            commissions = features.commission_per_contract_per_leg_per_side * 2 * filled_quantity
+            commissions = one_side_commission_per_contract(features) * filled_quantity
             regulatory_fees = 0.0
         oid = order.get("id") if isinstance(order, dict) else None
         return ExecutionResult(status=status, requested_quantity=requested_qty,

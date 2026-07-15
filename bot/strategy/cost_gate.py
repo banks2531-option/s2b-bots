@@ -1,9 +1,14 @@
 """Transaction-cost profitability gate (partner review v2 §5)."""
 
 
+def one_side_commission_per_contract(f):
+    """One side (open OR close) = 2 legs, per contract."""
+    return f.commission_per_contract_per_leg_per_side * 2
+
+
 def round_trip_commission_per_contract(f):
     """2 legs x 2 sides (entry + exit), per contract."""
-    return f.commission_per_contract_per_leg_per_side * 2 * 2
+    return one_side_commission_per_contract(f) * 2
 
 
 def estimated_round_trip_cost(f):

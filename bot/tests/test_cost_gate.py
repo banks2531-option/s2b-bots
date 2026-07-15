@@ -78,10 +78,15 @@ def test_full_size_threshold_empty_history_and_zero_min_signals_returns_floor_no
 # ── round-trip commission consistency (P0 fix item 1) ───────────────────────────────────────────
 
 def test_round_trip_commission_is_two_legs_two_sides():
-    from bot.strategy.cost_gate import round_trip_commission_per_contract
+    from bot.strategy.cost_gate import (one_side_commission_per_contract,
+                                        round_trip_commission_per_contract)
     from bot.features import S2bFeatures
     f = S2bFeatures()  # 0.65 default
-    assert round_trip_commission_per_contract(f) == 0.65 * 2 * 2  # 2 legs x 2 sides = 2.60
+    # document the model as relationships, not a restated literal:
+    #   one side  = 2 legs  ->  per-leg-per-side x 2
+    #   round trip = 2 sides -> one side x 2
+    assert one_side_commission_per_contract(f) == f.commission_per_contract_per_leg_per_side * 2
+    assert round_trip_commission_per_contract(f) == one_side_commission_per_contract(f) * 2
 
 
 def test_round_trip_cost_uses_full_commission():

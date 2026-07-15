@@ -75,6 +75,43 @@ def test_open_spread_falls_back_to_submitted_limit_and_requested_qty_when_broker
     assert result.commissions == 0.65 * 2 * 3  # default commission_per_contract_per_leg_per_side = 0.65
 
 
+def test_open_and_close_synthetic_commissions_sum_to_round_trip_cross_check():
+    # Cross-check tying wiring's synthetic per-order commission to the cost-gate model: an OPEN plus
+    # its matching CLOSE (each = one side = 2 legs) must sum to EXACTLY the cost gate's
+    # round_trip_commission_per_contract for the same features + filled qty. Fails the instant the
+    # two sides desync -- the exact bug this task fixed.
+    from bot.app.wiring import build_deps
+    from bot.strategy.cost_gate import round_trip_commission_per_contract
+
+    f = S2bFeatures(commission_per_contract_per_leg_per_side=0.70)
+
+    def http(method, path, params=None, data=None):
+        if "/balances" in path:
+            return {"balances": {"total_equity": 20_000.0}}
+        if path == "/markets/quotes":                      # close_spread looks up the two put legs
+            sym = params["symbols"]
+            bid, ask = ((3.40, 3.50) if sym.endswith("P00568000") else (1.60, 1.70))
+            return {"quotes": {"quote": {"symbol": sym, "bid": bid, "ask": ask}}}
+        if "/orders" in path and method == "POST":
+            return {"order": {"id": 900, "status": "ok"}}
+        if "/orders/900" in path:                          # sandbox: fill + qty, NEVER commissions
+            return {"order": {"id": 900, "status": "filled",
+                              "avg_fill_price": 1.65, "exec_quantity": 2}}
+        return {}
+
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), features=f)
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.70, qty=2, expiry="2026-06-19")
+
+    open_res = deps.open_spread({"price": 1.70, "quantity[0]": 2})
+    close_res = deps.close_spread(pos, ExitAction.STOP)
+
+    assert open_res.filled_quantity == close_res.filled_quantity == 2
+    total = open_res.commissions + close_res.commissions
+    assert total == round_trip_commission_per_contract(f) * open_res.filled_quantity
+    assert total == 0.70 * 2 * 2 * 2   # 2 legs x 2 sides x 0.70 x 2 qty = 5.60
+
+
 def test_open_spread_not_filled_has_zero_filled_quantity():
     from bot.app.wiring import build_deps
 

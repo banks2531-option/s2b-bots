@@ -3,6 +3,8 @@ import pytest
 
 from bot.portfolio.gap_stress import stressed_spread_loss, gap_stress_losses, gap_stress_ok
 from bot.strategy.manage import ManagedPosition
+from bot.features import S2bFeatures
+from bot.portfolio.exposure import _ForeignSpread
 
 
 # ── stressed_spread_loss: caps at wing width; negative (profit) when still OTM ─
@@ -29,6 +31,17 @@ def test_stressed_spread_loss_partial_itm_no_cap_needed():
     loss = stressed_spread_loss(568.0, 558.0, credit=0.5, qty=2, spot=575.0, atr=6.0,
                                  drop_atr=1.5, wing_width=10.0)
     assert loss == pytest.approx((2.0 - 0.5) * 100.0 * 2)
+
+
+# ── BS shock-grid reprice (Priority-0 fix item 5c): worse-than-intrinsic loss ──
+
+def test_bs_grid_reports_larger_loss_than_intrinsic_for_743_733():
+    from bot.portfolio.gap_stress import stressed_spread_loss_bs, stressed_spread_loss
+    f = S2bFeatures()
+    kw = dict(short_strike=743, long_strike=733, credit=1.39, qty=8, spot=754.88, atr=8.58)
+    intrinsic = stressed_spread_loss(**kw, drop_atr=1.5)
+    bs = stressed_spread_loss_bs(**kw, drop_atr=1.5, dte=9, short_iv=0.18, long_iv=0.20, f=f)
+    assert bs > intrinsic          # BS shows a worse (larger) loss than intrinsic
 
 
 # ── gap_stress_losses: sums across positions, for all three drops ──────────────
@@ -119,7 +132,10 @@ def test_orchestrator_gap_stress_reduces_qty_when_budget_tight():
     # per-contract 1.5-ATR loss = (2.0-0.2)*100 = 180 -> qty=2 fits (360 <= 500), qty=3 does not (540 > 500).
     log = []
     state = BotState()
-    f = S2bFeatures(aggregate_risk_budget=True, max_gap_stress_loss_pct=0.005)
+    # This asserts the exact intrinsic-value shrink numbers below, so it OPTS OUT of the BS reprice
+    # (item 5: gap_stress_model != "bs" -> intrinsic path) to keep the deterministic hand-computed
+    # per-contract math. The BS path is exercised by the dedicated BS orchestrator tests further down.
+    f = S2bFeatures(aggregate_risk_budget=True, max_gap_stress_loss_pct=0.005, gap_stress_model="intrinsic")
     d = _deps(features=f, trade_log=lambda rec: log.append(rec))
     state, info = run_entry_cycle(state, d, MONDAY)
     assert info == "filled"
@@ -207,3 +223,70 @@ def test_orchestrator_gap_stress_off_flag_unchanged():
     assert "gap_stress_1_0" not in rec
     assert "gap_stress_1_5" not in rec
     assert "gap_stress_2_0" not in rec
+
+
+# ── BS dispatch in gap_stress_losses / gap_stress_ok (Priority-0 fix item 5d) ───
+
+def test_gap_stress_losses_bs_dispatch_larger_than_intrinsic():
+    # (a) Same book/spot/atr: the BS path (f + iv_fn + today supplied) reports a larger 1.5-ATR loss
+    # than the intrinsic path (params omitted) -- BS keeps time value the intrinsic model drops.
+    f = S2bFeatures()   # gap_stress_model defaults to "bs"
+    positions = [_pos(743.0, 733.0, 1.39, 8)]   # _pos sets expiry 2026-07-18 -> dte 9 vs today below
+    iv_fn = lambda p: (0.18, 0.20)
+    spot, atr, wing = 754.88, 8.58, 10.0
+    intrinsic = gap_stress_losses(positions, spot, atr, wing)                       # no f -> intrinsic
+    bs = gap_stress_losses(positions, spot, atr, wing, today="2026-07-09", iv_fn=iv_fn, f=f)   # -> BS
+    assert bs[1.5] > intrinsic[1.5]
+    # gap_stress_ok mirrors the dispatch: with a tiny budget the BS loss trips it False.
+    assert gap_stress_ok(positions, spot, atr, 100_000.0, 0.0001, wing,
+                         today="2026-07-09", iv_fn=iv_fn, f=f) is False
+
+
+def test_gap_stress_losses_intrinsic_when_params_omitted_unchanged():
+    # (d) Back-compat: omitting today/iv_fn/f (every legacy caller/test) yields byte-identical
+    # intrinsic; and even WITH f supplied, a non-"bs" model still falls back to intrinsic.
+    positions = [_pos(568.0, 558.0, 2.0, 1), _pos(568.0, 558.0, 0.5, 2)]
+    spot, atr, wing = 575.0, 6.0, 10.0
+    expected = {}
+    for d in (1.0, 1.5, 2.0):
+        expected[d] = round(
+            stressed_spread_loss(568.0, 558.0, 2.0, 1, spot, atr, d, wing)
+            + stressed_spread_loss(568.0, 558.0, 0.5, 2, spot, atr, d, wing), 2)
+    assert gap_stress_losses(positions, spot, atr, wing) == expected
+    f = S2bFeatures(gap_stress_model="intrinsic")
+    assert gap_stress_losses(positions, spot, atr, wing, today="2026-07-09",
+                             iv_fn=lambda p: (0.2, 0.2), f=f) == expected
+
+
+def test_gap_stress_bs_foreign_position_no_iv_uses_fallback_and_is_finite():
+    # (b) A foreign spread (credit 0, no per-leg IV) still produces a FINITE stressed loss via the
+    # injected iv_fn's fallback IV -- never None/NaN/raise.
+    import math
+    f = S2bFeatures()
+    foreign = _ForeignSpread(572.0, 562.0, 0.0, 3, "2026-07-18")
+    iv_fn = lambda p: (f.gap_fallback_iv, f.gap_fallback_iv)
+    got = gap_stress_losses([foreign], 575.0, 6.0, 10.0, today="2026-07-09", iv_fn=iv_fn, f=f)
+    for d in (1.0, 1.5, 2.0):
+        assert math.isfinite(got[d])
+    assert got[1.5] > 0    # a foreign short 572 put is stressed into the money at -1.5 ATR
+
+
+def test_orchestrator_bs_gap_stress_logged_equals_enforced_and_exceeds_intrinsic():
+    # (c) logged == enforced under BS: the §12 DECISION agg_gap_stress_1_5 equals the §10 OPEN
+    # gap_stress_1_5 on the BS path (all three call sites share one iv_fn/today/features), AND the BS
+    # loss exceeds the intrinsic loss for the same scenario (proving BS is actually the active model).
+    def _run(model):
+        log = []
+        state = BotState()
+        f = S2bFeatures(aggregate_risk_budget=True, decision_logging=True,
+                        max_gap_stress_loss_pct=1.0, gap_stress_model=model)
+        d = _deps(features=f, trade_log=lambda rec: log.append(rec))
+        state, info = run_entry_cycle(state, d, MONDAY)
+        assert info == "filled"
+        decision = next(r for r in log if r["event"] == "DECISION" and r["decision"] == "filled")
+        open_rec = next(r for r in log if r["event"] == "OPEN")
+        assert decision["agg_gap_stress_1_5"] == pytest.approx(open_rec["gap_stress_1_5"])
+        return open_rec["gap_stress_1_5"]
+    bs_loss = _run("bs")
+    intrinsic_loss = _run("intrinsic")
+    assert bs_loss > intrinsic_loss

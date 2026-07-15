@@ -397,7 +397,7 @@ def run_markout_cycle(state: BotState, deps: Deps, now) -> None:
 
 
 def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None, expiry=None, order=None,
-                        foreign_positions=()):
+                        foreign_positions=(), iv_fn=None):
     """Best-effort per-entry exposure snapshot for the DECISION log (partner review v2 §12): positions
     opened today, positions in the target expiration, distance between adjacent short strikes
     (including the proposed spread, when one exists), aggregate remaining stop risk, aggregate
@@ -444,8 +444,11 @@ def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None,
             # telemetry/credit nuance to be revisited in the gap-stress rework (Task 5).
             positions_for_stress = (list(state.open_positions) + list(foreign_positions)
                                     + ([order] if order is not None else []))
+            # Priority-0 fix item 5: same BS model + IV source + `today` as the §10 enforcement calc
+            # below, so this logged agg_gap_stress_1_5 stays == the enforced/OPEN-row gap_stress_1_5.
             tel["agg_gap_stress_1_5"] = gap_stress_losses(
-                positions_for_stress, spot, atr, deps.s2b_cfg.wing_width)[1.5]
+                positions_for_stress, spot, atr, deps.s2b_cfg.wing_width,
+                today=today, iv_fn=iv_fn, f=deps.features)[1.5]
         except Exception:
             pass
     return tel
@@ -455,6 +458,29 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
     if state.last_entry_date != today:
         state.entries_today = 0          # new calendar day -> reset the daily entry counter
+
+    # Priority-0 fix item 5: per-leg IV source for the BS gap-stress reprice. The entry-path quote
+    # (OptionQuote) carries NO IV -- only the §13 shadow greeks fetch does -- so there is no per-leg
+    # IV on the book's positions/proposed order. We source a single usable annualized IV from the
+    # VIX level when it is available to the orchestrator (regime.vix_level, a 30d annualized vol in
+    # %, /100), else features.gap_fallback_iv. Per-leg differentiation (stressed put skew) is applied
+    # inside the BS shock grid (gap_skew_bump), not here. ALWAYS returns a positive (short_iv, long_iv)
+    # -- never None/raises -- so foreign/other-expiry legs still get a finite stress. Built once and
+    # shared by all three gap-stress call sites (telemetry + enforcement) so logged == enforced.
+    _base_iv = deps.features.gap_fallback_iv
+    try:
+        _vix_level = getattr(regime, "vix_level", None) if regime is not None else None
+        if _vix_level is not None and _vix_level > 0:
+            _base_iv = float(_vix_level) / 100.0
+    except Exception:
+        _base_iv = deps.features.gap_fallback_iv
+    if not (_base_iv and _base_iv > 0):
+        _base_iv = deps.features.gap_fallback_iv
+
+    def iv_fn(_position):
+        """(short_iv, long_iv) annualized for a book position/proposed leg. Never None/raises."""
+        return (_base_iv, _base_iv)
+
     exec_credit = None       # §4 conservative expected-executable credit; set once quote guards pass
     credit_telemetry = None  # §3: credit_ratio/credit_pctl40/credit_sample_count/credit_threshold/
                               # credit_quality_mult; set once the credit-tiers block runs (credit_tiers on)
@@ -528,7 +554,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         if risk_budget_telemetry is not None:   # item 7: which budget bound a risk_budget reject
             rec.update(risk_budget_telemetry)
         rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order,
-                                        foreign_positions=foreign_position_list))
+                                        foreign_positions=foreign_position_list, iv_fn=iv_fn))
         try:
             deps.trade_log(rec)
         except Exception:
@@ -568,6 +594,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     if order is None:
         _log_decision("no_order", spot=spot, atr=atr, expiry=expiry)
         return state, "no_order"
+    order.expiry = expiry   # item 5: carry expiry on the proposed order so the BS gap-stress reprice
+                            # (below + in _decision_telemetry) can derive its DTE, identically on both.
     # §14: best-effort short-put delta at signal time, for the markout record (_record_markout
     # above). None if not found in the chain (IV isn't carried by OptionQuote/parse_chain today).
     for _q in chain:
@@ -733,12 +761,16 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # view -- the real `order` object, used for the broker payload/OPEN record below, is left
         # untouched).
         gap_budget = deps.features.max_gap_stress_loss_pct * req
+        # Priority-0 fix item 5: BS shock-grid reprice (worst-cell) instead of intrinsic-only. Same
+        # iv_fn/today/features as the §12 DECISION-telemetry calc above -> logged == enforced.
         gap_stress_book = state.open_positions + foreign_position_list + [replace(order, credit=risk_credit)]
-        gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width)
+        gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width,
+                                       today=today, iv_fn=iv_fn, f=deps.features)
         while order.qty > 0 and gap_losses[1.5] > gap_budget:
             order.qty -= 1
             gap_stress_book = state.open_positions + foreign_position_list + [replace(order, credit=risk_credit)]
-            gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width)
+            gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width,
+                                           today=today, iv_fn=iv_fn, f=deps.features)
         if order.qty <= 0:
             _log_decision("gap_stress", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "gap_stress"

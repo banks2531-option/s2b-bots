@@ -185,7 +185,8 @@ def run_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> tuple:
     for p in list(state.open_positions):
         try:
             value = deps.mark_position(p)
-            status = result_status(deps.close_spread(p, ExitAction.DEGROSS))
+            close_result = deps.close_spread(p, ExitAction.DEGROSS)
+            status = result_status(close_result)
         except Exception as exc:   # one position's error must NOT block the others' de-gross
             deps.alert_sink([Alert(Severity.WARN,
                 f"de-gross close error {p.ticker} {p.short_strike}/{p.long_strike}: {exc}")])
@@ -197,7 +198,22 @@ def run_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> tuple:
                    "qty": p.qty, "credit": p.credit, "action": ExitAction.DEGROSS.value,
                    "exit_value": value, "status": status}
             if value is not None:
-                rec["pnl"] = round((p.credit - value) * 100 * p.qty, 2)
+                if deps.features.actual_fill_accounting:
+                    # §8: same accounting as run_management_cycle -- use the ACTUAL close fill,
+                    # never the triggering mark, and log both gross and net (fee-aware) P&L.
+                    actual_close = getattr(close_result, "average_fill_price", None)
+                    close_value = actual_close if actual_close is not None else value
+                    gross_pnl = round((p.credit - close_value) * 100 * p.qty, 2)
+                    close_commissions = getattr(close_result, "commissions", 0.0) or 0.0
+                    close_reg_fees = getattr(close_result, "regulatory_fees", 0.0) or 0.0
+                    net_pnl = round(gross_pnl - p.opening_fees
+                                    - close_commissions - close_reg_fees, 2)
+                    rec["gross_pnl"] = gross_pnl
+                    rec["net_pnl"] = net_pnl
+                    rec["pnl"] = net_pnl
+                else:
+                    # flag OFF -> byte-identical to before: (credit - triggering mark) * 100 * qty
+                    rec["pnl"] = round((p.credit - value) * 100 * p.qty, 2)
             deps.trade_log(rec)
         else:                      # didn't fill: alert + retry next tick, but do NOT halt
             deps.alert_sink([Alert(Severity.WARN,
@@ -234,7 +250,8 @@ def run_flow_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> t
             value = deps.mark_position(p)
             if value < p.credit:          # already profitable -> leave to normal management
                 continue
-            status = result_status(deps.close_spread(p, ExitAction.FLOW_DEGROSS))
+            close_result = deps.close_spread(p, ExitAction.FLOW_DEGROSS)
+            status = result_status(close_result)
         except Exception as exc:   # one position's error must NOT block the others' de-gross
             deps.alert_sink([Alert(Severity.WARN,
                 f"flow-degross close error {p.ticker} {p.short_strike}/{p.long_strike}: {exc}")])
@@ -246,7 +263,22 @@ def run_flow_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> t
                    "qty": p.qty, "credit": p.credit, "action": ExitAction.FLOW_DEGROSS.value,
                    "exit_value": value, "status": status}
             if value is not None:
-                rec["pnl"] = round((p.credit - value) * 100 * p.qty, 2)
+                if deps.features.actual_fill_accounting:
+                    # §8: same accounting as run_management_cycle -- use the ACTUAL close fill,
+                    # never the triggering mark, and log both gross and net (fee-aware) P&L.
+                    actual_close = getattr(close_result, "average_fill_price", None)
+                    close_value = actual_close if actual_close is not None else value
+                    gross_pnl = round((p.credit - close_value) * 100 * p.qty, 2)
+                    close_commissions = getattr(close_result, "commissions", 0.0) or 0.0
+                    close_reg_fees = getattr(close_result, "regulatory_fees", 0.0) or 0.0
+                    net_pnl = round(gross_pnl - p.opening_fees
+                                    - close_commissions - close_reg_fees, 2)
+                    rec["gross_pnl"] = gross_pnl
+                    rec["net_pnl"] = net_pnl
+                    rec["pnl"] = net_pnl
+                else:
+                    # flag OFF -> byte-identical to before: (credit - triggering mark) * 100 * qty
+                    rec["pnl"] = round((p.credit - value) * 100 * p.qty, 2)
             deps.trade_log(rec)
         else:                      # didn't fill: alert + retry next tick, but do NOT halt
             deps.alert_sink([Alert(Severity.WARN,

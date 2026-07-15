@@ -22,6 +22,7 @@ from bot.app import feeds
 from bot.app.wiring import build_deps, runner, make_trade_logger
 from bot.app.state_store import load_state
 from bot.app.orchestrator import tick
+from bot.features import S2bFeatures
 
 
 def fetch_spot(http, symbol):
@@ -91,6 +92,11 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
     print(f"    trade log -> {log_path} | state -> {state_path} "
           f"(resuming {len(state.open_positions)} open position(s), halted={state.halted})", flush=True)
 
+    # resolve features here (rather than only inside build_deps) so the trade logger's CSV column
+    # set can be gated on the same flag -- the live bot (features=None -> all-off) must keep its
+    # original 11-column trades_live.csv byte-identical (spec §8 / partner review fix).
+    resolved_features = features if features is not None else S2bFeatures()
+
     from bot.regime.logger import make_regime_logger
     regime_log = make_regime_logger(f"regime_{tag}")   # daily-rotated: regime_{tag}_YYYYMMDD.csv
     # build a UW http callable from env if a token is present (else None -> neutral flow).
@@ -112,13 +118,15 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         get_atr=lambda s: fetch_atr(http, s, et_now().strftime("%Y-%m-%d")),
         get_vix_regime=fetch_vix_regime,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
-        shared_account=shared_account, trade_log=make_trade_logger(log_path),
+        shared_account=shared_account,
+        trade_log=make_trade_logger(log_path,
+                                    include_cost_columns=resolved_features.actual_fill_accounting),
         regime_log=regime_log, uw_http=uw_http,
         s2b_cfg=s2b_cfg, base_risk_pct=base_risk_pct,
         trend_gate_enabled=True,        # Phase 1: pause put-selling when SPY < 200d MA (validated 76yr)
         degross_on_risk_off=True,       # Phase 1.5: close held positions in a confirmed risk_off downtrend
         degross_on_flow_flip=degross_on_flow_flip,  # flow-flip de-gross (opt-in; default OFF for existing bots)
-        features=features,              # partner review v2 feature flags (opt-in; default OFF for existing bots)
+        features=resolved_features,     # partner review v2 feature flags (opt-in; default OFF for existing bots)
     )
     def market_gated_tick(st, dp, now):
         if not feeds.is_market_hours(now):

@@ -9,17 +9,22 @@ from bot.strategy.s2b import _occ
 from bot.features import S2bFeatures
 
 _LOG_FIELDS = ["event", "date", "ticker", "short", "long", "expiry", "qty",
-               "credit", "action", "exit_value", "pnl", "status",
-               "gross_pnl", "net_pnl"]   # populated only when actual_fill_accounting is on (spec §8)
+               "credit", "action", "exit_value", "pnl", "status"]
+_COST_LOG_FIELDS = ["gross_pnl", "net_pnl"]   # only added when actual_fill_accounting is on (spec §8)
 
 
-def make_trade_logger(path):
+def make_trade_logger(path, include_cost_columns=False):
     """Return a callable that appends a trade-record dict to a CSV (header written once).
-    Used per-bot so a shared-account A/B can be measured from separate files."""
+    Used per-bot so a shared-account A/B can be measured from separate files.
+
+    include_cost_columns=False (default) keeps the original 11-column CSV shape byte-identical --
+    critical for the real-money live bot (run_s2b_live.py), whose actual_fill_accounting is always
+    OFF. Pass True only for a bot with the flag on, so its gross_pnl/net_pnl columns are populated."""
+    fields = _LOG_FIELDS + _COST_LOG_FIELDS if include_cost_columns else _LOG_FIELDS
     def log(record):
         exists = _os.path.exists(path)
         with open(path, "a", newline="") as f:
-            w = _csv.DictWriter(f, fieldnames=_LOG_FIELDS, extrasaction="ignore")
+            w = _csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
             if not exists:
                 w.writeheader()
             w.writerow(record)
@@ -118,7 +123,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         average_fill_price = float(raw_fill_price) if raw_fill_price is not None else submitted_limit
         raw_commission = order.get("commission") if isinstance(order, dict) else None
         raw_reg_fees = order.get("regulatory_fees") if isinstance(order, dict) else None
-        if raw_commission or raw_reg_fees:               # broker actually reported fees -> use them
+        if raw_commission is not None or raw_reg_fees is not None:  # broker reported at least one field
             commissions = float(raw_commission or 0.0)
             regulatory_fees = float(raw_reg_fees or 0.0)
         else:                                             # sandbox reports none -> synthetic fallback

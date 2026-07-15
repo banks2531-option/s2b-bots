@@ -7,11 +7,12 @@ ExecutionResult whose fill data disagrees with the requested/quoted values."""
 from datetime import datetime
 
 from bot.broker.order_state import ExecutionResult, result_status
-from bot.strategy.manage import ManagedPosition
+from bot.strategy.manage import ManagedPosition, ExitAction
 from bot.strategy.s2b import OptionQuote
 from bot.risk_gate import AccountState
 from bot.features import S2bFeatures
-from bot.app.orchestrator import BotState, Deps, run_entry_cycle, run_management_cycle, tick
+from bot.app.orchestrator import (BotState, Deps, run_entry_cycle, run_management_cycle,
+                                  run_degross_cycle, run_flow_degross_cycle, tick)
 
 
 def _er(status="filled", requested_qty=1, filled_qty=1, avg_fill=None, submitted_limit=None,
@@ -199,6 +200,83 @@ def test_realized_pnl_falls_back_to_triggering_mark_when_close_fill_missing():
     closes = [r for r in recs if r["event"] == "CLOSE"]
     # gross = (3.0 - 1.5) * 100 * 1 = 150.0 (fell back to the triggering mark)
     assert closes[0]["gross_pnl"] == 150.0
+
+
+# ── (c2) de-gross / flow-degross cycles must honor actual-fill accounting too (Fix 1) ────────────
+# These cycles close real positions exactly like run_management_cycle, so they must mirror its
+# flag-ON gross/net accounting, and stay byte-identical to the pre-Task-1.3 mark-based pnl when off.
+
+def test_degross_pnl_uses_actual_close_fill_and_nets_fees_when_flag_on():
+    from bot.regime.state import RegimeState
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=2, expiry="2026-06-19",
+                          opening_fees=1.30)
+    state = BotState(open_positions=[pos])
+    # triggering mark says 10.0; the ACTUAL close fill is materially better (9.20)
+    d = _deps(features=S2bFeatures(actual_fill_accounting=True),
+              mark_position=lambda p: 10.0, degross_on_risk_off=True,
+              close_spread=lambda p, a: _er(avg_fill=9.20, commissions=1.30, regulatory_fees=0.05),
+              trade_log=lambda r: recs.append(r))
+    run_degross_cycle(state, d, today="2026-06-17", regime=RegimeState(trend_regime="risk_off"))
+    deg = [r for r in recs if r["event"] == "DEGROSS"]
+    assert len(deg) == 1
+    rec = deg[0]
+    # gross uses the ACTUAL fill (9.20), never the triggering mark (10.0):
+    # gross = (3.0 - 9.20) * 100 * 2 = -1240.0
+    assert rec["gross_pnl"] == -1240.0
+    assert rec["net_pnl"] == round(-1240.0 - 1.30 - 1.30 - 0.05, 2)
+    assert rec["pnl"] == rec["net_pnl"]
+
+
+def test_degross_pnl_off_flag_matches_legacy_mark_based_calc():
+    from bot.regime.state import RegimeState
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=2, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 10.0, degross_on_risk_off=True,
+              close_spread=lambda p, a: _er(avg_fill=9.20, commissions=50.0),
+              trade_log=lambda r: recs.append(r))
+    assert d.features.actual_fill_accounting is False
+    run_degross_cycle(state, d, today="2026-06-17", regime=RegimeState(trend_regime="risk_off"))
+    deg = [r for r in recs if r["event"] == "DEGROSS"]
+    assert deg[0]["pnl"] == round((3.0 - 10.0) * 100 * 2, 2)   # == -1400.0, uses the mark, not the fill
+    assert "gross_pnl" not in deg[0] and "net_pnl" not in deg[0]
+
+
+def test_flow_degross_pnl_uses_actual_close_fill_and_nets_fees_when_flag_on():
+    from bot.regime.state import RegimeState
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=2, expiry="2026-06-19",
+                          entry_date="2026-06-17", opening_fees=1.30)
+    state = BotState(open_positions=[pos], prev_flow_bias="bullish")
+    # not-yet-profitable per the triggering mark (10.0 >= credit 3.0); actual close fill is 9.20
+    d = _deps(features=S2bFeatures(actual_fill_accounting=True),
+              mark_position=lambda p: 10.0, degross_on_flow_flip=True,
+              close_spread=lambda p, a: _er(avg_fill=9.20, commissions=1.30, regulatory_fees=0.05),
+              trade_log=lambda r: recs.append(r))
+    run_flow_degross_cycle(state, d, today="2026-06-17", regime=RegimeState(flow_bias="bearish"))
+    fdeg = [r for r in recs if r["event"] == "FLOW_DEGROSS"]
+    assert len(fdeg) == 1
+    rec = fdeg[0]
+    assert rec["gross_pnl"] == -1240.0    # (3.0 - 9.20) * 100 * 2, the ACTUAL fill, not the mark (10.0)
+    assert rec["net_pnl"] == round(-1240.0 - 1.30 - 1.30 - 0.05, 2)
+    assert rec["pnl"] == rec["net_pnl"]
+
+
+def test_flow_degross_pnl_off_flag_matches_legacy_mark_based_calc():
+    from bot.regime.state import RegimeState
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=2, expiry="2026-06-19",
+                          entry_date="2026-06-17")
+    state = BotState(open_positions=[pos], prev_flow_bias="bullish")
+    d = _deps(mark_position=lambda p: 10.0, degross_on_flow_flip=True,
+              close_spread=lambda p, a: _er(avg_fill=9.20, commissions=50.0),
+              trade_log=lambda r: recs.append(r))
+    assert d.features.actual_fill_accounting is False
+    run_flow_degross_cycle(state, d, today="2026-06-17", regime=RegimeState(flow_bias="bearish"))
+    fdeg = [r for r in recs if r["event"] == "FLOW_DEGROSS"]
+    assert fdeg[0]["pnl"] == round((3.0 - 10.0) * 100 * 2, 2)
+    assert "gross_pnl" not in fdeg[0] and "net_pnl" not in fdeg[0]
 
 
 # ── (d) REGRESSION: flag OFF -> byte-identical to pre-change behavior ────────────────────────────

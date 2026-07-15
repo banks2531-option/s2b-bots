@@ -127,6 +127,88 @@ def test_build_deps_threads_narrow_wing_and_small_account_risk():
     assert deps.risk_cfg.max_concurrent == 1
 
 
+# ── Fix 2: the live bot's trade-log CSV must stay byte-identical (11 columns, no gross/net) ──────
+
+def test_make_trade_logger_default_csv_has_no_cost_columns(tmp_path):
+    p = tmp_path / "trades_live.csv"
+    log = make_trade_logger(str(p))   # default -> flag-off shape
+    log({"event": "OPEN", "date": "2026-06-15", "ticker": "SPY", "short": 568.0,
+         "long": 558.0, "qty": 2, "credit": 1.7, "status": "filled",
+         "gross_pnl": 999.0, "net_pnl": 888.0})   # extra keys must be ignored/dropped
+    header = open(str(p)).readline().strip().split(",")
+    assert header == ["event", "date", "ticker", "short", "long", "expiry", "qty",
+                      "credit", "action", "exit_value", "pnl", "status"]
+    assert "gross_pnl" not in header and "net_pnl" not in header
+
+
+def test_make_trade_logger_include_cost_columns_true_adds_gross_and_net(tmp_path):
+    p = tmp_path / "trades_alldays.csv"
+    log = make_trade_logger(str(p), include_cost_columns=True)
+    log({"event": "CLOSE", "date": "2026-06-19", "ticker": "SPY", "action": "take_profit",
+         "pnl": 85.0, "gross_pnl": 100.0, "net_pnl": 85.0, "status": "filled"})
+    header = open(str(p)).readline().strip().split(",")
+    assert header == ["event", "date", "ticker", "short", "long", "expiry", "qty",
+                      "credit", "action", "exit_value", "pnl", "status",
+                      "gross_pnl", "net_pnl"]
+
+
+def test_build_and_run_gates_include_cost_columns_on_actual_fill_accounting_flag():
+    # the live bot (run_s2b_live.py) never passes features= -> S2bFeatures() default -> flag off ->
+    # build_and_run must call make_trade_logger with include_cost_columns=False (byte-identical CSV).
+    import inspect
+    from bot.app import run_s2b
+    src = inspect.getsource(run_s2b.build_and_run)
+    assert "include_cost_columns=resolved_features.actual_fill_accounting" in src
+
+
+# ── Fix 3: a genuinely-reported 0.0 commission/fee must NOT trigger the synthetic fallback ───────
+
+def test_reported_zero_commission_and_fees_are_not_treated_as_unreported():
+    # the broker explicitly reported commission=0.0 and regulatory_fees=0.0 (e.g. a fee-free promo
+    # or an already-net fill) -> must be used as-is, NOT overridden by the synthetic estimate.
+    from bot.features import S2bFeatures
+
+    def http(method, path, params=None, data=None):
+        if "/balances" in path:
+            return {"balances": {"total_equity": 20_000.0}}
+        if "/orders" in path and method == "POST":
+            return {"order": {"id": 7, "status": "ok"}}
+        if "/orders/7" in path:
+            return {"order": {"id": 7, "status": "filled", "avg_fill_price": 1.65,
+                              "exec_quantity": 2, "commission": 0.0, "regulatory_fees": 0.0}}
+        return {}
+
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01),
+                      features=S2bFeatures(est_commission_per_leg_rt=0.70))
+    result = deps.open_spread({"price": 1.70, "quantity[0]": 2})
+    assert result.commissions == 0.0        # NOT the synthetic 0.70*2*2 = 2.80
+    assert result.regulatory_fees == 0.0
+
+
+def test_reported_zero_commission_only_still_uses_reported_fees_field():
+    # broker reports commission=0.0 but omits regulatory_fees entirely -> commission is honored as
+    # reported (0.0), regulatory_fees falls back to 0.0 too (not the synthetic commission estimate).
+    from bot.features import S2bFeatures
+
+    def http(method, path, params=None, data=None):
+        if "/balances" in path:
+            return {"balances": {"total_equity": 20_000.0}}
+        if "/orders" in path and method == "POST":
+            return {"order": {"id": 8, "status": "ok"}}
+        if "/orders/8" in path:
+            return {"order": {"id": 8, "status": "filled", "avg_fill_price": 1.65,
+                              "exec_quantity": 2, "commission": 0.0}}
+        return {}
+
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01),
+                      features=S2bFeatures(est_commission_per_leg_rt=0.70))
+    result = deps.open_spread({"price": 1.70, "quantity[0]": 2})
+    assert result.commissions == 0.0     # reported field honored, no synthetic fallback triggered
+    assert result.regulatory_fees == 0.0
+
+
 def test_build_deps_attaches_regime_provider_that_returns_state():
     http = _fake_http({
         "/balances": {"balances": {"total_equity": 20000.0}},

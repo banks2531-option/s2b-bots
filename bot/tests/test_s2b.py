@@ -62,6 +62,26 @@ def test_build_spread_order_none_when_nonpositive_credit():
     # long wing priced higher than short bid -> credit <= 0
     chain = _chain() + [OptionQuote(strike=558.0, delta=0.18, bid=3.50, ask=3.60)]
     assert build_spread_order(spot=575.0, atr=6.0, chain=chain, cfg=cfg) is None
+
+
+def test_build_spread_order_carries_leg_quotes():
+    """Task 2.1: the selected short/long leg bid/ask must be attached to the SpreadOrder so
+    downstream quote-quality guards (partner review v2 §4) can be computed."""
+    cfg = S2bConfig(target_delta=0.35, wing_width=10.0, min_cushion_atr=1.0)
+    chain = _chain() + [OptionQuote(strike=558.0, delta=0.18, bid=1.60, ask=1.70)]
+    order = build_spread_order(spot=575.0, atr=6.0, chain=chain, cfg=cfg)
+    assert order.short_bid == 3.40 and order.short_ask == 3.50
+    assert order.long_bid == 1.60 and order.long_ask == 1.70
+
+
+def test_spread_order_leg_quote_fields_default_none():
+    """A hand-built SpreadOrder (existing callers/tests) that doesn't pass leg quotes must default
+    to None on all four fields -- back-compat for every pre-existing construction site."""
+    order = SpreadOrder(ticker="SPY", structure="bull_put_spread", short_strike=560.0,
+                        long_strike=550.0, credit=3.0, spot=575.0, atr=6.0,
+                        max_loss_per_contract=700.0, qty=1)
+    assert order.short_bid is None and order.short_ask is None
+    assert order.long_bid is None and order.long_ask is None
 from bot.strategy.s2b import to_tradier_payload
 
 

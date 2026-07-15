@@ -15,6 +15,13 @@ class SpreadOrder:
     atr: float                       # ATR(14) of the underlying
     max_loss_per_contract: float     # dollars
     qty: int
+    # leg quotes at build time (partner review v2 §4): populated by build_spread_order so the
+    # conservative expected-executable-credit + quote-quality guards can be computed downstream.
+    # Default None keeps back-compat for every existing hand-built SpreadOrder (tests, other callers).
+    short_bid: float = None
+    short_ask: float = None
+    long_bid: float = None
+    long_ask: float = None
 
 
 @dataclass

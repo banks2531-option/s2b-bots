@@ -61,7 +61,9 @@ def build_spread_order(spot, atr, chain, cfg, ticker="SPY"):
     return SpreadOrder(ticker=ticker, structure="bull_put_spread",
                        short_strike=short.strike, long_strike=long_strike,
                        credit=credit, spot=spot, atr=atr,
-                       max_loss_per_contract=max_loss, qty=1)
+                       max_loss_per_contract=max_loss, qty=1,
+                       short_bid=short.bid, short_ask=short.ask,
+                       long_bid=long.bid, long_ask=long.ask)
 
 
 def _occ(symbol, expiry, right, strike):

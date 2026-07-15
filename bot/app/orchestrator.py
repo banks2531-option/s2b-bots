@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
 from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload
+from bot.strategy.execution_price import (quotes_valid, package_too_wide,
+                                           expected_executable_credit, spot_moved_too_far)
 from bot.features import S2bFeatures
 from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
@@ -364,6 +366,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
     if state.last_entry_date != today:
         state.entries_today = 0          # new calendar day -> reset the daily entry counter
+    exec_credit = None   # §4 conservative expected-executable credit; set once quote guards pass
 
     def _log_decision(reason, spot=None, atr=None, expiry=None, order=None):
         """§1/§12: write a DECISION record (reason + active flags + best-effort exposure telemetry)
@@ -381,6 +384,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         except Exception:
             flags = {}
         rec = {"event": "DECISION", "date": today, "decision": reason, "flags": flags}
+        if exec_credit is not None:   # §4: the conservative expected-executable credit, once known
+            rec["expected_executable_credit"] = round(exec_credit, 4)
         rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order))
         try:
             deps.trade_log(rec)
@@ -420,6 +425,29 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     if order is None:
         _log_decision("no_order", spot=spot, atr=atr, expiry=expiry)
         return state, "no_order"
+    # Expected-executable-credit + quote-quality guards (partner review v2 §4), OPT-IN when
+    # credit_tiers OR transaction_cost_gate is on (both need the conservative credit downstream).
+    # Bot C (both flags off) never enters this block -> byte-identical behavior.
+    if deps.features.credit_tiers or deps.features.transaction_cost_gate:
+        if order.short_bid is not None:   # leg quotes attached (always true via build_spread_order;
+                                           # a hand-built SpreadOrder without quotes skips the guard)
+            if not quotes_valid(order.short_bid, order.short_ask, order.long_bid, order.long_ask):
+                _log_decision("quote_invalid", spot=spot, atr=atr, expiry=expiry, order=order)
+                return state, "quote_invalid"
+            if package_too_wide(order.short_bid, order.short_ask, order.long_bid, order.long_ask,
+                                 deps.features.max_package_width_ratio):
+                _log_decision("quote_wide", spot=spot, atr=atr, expiry=expiry, order=order)
+                return state, "quote_wide"
+            exec_credit = expected_executable_credit(
+                order.short_bid, order.short_ask, order.long_bid, order.long_ask,
+                deps.features.expected_entry_slippage)
+            # Inert in single-shot entry: signal_spot == order_spot here (no time gap between
+            # signal and order within one synchronous cycle). Becomes active once entries are
+            # staged across a ladder (Task 3.1), where order_spot is re-read after signal_spot.
+            spot_moved_too_far(spot, spot, atr, deps.features.max_signal_to_order_spot_move_atr)
+            # TODO(partner review v2 §4): MAX_QUOTE_AGE_SECONDS staleness enforcement is deferred --
+            # OptionQuote/parse_chain doesn't carry a quote timestamp yet. Wire this once quote
+            # timestamps are plumbed through parse_chain (a later task).
     # Adaptive credit-quality tiering (partner review §2), OPT-IN via deps.min_credit_ratio (0.0 =
     # feature OFF -> this entire block is a no-op, so default behavior is byte-identical to before).
     # A credit too thin relative to the wing width is rejected outright; a mid-tier credit is sized

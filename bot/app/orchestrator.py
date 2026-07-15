@@ -10,7 +10,8 @@ from bot.features import S2bFeatures
 from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
-from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier, _percentile
+from bot.strategy.credit_quality import (dte_bucket, full_size_threshold, credit_tier, _percentile,
+                                          should_record_observation)
 from bot.strategy.cost_gate import cost_gate_eval
 from bot.portfolio.risk_budget import (size_qty, cap_to_budgets, remaining_stop_risk,
                                         planned_stop_loss_per_contract, structural_max_loss_per_contract)
@@ -48,6 +49,11 @@ class BotState:
     missing_streak: dict = field(default_factory=dict)    # position_key -> consecutive missing-at-broker reconciles
     prev_flow_bias: str = ""                              # UW flow_bias from the PRIOR tick, to detect a bull->bear flip
     credit_ratio_history: dict = field(default_factory=dict)  # DTE-bucket -> list of prior credit/wing_width ratios
+    credit_obs_last: dict = field(default_factory=dict)   # DTE-bucket -> last RECORDED observation dict
+                                                            # {date,expiry,short,long,ratio,bucket15}, used by
+                                                            # should_record_observation to dedup repeated
+                                                            # near-identical candidates within a polling day
+                                                            # (partner review v2 item 3 fix)
     realized_today: float = 0.0                           # sum of realized P&L from closes on `risk_day` (partner review v2 §11)
     risk_day: str = ""                                    # the calendar date `realized_today` applies to
     markout_pending: list = field(default_factory=list)   # persisted MarkoutTracker pending state
@@ -713,12 +719,28 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         thr = full_size_threshold(prior, deps.features.full_size_credit_floor,
                                    deps.features.full_size_credit_ceiling,
                                    deps.features.credit_adapt_min_signals)
-        # §3: "Use prior candidate signals, including rejected signals" -- append EVERY evaluated
-        # candidate's ratio (even one about to be rejected below) so future thresholds see the full
-        # population of opportunities, not just fills.
-        hist = state.credit_ratio_history.setdefault(bucket, [])
-        hist.append(round(ratio, 4))
-        state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
+        # §3: "Use prior candidate signals, including rejected signals" -- append EVERY MATERIALLY
+        # DISTINCT evaluated candidate (even one about to be rejected below) so future thresholds see
+        # a genuine population of opportunities, not just fills. Priority-0 fix item 3: a bot polling
+        # every few minutes re-evaluates the SAME spread dozens of times a day; without dedup, one
+        # ordinary day (e.g. 240 cycles) overwrites the entire 60-signal window with near-duplicate
+        # observations of a single candidate, degrading the adaptive threshold into a polling-
+        # frequency indicator. should_record_observation gates the append on the candidate being new
+        # (day/expiry/strike), in a new 15-minute research window, or having moved >= 0.5pp in ratio.
+        # NOTE: `prior`/`thr` above are computed from the copy captured BEFORE this append -- that
+        # ordering is unchanged, so there is still no look-ahead regardless of whether this candidate
+        # gets recorded.
+        minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET (see run_entry_cycle docstring)
+        bucket15 = minutes_since_open // 15
+        obs = {"date": today, "expiry": expiry, "short": order.short_strike, "long": order.long_strike,
+               "ratio": round(ratio, 4), "bucket15": bucket15}
+        if should_record_observation(state.credit_obs_last.get(bucket), date=today, expiry=expiry,
+                                      short=order.short_strike, long=order.long_strike,
+                                      ratio=round(ratio, 4), bucket15=bucket15):
+            hist = state.credit_ratio_history.setdefault(bucket, [])
+            hist.append(round(ratio, 4))
+            state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
+            state.credit_obs_last[bucket] = obs
         mult = credit_tier(credit_for_tier, wing, deps.features.min_credit_ratio, thr,
                             deps.features.probe_size_multiplier)
         credit_telemetry = {
@@ -910,8 +932,9 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             entry_date=today, opening_fees=opening_fees))
         state.last_entry_date = today
         state.entries_today += 1             # count toward the per-day entry cap
-        # NOTE: credit_ratio_history is already appended for EVERY evaluated candidate (including
-        # rejects) in the credit-tiers block above (partner review v2 §3) -- no separate append here.
+        # NOTE: credit_ratio_history is already (conditionally, per should_record_observation --
+        # item 3 fix) appended for evaluated candidates, including rejects, in the credit-tiers
+        # block above (partner review v2 §3) -- no separate append here.
         open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
                     "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
                     "qty": qty, "credit": credit, "status": status}

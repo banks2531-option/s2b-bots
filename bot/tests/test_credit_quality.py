@@ -66,3 +66,30 @@ def test_threshold_adapts_between_floor_and_ceiling():
     thr = full_size_threshold(hist, FLOOR, CEILING, MIN_SIGNALS)
     assert FLOOR < thr < CEILING
     assert round(thr, 4) == 0.1232
+
+
+# ── should_record_observation (partner review v2 item 3): dedup repeated near-identical
+# observations of the SAME spread across a polling day so 60-signal history isn't flooded ──────
+
+def test_should_record_observation_dedups():
+    from bot.strategy.credit_quality import should_record_observation
+    last = {"date": "2026-07-15", "expiry": "2026-07-17", "short": 743.0, "long": 733.0,
+            "ratio": 0.104, "bucket15": 39}
+    # same candidate, same 15-min bucket, ratio moved < 0.5pp -> do NOT record
+    assert should_record_observation(last, date="2026-07-15", expiry="2026-07-17",
+        short=743.0, long=733.0, ratio=0.106, bucket15=39) is False
+    # ratio moved >= 0.5pp -> record
+    assert should_record_observation(last, date="2026-07-15", expiry="2026-07-17",
+        short=743.0, long=733.0, ratio=0.110, bucket15=39) is True
+    # new 15-min window -> record
+    assert should_record_observation(last, date="2026-07-15", expiry="2026-07-17",
+        short=743.0, long=733.0, ratio=0.104, bucket15=40) is True
+    # strike change -> record
+    assert should_record_observation(last, date="2026-07-15", expiry="2026-07-17",
+        short=744.0, long=734.0, ratio=0.104, bucket15=39) is True
+    # expiry change -> record
+    assert should_record_observation(last, date="2026-07-15", expiry="2026-07-24",
+        short=743.0, long=733.0, ratio=0.104, bucket15=39) is True
+    # no prior observation -> record
+    assert should_record_observation(None, date="2026-07-15", expiry="2026-07-17",
+        short=743.0, long=733.0, ratio=0.104, bucket15=39) is True

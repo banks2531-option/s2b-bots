@@ -14,6 +14,7 @@ _COST_LOG_FIELDS = ["gross_pnl", "net_pnl"]   # only added when actual_fill_acco
 _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_expiry",
                         "adjacent_strike_distance", "agg_remaining_stop", "agg_structural",
                         "agg_gap_stress_1_5",   # spec §1, §12 exposure telemetry (Task 1.7)
+                        "gap_stress_1_0", "gap_stress_1_5", "gap_stress_2_0",   # spec §10 OPEN-row gap-stress scenario losses
                         "expected_executable_credit",   # spec §4 conservative executable credit (Task 2.1)
                         "credit_ratio", "credit_pctl40", "credit_sample_count",
                         "credit_threshold", "credit_quality_mult",   # spec §3 credit-tier telemetry (Task 2.2)

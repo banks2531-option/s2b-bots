@@ -20,7 +20,10 @@ _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_ex
                         "credit_ratio", "credit_pctl40", "credit_sample_count",
                         "credit_threshold", "credit_quality_mult",   # spec §3 credit-tier telemetry (Task 2.2)
                         "cost_gross_target", "cost_round_trip",
-                        "cost_target_ratio"]   # spec §5 cost-gate telemetry (Task 2.3)
+                        "cost_target_ratio",   # spec §5 cost-gate telemetry (Task 2.3)
+                        "risk_budget_limiting", "risk_budget_exposure", "risk_budget_limit",
+                        "risk_budget_headroom", "risk_budget_proposed_qty",
+                        "risk_budget_permitted_qty"]   # §9 aggregate-risk-budget attribution (Task 7)
                         # only added when decision_logging is on (spec §1, §12); this list must stay
                         # a SUPERSET of every key run_entry_cycle's _log_decision can merge onto a
                         # DECISION record (base rec + _decision_telemetry + credit_telemetry +

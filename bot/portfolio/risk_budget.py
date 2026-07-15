@@ -3,6 +3,16 @@ import math
 from dataclasses import dataclass
 from typing import Optional
 
+# The four aggregate budgets, in the fixed order cap_to_budgets evaluates them. Centralized here so
+# the budget-name strings live in exactly ONE place -- cap_to_budgets, RiskBudgetResult, and any
+# caller reading exposure/limit for a binding budget all key off these constants, so a rename can't
+# silently drift between call sites (which previously risked producing None telemetry downstream).
+SAME_DAY_STOP = "same_day_stop"
+EXPIRY_STOP = "expiry_stop"
+TOTAL_STOP = "total_stop"
+TOTAL_STRUCTURAL = "total_structural"
+BUDGET_NAMES = (SAME_DAY_STOP, EXPIRY_STOP, TOTAL_STOP, TOTAL_STRUCTURAL)
+
 
 @dataclass
 class RiskBudgetResult:
@@ -31,6 +41,9 @@ class RiskBudgetResult:
         return self.allowed_quantity
 
     def __eq__(self, o):
+        # NOTE: compares allowed_quantity ONLY (for int back-compat) -- two RiskBudgetResults with
+        # the same qty but DIFFERENT limiting_budget compare EQUAL. Footgun for future test authors:
+        # assert the limiting_budget field explicitly, never rely on == to distinguish them.
         if isinstance(o, RiskBudgetResult):
             return self.allowed_quantity == o.allowed_quantity
         if isinstance(o, int):
@@ -39,6 +52,17 @@ class RiskBudgetResult:
 
     def __hash__(self):
         return hash(self.allowed_quantity)
+
+    def limiting_exposure_and_limit(self):
+        """(exposure, limit) dollar figures for THIS result's own limiting_budget, read straight off
+        the populated fields (no name-keyed dict lookup that could silently miss on a rename).
+        Returns (None, None) when unconstrained (limiting_budget is None)."""
+        return {
+            SAME_DAY_STOP: (self.same_day_stop, self.same_day_limit),
+            EXPIRY_STOP: (self.expiry_stop, self.expiry_limit),
+            TOTAL_STOP: (self.total_stop, self.total_stop_limit),
+            TOTAL_STRUCTURAL: (self.total_structural, self.structural_limit),
+        }.get(self.limiting_budget, (None, None))
 
 
 def structural_max_loss_per_contract(wing_width, credit):
@@ -134,11 +158,11 @@ def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_
     # Evaluate the four budgets in a fixed order and track whichever one FIRST forces q strictly
     # below the running value -- that's the "binding"/limiting budget for this candidate.
     budget_caps = (
-        ("same_day_stop", _max_q_for_budget(qty, same_day_limit, same_day_stop, per_contract_stop)),
-        ("expiry_stop", _max_q_for_budget(qty, expiry_limit, expiry_stop, per_contract_stop)),
-        ("total_stop", _max_q_for_budget(qty, total_stop_limit, total_stop, per_contract_stop)),
-        ("total_structural", _max_q_for_budget(qty, structural_limit, total_structural,
-                                               per_contract_structural)),
+        (SAME_DAY_STOP, _max_q_for_budget(qty, same_day_limit, same_day_stop, per_contract_stop)),
+        (EXPIRY_STOP, _max_q_for_budget(qty, expiry_limit, expiry_stop, per_contract_stop)),
+        (TOTAL_STOP, _max_q_for_budget(qty, total_stop_limit, total_stop, per_contract_stop)),
+        (TOTAL_STRUCTURAL, _max_q_for_budget(qty, structural_limit, total_structural,
+                                             per_contract_structural)),
     )
     q = qty
     limiting_budget = None

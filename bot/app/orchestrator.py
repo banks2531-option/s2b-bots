@@ -686,13 +686,9 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             # that case since no specific budget can be blamed; only suffix it when a real budget
             # bound (unconstrained-input case is a pure regression: exact same reason as before).
             reason = f"risk_budget:{limiting}" if limiting is not None else "risk_budget"
-            by_budget = {
-                "same_day_stop": (budget_result.same_day_stop, budget_result.same_day_limit),
-                "expiry_stop": (budget_result.expiry_stop, budget_result.expiry_limit),
-                "total_stop": (budget_result.total_stop, budget_result.total_stop_limit),
-                "total_structural": (budget_result.total_structural, budget_result.structural_limit),
-            }
-            binding_exposure, binding_limit = by_budget.get(limiting, (None, None))
+            # Read exposure/limit straight off the result (keyed on ITS OWN limiting_budget) rather
+            # than re-deriving the mapping here -- so a budget rename can't silently drift into None.
+            binding_exposure, binding_limit = budget_result.limiting_exposure_and_limit()
             risk_budget_telemetry = {
                 "risk_budget_limiting": limiting,
                 "risk_budget_exposure": (round(binding_exposure, 2)

@@ -13,7 +13,18 @@ _LOG_FIELDS = ["event", "date", "ticker", "short", "long", "expiry", "qty",
 _COST_LOG_FIELDS = ["gross_pnl", "net_pnl"]   # only added when actual_fill_accounting is on (spec §8)
 _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_expiry",
                         "adjacent_strike_distance", "agg_remaining_stop", "agg_structural",
-                        "agg_gap_stress_1_5"]   # only added when decision_logging is on (spec §1, §12)
+                        "agg_gap_stress_1_5",   # spec §1, §12 exposure telemetry (Task 1.7)
+                        "expected_executable_credit",   # spec §4 conservative executable credit (Task 2.1)
+                        "credit_ratio", "credit_pctl40", "credit_sample_count",
+                        "credit_threshold", "credit_quality_mult",   # spec §3 credit-tier telemetry (Task 2.2)
+                        "cost_gross_target", "cost_round_trip",
+                        "cost_target_ratio"]   # spec §5 cost-gate telemetry (Task 2.3)
+                        # only added when decision_logging is on (spec §1, §12); this list must stay
+                        # a SUPERSET of every key run_entry_cycle's _log_decision can merge onto a
+                        # DECISION record (base rec + _decision_telemetry + credit_telemetry +
+                        # cost_telemetry) -- extrasaction="ignore" below silently drops anything
+                        # missing here, which is exactly the bug this list fixes (nine fields were
+                        # previously dropped from trades_alldays.csv).
 _SHADOW_LOG_FIELDS = ["shadow_score", "shadow_action", "spy", "spy_vwap", "spy_atr",
                       "session_high", "session_low", "opening_range_high", "opening_range_low",
                       "qqq_ret", "dia_ret", "soxx_ret", "spy_ret", "qqq_vs_vwap", "soxx_vs_vwap",

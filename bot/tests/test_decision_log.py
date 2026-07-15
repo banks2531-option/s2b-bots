@@ -3,6 +3,7 @@
 Spec §1: "Every decision and feature-flag state must be written to the trade log." Behind
 deps.features.decision_logging (opt-in, default OFF -> Bot C / run_s2b_live.py unaffected).
 """
+import csv as _csv
 from datetime import datetime
 
 from bot.app.orchestrator import BotState, Deps, run_entry_cycle
@@ -224,3 +225,47 @@ def test_build_and_run_gates_include_decision_columns_on_decision_logging_flag()
     from bot.app import run_s2b
     src = inspect.getsource(run_s2b.build_and_run)
     assert "include_decision_columns=resolved_features.decision_logging" in src
+
+
+# ── Bug fix: credit-tier (§3) + cost-gate (§5) + exec-credit (§4) telemetry must survive the
+# DictWriter's extrasaction="ignore" too -- they were being silently dropped from
+# trades_alldays.csv because _DECISION_LOG_FIELDS never listed them. ──────────────────────────────
+
+def test_make_trade_logger_include_decision_columns_true_adds_credit_and_cost_telemetry(tmp_path):
+    from bot.app.wiring import make_trade_logger
+    p = tmp_path / "trades_alldays.csv"
+    log = make_trade_logger(str(p), include_decision_columns=True)
+    log({"event": "DECISION", "date": "2026-06-15", "decision": "filled",
+         "flags": {"credit_tiers": True}, "positions_today": 1, "positions_in_expiry": 1,
+         "adjacent_strike_distance": 10.0, "agg_remaining_stop": 100.0,
+         "agg_structural": 200.0, "agg_gap_stress_1_5": 50.0,
+         "expected_executable_credit": 1.77,
+         "credit_ratio": 0.177, "credit_pctl40": 0.15, "credit_sample_count": 12,
+         "credit_threshold": 0.20, "credit_quality_mult": 1.0,
+         "cost_gross_target": 0.85, "cost_round_trip": 0.30, "cost_target_ratio": 2.83})
+    rows = list(_csv.DictReader(open(str(p))))
+    header = rows and list(rows[0].keys())
+    row = rows[0]
+    for col, expected in (
+        ("expected_executable_credit", "1.77"),
+        ("credit_ratio", "0.177"), ("credit_pctl40", "0.15"), ("credit_sample_count", "12"),
+        ("credit_threshold", "0.2"), ("credit_quality_mult", "1.0"),
+        ("cost_gross_target", "0.85"), ("cost_round_trip", "0.3"), ("cost_target_ratio", "2.83"),
+    ):
+        assert col in row, f"{col} missing from CSV header -- silently dropped by extrasaction=ignore"
+        assert row[col] == expected, f"{col}: expected {expected!r}, got {row[col]!r}"
+
+
+def test_make_trade_logger_default_still_has_original_field_set_only(tmp_path):
+    # Bot C (decision_logging off) must keep exactly the original 12-column shape -- no new
+    # credit/cost columns leak in even if a record happened to carry them (defensive; in practice
+    # decision_logging off means no DECISION records are ever built at all).
+    from bot.app.wiring import make_trade_logger
+    p = tmp_path / "trades_live.csv"
+    log = make_trade_logger(str(p))
+    log({"event": "OPEN", "date": "2026-06-15", "ticker": "SPY", "short": 568.0,
+         "long": 558.0, "qty": 2, "credit": 1.7, "status": "filled",
+         "credit_ratio": 0.177, "cost_gross_target": 0.85})
+    header = open(str(p)).readline().strip().split(",")
+    assert header == ["event", "date", "ticker", "short", "long", "expiry", "qty",
+                      "credit", "action", "exit_value", "pnl", "status"]

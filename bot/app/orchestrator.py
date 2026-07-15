@@ -452,6 +452,10 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                               # credit_quality_mult; set once the credit-tiers block runs (credit_tiers on)
     cost_telemetry = None    # §5: cost_gross_target/cost_round_trip/cost_target_ratio; set once the
                               # transaction-cost gate block runs (transaction_cost_gate on)
+    risk_budget_telemetry = None   # Priority-0 fix item 7: which of the four aggregate risk budgets
+                                    # (same_day_stop/expiry_stop/total_stop/total_structural) bound
+                                    # a risk_budget reject, + its exposure/limit/headroom numbers;
+                                    # set once the aggregate_risk_budget block runs and caps to 0
     entry_delta = None       # §14: best-effort short-put delta at signal time, set once the chain is
                               # fetched and an order is built; feeds _record_markout below
 
@@ -508,6 +512,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             rec.update(credit_telemetry)
         if cost_telemetry is not None:   # §5: cost-gate decision inputs, once computed
             rec.update(cost_telemetry)
+        if risk_budget_telemetry is not None:   # item 7: which budget bound a risk_budget reject
+            rec.update(risk_budget_telemetry)
         rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order))
         try:
             deps.trade_log(rec)
@@ -662,13 +668,43 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # this bot's own book is never double-counted. No spread-list feed wired -> zero (unchanged).
         foreign_spreads = deps.account_spy_spreads() if deps.account_spy_spreads is not None else []
         foreign = exposure.foreign_spy_exposure(foreign_spreads, state.open_positions)
-        qty = size_qty(req, risk_credit, deps.s2b_cfg.wing_width, deps.features,
-                       quality_multiplier=quality_multiplier)
-        qty = cap_to_budgets(qty, risk_credit, deps.s2b_cfg.wing_width, expiry, today,
-                             state.open_positions, deps.mark_position, req, deps.features,
-                             foreign_exposure=foreign)
+        proposed_qty = size_qty(req, risk_credit, deps.s2b_cfg.wing_width, deps.features,
+                                quality_multiplier=quality_multiplier)
+        # Priority-0 fix item 7: cap_to_budgets now returns a RiskBudgetResult naming WHICH of the
+        # four budgets (if any) bound the candidate down, not just a bare int -- so a reject can be
+        # decision-logged as e.g. "risk_budget:expiry_stop" instead of an undifferentiated
+        # "risk_budget". int(budget_result) is used for sizing so behavior/qty is unchanged
+        # (RiskBudgetResult is int-compatible via __int__/__eq__ for any other caller too).
+        budget_result = cap_to_budgets(proposed_qty, risk_credit, deps.s2b_cfg.wing_width, expiry,
+                                       today, state.open_positions, deps.mark_position, req,
+                                       deps.features, foreign_exposure=foreign)
+        qty = int(budget_result)
         if qty <= 0:
-            _log_decision("risk_budget", spot=spot, atr=atr, expiry=expiry, order=order)
+            limiting = budget_result.limiting_budget
+            # limiting is None when proposed_qty itself was already <=0 (size_qty rounded to zero
+            # before any book budget was even consulted) -- keep the bare "risk_budget" reason in
+            # that case since no specific budget can be blamed; only suffix it when a real budget
+            # bound (unconstrained-input case is a pure regression: exact same reason as before).
+            reason = f"risk_budget:{limiting}" if limiting is not None else "risk_budget"
+            by_budget = {
+                "same_day_stop": (budget_result.same_day_stop, budget_result.same_day_limit),
+                "expiry_stop": (budget_result.expiry_stop, budget_result.expiry_limit),
+                "total_stop": (budget_result.total_stop, budget_result.total_stop_limit),
+                "total_structural": (budget_result.total_structural, budget_result.structural_limit),
+            }
+            binding_exposure, binding_limit = by_budget.get(limiting, (None, None))
+            risk_budget_telemetry = {
+                "risk_budget_limiting": limiting,
+                "risk_budget_exposure": (round(binding_exposure, 2)
+                                         if binding_exposure is not None else None),
+                "risk_budget_limit": round(binding_limit, 2) if binding_limit is not None else None,
+                "risk_budget_headroom": (round(binding_limit - binding_exposure, 2)
+                                         if binding_exposure is not None and binding_limit is not None
+                                         else None),
+                "risk_budget_proposed_qty": proposed_qty,
+                "risk_budget_permitted_qty": qty,
+            }
+            _log_decision(reason, spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "risk_budget"
         order.qty = qty
         # Gap-risk stress test (partner review v2 §10), OPT-IN behind the same flag: stress ALL

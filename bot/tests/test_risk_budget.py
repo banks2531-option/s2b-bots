@@ -203,6 +203,59 @@ def test_cap_to_budgets_foreign_exposure_combines_with_own_book_in_total_budgets
     assert q == 0
 
 
+# ── cap_to_budgets returns a RiskBudgetResult naming the limiting budget (item 7) ───────────────
+
+# Book already heavy in the SAME expiry as the proposed trade (entered on a PRIOR day, so it does
+# NOT eat the same-day budget): credit=2.25, qty=4, mark=1.2 (fixed by the test's mark_fn) ->
+# remaining_stop_risk = (3*2.25 - 1.2 + 0.10) * 100 * 4 = 5.65*100*4 = 2260. With risk_equity=72000
+# and default S2bFeatures: expiry budget = 72000*0.03 = 2160 (already exceeded by 2260 -> expiry
+# caps the proposed trade to 0), same-day budget = 72000*0.02 = 1440 (unconstrained, same_day_stop=0
+# since the book position isn't same-day), total-stop budget = 72000*0.04 = 2880 (remaining 620 /
+# 250 per-contract = floor 2, still allows the full qty=2), total-structural budget = 72000*0.15 =
+# 10800 (nowhere close to binding). So expiry_stop is the sole/first budget that binds.
+OVER_EXPIRY_BOOK = [_pos(2.25, 4, "2026-07-24", "2026-07-10")]
+
+
+def test_cap_to_budgets_returns_limiting_reason():
+    from bot.portfolio.risk_budget import cap_to_budgets, RiskBudgetResult
+    from bot.features import S2bFeatures
+    r = cap_to_budgets(qty=2, credit=1.20, wing_width=10, expiry="2026-07-24", today="2026-07-15",
+                       open_positions=OVER_EXPIRY_BOOK, mark_fn=lambda p: 1.2,
+                       risk_equity=72000, f=S2bFeatures())
+    assert isinstance(r, RiskBudgetResult)
+    assert r.allowed_quantity == 0
+    assert r.limiting_budget == "expiry_stop"
+    assert int(r) == 0                # int-compat: existing callers keep working
+    assert r == 0                     # equality with int works
+
+
+def test_cap_to_budgets_returns_none_limiting_budget_when_unconstrained():
+    from bot.portfolio.risk_budget import cap_to_budgets, RiskBudgetResult
+    f = S2bFeatures()
+    r = cap_to_budgets(3, 2.0, 10.0, "2026-07-18", "2026-07-14", [], lambda p: p.credit,
+                       100_000.0, f)
+    assert isinstance(r, RiskBudgetResult)
+    assert r.limiting_budget is None
+    assert r.allowed_quantity == 3
+    assert int(r) == 3
+    assert r == 3
+
+
+def test_cap_to_budgets_int_compat_matches_old_int_returning_logic():
+    """Back-compat: int(cap_to_budgets(...)) must equal whatever the old bare-int-returning
+    implementation would have produced for a simple constrained case (same numbers as
+    test_cap_to_budgets_reduces_qty_for_nearly_full_expiry_budget, which asserted q == 2)."""
+    from bot.portfolio.risk_budget import cap_to_budgets
+    f = S2bFeatures()
+    risk_equity = 100_000.0
+    today = "2026-07-14"
+    expiry = "2026-07-18"
+    open_positions = [_pos(2.0, 5, expiry, "2026-07-10")]
+    mark_fn = lambda p: p.credit
+    r = cap_to_budgets(5, 2.0, 10.0, expiry, today, open_positions, mark_fn, risk_equity, f)
+    assert int(r) == 2
+
+
 def test_cap_to_budgets_excludes_incurred_loss_from_book_risk():
     """A position already blown through its stop (mark >= 3x credit) contributes ZERO remaining
     stop risk to the book -- it must not eat the new trade's budget. (The requested qty=5 is still

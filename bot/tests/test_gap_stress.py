@@ -141,6 +141,35 @@ def test_orchestrator_gap_stress_rejects_when_even_one_contract_fails():
     assert state.open_positions == []
 
 
+def test_orchestrator_foreign_position_raises_gap_stress_total():
+    """Priority-0 fix item 6: foreign SPY spreads at the broker (not opened by this bot) must be
+    included in the gap-stress book, not just this bot's own tracked positions -- so the logged
+    gap-stress totals with a foreign position present must exceed the totals with no foreign
+    position, all else equal (own entered position/qty unchanged; max_gap_stress_loss_pct loose
+    enough that neither run's qty gets shrunk by the gap-stress budget itself)."""
+    # Foreign spread close enough to spot to be stressed (loss > 0) at all three drops; distinct
+    # strikes from the entered 568/558 spread so it is unambiguously foreign, not an own-qty echo.
+    foreign = ManagedPosition("SPY", 572.0, 562.0, credit=0.0, qty=3, expiry="2026-06-19",
+                               entry_date="2026-06-10")
+
+    def _run(account_spy_spreads):
+        log = []
+        state = BotState()
+        f = S2bFeatures(aggregate_risk_budget=True, max_gap_stress_loss_pct=1.0)
+        d = _deps(features=f, trade_log=lambda rec: log.append(rec),
+                  account_spy_spreads=account_spy_spreads)
+        state, info = run_entry_cycle(state, d, MONDAY)
+        assert info == "filled"
+        return log[-1]
+
+    rec_no_foreign = _run(lambda: [])
+    rec_with_foreign = _run(lambda: [foreign])
+
+    assert rec_with_foreign["gap_stress_1_0"] > rec_no_foreign["gap_stress_1_0"]
+    assert rec_with_foreign["gap_stress_1_5"] > rec_no_foreign["gap_stress_1_5"]
+    assert rec_with_foreign["gap_stress_2_0"] > rec_no_foreign["gap_stress_2_0"]
+
+
 def test_orchestrator_gap_stress_off_flag_unchanged():
     # aggregate_risk_budget False (default) -> gap-stress logic is a no-op even though it would
     # have blown a tiny budget; legacy sizing path is used and the trade goes through untouched.

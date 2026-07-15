@@ -1,4 +1,8 @@
 """Allocated-equity + account-level SPY exposure supervisor (partner review v2 §2)."""
+from collections import namedtuple
+
+_ForeignSpread = namedtuple("_ForeignSpread", "short_strike long_strike credit qty expiry")
+
 
 def risk_equity(allocated_equity, broker_equity):
     """The equity this bot sizes risk against: min(allocated, broker). Never exceed the allocation."""
@@ -21,16 +25,36 @@ def account_spy_exposure(spy_spreads):
     return {"structural": round(total_structural, 2), "stop": round(total_stop, 2)}
 
 
+def foreign_spreads(all_broker_spy_spreads, own_positions):
+    """QUANTITY-AWARE reconstruction of the foreign (not-opened-by-this-bot) SPY spreads at the
+    broker (partner review v2 §2, Priority-0 fix item 6). A broker spread's (short_strike,
+    long_strike, expiry) triple matching an own position no longer excludes it WHOLESALE -- only
+    the quantity in excess of this bot's own tracked qty at that same key is foreign. E.g. broker
+    holds 10 contracts of a spread this bot tracks 8 of -> 2 foreign contracts, not 0 and not 10.
+    Returns a list of synthetic _ForeignSpread rows (one per broker spread with foreign qty > 0),
+    each carrying .short_strike/.long_strike/.credit/.qty(=foreign qty)/.expiry, with credit
+    defaulted to 0.0 (unknown/conservative) same as the broker-reconstructed spreads always were."""
+    own_qty = {}
+    for p in own_positions:
+        k = (p.short_strike, p.long_strike, p.expiry)
+        own_qty[k] = own_qty.get(k, 0) + p.qty
+    out = []
+    for b in all_broker_spy_spreads:
+        k = (b.short_strike, b.long_strike, b.expiry)
+        fq = max(0, b.qty - own_qty.get(k, 0))
+        if fq > 0:
+            out.append(_ForeignSpread(b.short_strike, b.long_strike,
+                                      getattr(b, "credit", 0.0) or 0.0, fq, b.expiry))
+    return out
+
+
 def foreign_spy_exposure(all_broker_spy_spreads, own_positions):
-    """Structural + stop dollar-risk of FOREIGN SPY spreads only -- broker-side spreads NOT opened
-    by this bot (partner review v2 §2: foreign positions must still count toward this bot's TOTAL
-    stop/structural budgets, but must never be double-counted against this bot's own open book).
-    A broker spread matches an own position (and is excluded) when its (short_strike, long_strike,
-    expiry) triple matches one of own_positions' -- the same identity the rest of the book uses
-    (see bot.ops.ledger.position_key). Reuses account_spy_exposure's per-spread math on the
-    remaining (foreign) subset, so foreign spreads still get the conservative full-width treatment
-    when their credit is unknown (0.0), exactly as account_spy_exposure already does."""
-    own_keys = {(p.short_strike, p.long_strike, p.expiry) for p in own_positions}
-    foreign = [p for p in all_broker_spy_spreads
-               if (p.short_strike, p.long_strike, p.expiry) not in own_keys]
-    return account_spy_exposure(foreign)
+    """Structural + stop dollar-risk of FOREIGN SPY spreads only -- broker-side spreads (or the
+    broker-side EXCESS quantity of a spread this bot also holds) NOT opened by this bot (partner
+    review v2 §2: foreign positions must still count toward this bot's TOTAL stop/structural
+    budgets, but must never be double-counted against this bot's own open book). Quantity-aware
+    (Priority-0 fix item 6): see foreign_spreads() for the matching logic. Reuses
+    account_spy_exposure's per-spread math on the foreign subset, so foreign spreads still get the
+    conservative full-width treatment when their credit is unknown (0.0), exactly as
+    account_spy_exposure already does."""
+    return account_spy_exposure(foreign_spreads(all_broker_spy_spreads, own_positions))

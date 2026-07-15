@@ -666,8 +666,14 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # toward this bot's TOTAL stop/structural budgets (partner review v2 §2). Derived from the
         # raw broker-wide spread list minus this bot's own open positions (by strikes+expiry), so
         # this bot's own book is never double-counted. No spread-list feed wired -> zero (unchanged).
-        foreign_spreads = deps.account_spy_spreads() if deps.account_spy_spreads is not None else []
-        foreign = exposure.foreign_spy_exposure(foreign_spreads, state.open_positions)
+        broker_spy_spreads = deps.account_spy_spreads() if deps.account_spy_spreads is not None else []
+        # Priority-0 fix item 6: quantity-aware -- a broker spread matching an own position's
+        # (short,long,expiry) key is no longer excluded wholesale; only the qty in excess of this
+        # bot's own tracked qty at that key is foreign. foreign_position_list is reused below to
+        # also fold foreign spreads into the gap-stress book (they were previously counted toward
+        # the stop/structural budgets but silently absent from the gap-stress stress test).
+        foreign_position_list = exposure.foreign_spreads(broker_spy_spreads, state.open_positions)
+        foreign = exposure.account_spy_exposure(foreign_position_list)
         proposed_qty = size_qty(req, risk_credit, deps.s2b_cfg.wing_width, deps.features,
                                 quality_multiplier=quality_multiplier)
         # Priority-0 fix item 7: cap_to_budgets now returns a RiskBudgetResult naming WHICH of the
@@ -704,19 +710,21 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             return state, "risk_budget"
         order.qty = qty
         # Gap-risk stress test (partner review v2 §10), OPT-IN behind the same flag: stress ALL
-        # open positions AND the proposed trade at SPY down 1.0/1.5/2.0 ATR (conservative
-        # intrinsic-value repricing). If the 1.5-ATR total stressed loss exceeds the budget,
-        # shrink the proposed qty (re-checking each step) until it fits, or reject outright if
-        # even 1 contract doesn't. All three scenario losses are recorded for the final qty.
-        # The proposed leg is stressed at risk_credit (a `replace()` view -- the real `order`
-        # object, used for the broker payload/OPEN record below, is left untouched).
+        # open positions, FOREIGN positions (Priority-0 fix item 6 -- foreign_position_list, same
+        # quantity-aware helper used for the stop/structural budgets above), AND the proposed trade
+        # at SPY down 1.0/1.5/2.0 ATR (conservative intrinsic-value repricing). If the 1.5-ATR total
+        # stressed loss exceeds the budget, shrink the proposed qty (re-checking each step) until it
+        # fits, or reject outright if even 1 contract doesn't. All three scenario losses are
+        # recorded for the final qty. The proposed leg is stressed at risk_credit (a `replace()`
+        # view -- the real `order` object, used for the broker payload/OPEN record below, is left
+        # untouched).
         gap_budget = deps.features.max_gap_stress_loss_pct * req
-        gap_losses = gap_stress_losses(state.open_positions + [replace(order, credit=risk_credit)],
-                                       spot, atr, deps.s2b_cfg.wing_width)
+        gap_stress_book = state.open_positions + foreign_position_list + [replace(order, credit=risk_credit)]
+        gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width)
         while order.qty > 0 and gap_losses[1.5] > gap_budget:
             order.qty -= 1
-            gap_losses = gap_stress_losses(state.open_positions + [replace(order, credit=risk_credit)],
-                                           spot, atr, deps.s2b_cfg.wing_width)
+            gap_stress_book = state.open_positions + foreign_position_list + [replace(order, credit=risk_credit)]
+            gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width)
         if order.qty <= 0:
             _log_decision("gap_stress", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "gap_stress"

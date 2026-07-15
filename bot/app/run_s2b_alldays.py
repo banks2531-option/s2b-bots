@@ -8,6 +8,19 @@ trading all days helps or dilutes (the backtests said it dilutes PF and fails 2x
   TRADIER_TOKEN=... TRADIER_ACCOUNT_ID=VA... python -m bot.app.run_s2b_alldays --ticks 1
 """
 from bot.app.run_s2b import parse_args, build_and_run
+from bot.features import S2bFeatures
+
+# Partner review v2 feature set for Bot B (all-days). The four Phase-4 alpha flags
+# (regime_entry_blocks, automatic_hedging, bearish_module, early_loss_exit) stay OFF.
+ALLDAYS_FEATURES = S2bFeatures(
+    credit_tiers=True,
+    transaction_cost_gate=True,
+    entry_price_ladder=True,
+    tp_price_ladder=True,
+    aggregate_risk_budget=True,
+    actual_fill_accounting=True,
+    regime_shadow_monitor=True,
+)
 
 
 def main(argv=None):
@@ -17,7 +30,8 @@ def main(argv=None):
     # risk-gate concurrency + total-risk caps from max_open so the gate permits the full book).
     return build_and_run(args.ticks, args.poll_seconds,
                          entry_days=frozenset({0, 1, 2, 3, 4}), max_open=5, label="ALL-DAYS",
-                         shared_account=args.shared_account, max_entries_per_day=5)
+                         shared_account=args.shared_account, max_entries_per_day=5,
+                         features=ALLDAYS_FEATURES)
 
 
 if __name__ == "__main__":

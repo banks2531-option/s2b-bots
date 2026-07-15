@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
 from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload
+from bot.features import S2bFeatures
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
 from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier
@@ -65,6 +66,7 @@ class Deps:
     credit_floor_ratio: float = 0.115                # floor for the full-size threshold (credit/wing_width)
     probe_size_multiplier: float = 0.40              # size multiplier for a "probe" (below full threshold) entry
     use_adaptive_credit: bool = False                # when True, the full-size threshold adapts per DTE bucket (p40 of prior ratios)
+    features: object = field(default_factory=S2bFeatures)   # partner review v2 feature flags + thresholds (opt-in, OFF by default)
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking

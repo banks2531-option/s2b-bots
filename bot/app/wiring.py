@@ -6,6 +6,7 @@ from bot.app import feeds
 from bot.app.orchestrator import Deps, tick
 from bot.app.state_store import save_state
 from bot.strategy.s2b import _occ
+from bot.features import S2bFeatures
 
 _LOG_FIELDS = ["event", "date", "ticker", "short", "long", "expiry", "qty",
                "credit", "action", "exit_value", "pnl", "status"]
@@ -55,11 +56,13 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                trade_log=(lambda record: None),
                regime_log=(lambda s, ts, e: None), uw_http=None,
                poll_s=2, timeout_s=30, base_risk_pct=0.10, s2b_cfg=None, trend_gate_enabled=False,
-               degross_on_risk_off=False, degross_on_flow_flip=False):
+               degross_on_risk_off=False, degross_on_flow_flip=False, features=None):
     """Assemble a production Deps from a Tradier http callable + injected market-data feeds.
-    s2b_cfg overrides the spread geometry (default = standard $10-wing S2bConfig)."""
+    s2b_cfg overrides the spread geometry (default = standard $10-wing S2bConfig).
+    features overrides the partner-review-v2 feature flags (default = all-off S2bFeatures)."""
     from bot.strategy.s2b import S2bConfig
     s2b_cfg = s2b_cfg if s2b_cfg is not None else S2bConfig()
+    features = features if features is not None else S2bFeatures()
     client = TradierClient(account_id=account_id, http=http)
 
     # Derive the risk-gate caps from max_open so the gate can never block below the book size the
@@ -157,4 +160,5 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         trend_gate_enabled=trend_gate_enabled,
         degross_on_risk_off=degross_on_risk_off,
         degross_on_flow_flip=degross_on_flow_flip,
+        features=features,
     )

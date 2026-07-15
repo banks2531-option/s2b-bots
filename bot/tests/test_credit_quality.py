@@ -90,6 +90,10 @@ def test_should_record_observation_dedups():
     # expiry change -> record
     assert should_record_observation(last, date="2026-07-15", expiry="2026-07-24",
         short=743.0, long=733.0, ratio=0.104, bucket15=39) is True
+    # day rollover (same spread/ratio/window, new date) -> record: a stale prior-day anchor must not
+    # suppress the first observation of the new day (keeps credit_obs_last from silencing a fresh day)
+    assert should_record_observation(last, date="2026-07-16", expiry="2026-07-17",
+        short=743.0, long=733.0, ratio=0.104, bucket15=39) is True
     # no prior observation -> record
     assert should_record_observation(None, date="2026-07-15", expiry="2026-07-17",
         short=743.0, long=733.0, ratio=0.104, bucket15=39) is True

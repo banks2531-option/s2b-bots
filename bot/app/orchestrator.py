@@ -732,13 +732,14 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # gets recorded.
         minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET (see run_entry_cycle docstring)
         bucket15 = minutes_since_open // 15
+        ratio_r = round(ratio, 4)   # single rounded value shared by the dedup key, the append, and the anchor
         obs = {"date": today, "expiry": expiry, "short": order.short_strike, "long": order.long_strike,
-               "ratio": round(ratio, 4), "bucket15": bucket15}
+               "ratio": ratio_r, "bucket15": bucket15}
         if should_record_observation(state.credit_obs_last.get(bucket), date=today, expiry=expiry,
                                       short=order.short_strike, long=order.long_strike,
-                                      ratio=round(ratio, 4), bucket15=bucket15):
+                                      ratio=ratio_r, bucket15=bucket15):
             hist = state.credit_ratio_history.setdefault(bucket, [])
-            hist.append(round(ratio, 4))
+            hist.append(ratio_r)
             state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
             state.credit_obs_last[bucket] = obs
         mult = credit_tier(credit_for_tier, wing, deps.features.min_credit_ratio, thr,

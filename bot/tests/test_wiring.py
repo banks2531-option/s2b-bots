@@ -256,3 +256,117 @@ def test_build_deps_account_spy_exposure_includes_foreign_positions():
     exposure = deps.account_spy_exposure()
     # width 10, credit 0.0 (unknown from broker) -> structural = 10*100*2 = 2000, stop = same (conservative)
     assert exposure == {"structural": 2000.0, "stop": 2000.0}
+
+
+# ── Task 3.1: entry_price_ladder wired into open_spread (partner spec §6) ────────────────────────
+
+def _spread_payload(price=1.70, qty=2):
+    return {
+        "class": "multileg", "symbol": "SPY", "type": "credit", "duration": "day",
+        "price": price,
+        "option_symbol[0]": "SPY260619P00568000", "side[0]": "sell_to_open", "quantity[0]": qty,
+        "option_symbol[1]": "SPY260619P00558000", "side[1]": "buy_to_open", "quantity[1]": qty,
+    }
+
+
+def _ladder_http(order_scripts, short_quote=(3.40, 3.50), long_quote=(1.60, 1.70)):
+    """order_scripts: list of status-lists, one per order placed (in placement order); the last
+    status in a list repeats once its cursor runs off the end. A DELETE forces the next GET on
+    that order to report 'canceled', modelling a confirmed cancel."""
+    scripts = list(order_scripts)
+    state = {"next_id": 500, "orders": {}}
+    posts = []
+    deletes = []
+
+    def http(method, path, params=None, data=None):
+        if path == "/markets/quotes":
+            sym = params["symbols"]
+            bid, ask = (short_quote if sym == "SPY260619P00568000" else long_quote)
+            return {"quotes": {"quote": {"symbol": sym, "bid": bid, "ask": ask}}}
+        if path.endswith("/orders") and method == "POST":
+            posts.append(dict(data))
+            oid = str(state["next_id"]); state["next_id"] += 1
+            script = scripts.pop(0) if scripts else ["filled"]
+            state["orders"][oid] = {"script": script, "cursor": 0, "cancelled": False}
+            return {"order": {"id": oid}}
+        if "/orders/" in path and method == "GET":
+            oid = path.rsplit("/", 1)[-1]
+            rec = state["orders"][oid]
+            if rec["cancelled"]:
+                return {"order": {"id": oid, "status": "canceled"}}
+            i = min(rec["cursor"], len(rec["script"]) - 1)
+            status = rec["script"][i]
+            rec["cursor"] += 1
+            body = {"id": oid, "status": status}
+            if status == "filled":
+                body["exec_quantity"] = 2
+                body["avg_fill_price"] = 1.75
+            return {"order": body}
+        if "/orders/" in path and method == "DELETE":
+            oid = path.rsplit("/", 1)[-1]
+            state["orders"][oid]["cancelled"] = True
+            deletes.append(oid)
+            return {}
+        return {}
+    return http, posts, deletes
+
+
+def test_open_spread_ladder_off_is_exact_single_submit_behavior():
+    # default S2bFeatures() -> entry_price_ladder=False (always the case for run_s2b_live.py) --
+    # open_spread must be the pre-existing single-submit call: ONE POST at the payload's own
+    # price (never recomputed to package_mid), no cancel/reprice machinery touched at all.
+    http, posts, deletes = _ladder_http([["filled"]])
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01))
+    assert deps.features.entry_price_ladder is False
+    result = deps.open_spread(_spread_payload(price=1.70, qty=2))
+    assert result.status == "filled"
+    assert len(posts) == 1
+    assert posts[0]["price"] == 1.70          # untouched -- not recomputed to package_mid (1.80)
+    assert deletes == []
+
+
+def test_open_spread_ladder_on_starts_at_package_mid_and_fills_first_rung():
+    from bot.features import S2bFeatures
+    # short 3.40/3.50 (mid 3.45), long 1.60/1.70 (mid 1.65) -> package_mid = 1.80, natural = 1.70
+    http, posts, deletes = _ladder_http([["filled"]])
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), poll_s=0.01,
+                      features=S2bFeatures(entry_price_ladder=True, entry_reprice_seconds=0.02,
+                                          entry_max_work_seconds=5.0))
+    result = deps.open_spread(_spread_payload(price=1.70, qty=2))   # payload's price is irrelevant now
+    assert result.status == "filled"
+    assert len(posts) == 1
+    assert posts[0]["price"] == 1.80          # started at the package midpoint, not the natural
+
+
+def test_open_spread_ladder_on_cancels_and_reprices_before_filling():
+    from bot.features import S2bFeatures
+    # first rung (1.80) never fills within the dwell -> must be cancel-confirmed, then the ladder
+    # steps down a penny and the second rung (1.79) fills.
+    http, posts, deletes = _ladder_http([["open", "open"], ["filled"]])
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), poll_s=0.01,
+                      features=S2bFeatures(entry_price_ladder=True, entry_reprice_seconds=0.02,
+                                          entry_max_work_seconds=5.0))
+    result = deps.open_spread(_spread_payload(price=1.70, qty=2))
+    assert result.status == "filled"
+    assert [p["price"] for p in posts] == [1.80, 1.79]
+    assert len(deletes) == 1   # the first (never-filled) rung's order was cancel-confirmed
+
+
+def test_open_spread_ladder_on_never_crosses_below_min_credit():
+    from bot.features import S2bFeatures
+    # every rung stays open forever -> the ladder must give up once the next rung would cross
+    # below the conservative floor (expected_executable_credit = max(natural=1.70, mid-slip=1.77)
+    # = 1.77) rather than ever submitting 1.76 or lower.
+    http, posts, deletes = _ladder_http([["open", "open"]] * 10)
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), poll_s=0.01,
+                      features=S2bFeatures(entry_price_ladder=True, entry_reprice_seconds=0.02,
+                                          entry_max_work_seconds=5.0))
+    result = deps.open_spread(_spread_payload(price=1.70, qty=2))
+    assert result.status != "filled"
+    prices = [p["price"] for p in posts]
+    assert min(prices) >= 1.77
+    assert prices == [1.80, 1.79, 1.78, 1.77]

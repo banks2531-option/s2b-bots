@@ -59,11 +59,13 @@ def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick, state_pat
     return state
 
 
-from bot.broker.tradier import TradierClient
-from bot.broker.submit import submit_and_verify
-from bot.broker.order_state import ExecutionResult
+from bot.broker.tradier import TradierClient, BrokerError
+from bot.broker.submit import submit_and_verify, submit_entry_ladder
+from bot.broker.order_state import ExecutionResult, OrderState, map_broker_status, TERMINAL
 from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_payload
 from bot.strategy.s2b import OptionQuote
+from bot.strategy.execution_price import (package_mid, expected_executable_credit, quotes_valid,
+                                          package_too_wide, spot_moved_too_far)
 from bot.risk_gate import AccountState, RiskConfig
 from bot.portfolio import exposure
 import time
@@ -147,7 +149,95 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                                regulatory_fees=regulatory_fees,
                                order_id=(str(oid) if oid is not None else None))
 
+    def _open_spread_ladder(payload):
+        """Midpoint->natural entry limit ladder (partner spec §6): start at the package midpoint,
+        submit ONE multileg limit order, wait, cancel+confirm, refresh quotes, step the credit
+        down by entry_reprice_increment, repeat for up to entry_max_work_seconds -- never below
+        the conservative expected-executable-credit floor, never holding two live opening orders.
+
+        LIVE-VALIDATION-REQUIRED: only reachable when features.entry_price_ladder is True (never
+        the case for run_s2b_live.py, whose features default to all-off). should_abort here covers
+        quote validity + package width + spot-move; the credit-tier / transaction-cost / aggregate
+        risk-budget / expiration-change re-checks are a live-validation follow-up -- TODO below."""
+        short_sym = payload["option_symbol[0]"]
+        long_sym = payload["option_symbol[1]"]
+        signal_spot = get_spot("SPY")
+        atr = get_atr("SPY")
+
+        # Captures a fill discovered by cancel_fn's confirm-query racing against a broker fill --
+        # the ladder core can only say "not confirmed cancelled", so surface the real fill here
+        # rather than silently losing it (and rather than ever re-placing on top of it).
+        late_fill = {"result": None}
+
+        def _fresh_legs():
+            return _quote(short_sym), _quote(long_sym)
+
+        def place_fn(credit):
+            rung_payload = dict(payload)
+            rung_payload["price"] = round(credit, 2)
+            oid = client.place_order(rung_payload)
+            t0 = time.time()
+            while True:
+                order = client.get_order(oid)
+                state = map_broker_status(order.get("status"))
+                if state in TERMINAL:
+                    return _to_execution_result(state, order, rung_payload)
+                if time.time() - t0 >= features.entry_reprice_seconds:
+                    return _to_execution_result(state, order, rung_payload)   # still open -> ladder cancels
+                time.sleep(poll_s)
+
+        def cancel_fn(order_id):
+            try:
+                client.cancel_order(order_id)
+            except BrokerError:
+                pass   # may have just filled -- confirm below rather than trust the exception
+            order = client.get_order(order_id)
+            state = map_broker_status(order.get("status"))
+            if state == OrderState.FILLED:
+                late_fill["result"] = _to_execution_result(state, order, payload)
+                return False   # NOT a confirmed cancel -- tells the ladder to stop, not reprice
+            return state in (OrderState.CANCELLED, OrderState.REJECTED, OrderState.EXPIRED)
+
+        def on_reprice(next_credit):
+            short, long = _fresh_legs()
+            if not quotes_valid(short.bid, short.ask, long.bid, long.ask):
+                return {"abort": True}
+            # TODO(live-validation, spec §6/§9): recalculate permissible qty here (risk budget,
+            # settled cash) before each replace; recheck credit-tier ratio + transaction-cost gate.
+            return {}
+
+        def should_abort():
+            short, long = _fresh_legs()
+            if not quotes_valid(short.bid, short.ask, long.bid, long.ask):
+                return True
+            if package_too_wide(short.bid, short.ask, long.bid, long.ask,
+                                features.max_package_width_ratio):
+                return True
+            if spot_moved_too_far(signal_spot, get_spot("SPY"), atr,
+                                  features.max_signal_to_order_spot_move_atr):
+                return True
+            # TODO(live-validation, spec §6): also abort when the recalculated credit ratio falls
+            # below the permitted tier, the transaction-cost gate fails, the aggregate risk budget
+            # no longer permits the trade, or the expiration/chain has changed.
+            return False
+
+        start_short, start_long = _fresh_legs()
+        start_credit = package_mid(start_short.bid, start_short.ask, start_long.bid, start_long.ask)
+        min_credit = expected_executable_credit(start_short.bid, start_short.ask,
+                                                start_long.bid, start_long.ask,
+                                                features.expected_entry_slippage)
+
+        result = submit_entry_ladder(
+            place_fn=place_fn, cancel_fn=cancel_fn, start_credit=start_credit,
+            min_credit=min_credit, step=features.entry_reprice_increment,
+            max_seconds=features.entry_max_work_seconds, now_fn=time.time, sleep_fn=time.sleep,
+            on_reprice=on_reprice, should_abort=should_abort)
+
+        return late_fill["result"] if late_fill["result"] is not None else result
+
     def open_spread(payload):
+        if features.entry_price_ladder:
+            return _open_spread_ladder(payload)
         state, order = submit_and_verify(client, payload, poll_s, timeout_s, time.time, time.sleep)
         return _to_execution_result(state, order, payload)
 

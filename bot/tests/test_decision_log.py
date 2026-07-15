@@ -71,10 +71,9 @@ def test_reject_writes_decision_record_with_reason_and_flags():
 
 def test_credit_too_low_reject_writes_decision_record():
     logged = []
-    f = S2bFeatures(decision_logging=True)
+    f = S2bFeatures(decision_logging=True, credit_tiers=True)
     d = _deps(features=f, trade_log=lambda rec: logged.append(rec),
-              get_chain=lambda sym, exp: _chain(3.00, 2.10),  # credit=0.90, ratio=0.09
-              min_credit_ratio=0.10)
+              get_chain=lambda sym, exp: _chain(3.00, 2.10))  # natural=0.90 -> exec_credit=0.97, ratio=0.097
     state = BotState()
     state, info = run_entry_cycle(state, d, MONDAY)
     assert info == "credit_too_low"

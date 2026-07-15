@@ -1,4 +1,5 @@
-"""Credit-quality tiering (partner review §2): size by credit-as-%-of-wing, adaptive per DTE bucket."""
+"""Credit-quality tiering (partner review v2 §3): size by credit-as-%-of-wing, adaptive per DTE
+bucket, with a ceiling-clamped adaptive full-size threshold gated on a minimum signal count."""
 
 
 def dte_bucket(dte: int) -> str:
@@ -6,7 +7,9 @@ def dte_bucket(dte: int) -> str:
         return "4-5"
     if dte <= 8:
         return "6-8"
-    return "9-11"
+    if dte <= 11:
+        return "9-11"
+    return "12+"
 
 
 def _percentile(xs, p):
@@ -20,9 +23,14 @@ def _percentile(xs, p):
     return s[lo] + (s[hi] - s[lo]) * (k - lo)
 
 
-def full_size_threshold(prior_ratios, floor=0.115, p=40):
-    hp = _percentile(prior_ratios, p)
-    return max(floor, hp) if hp is not None else floor
+def full_size_threshold(prior_ratios, floor, ceiling, min_signals, p=40):
+    """§3: warmup -- with fewer than `min_signals` prior candidates, use the fixed `floor` (not
+    enough data to adapt yet). Once warmed up, adapt to the pth percentile of prior candidate
+    ratios, clamped to [floor, ceiling] so a hot or cold run of signals can't drag the threshold
+    out of the sane range."""
+    if len(prior_ratios) < min_signals:
+        return floor
+    return min(ceiling, max(floor, _percentile(prior_ratios, p)))
 
 
 def credit_tier(credit, wing_width, min_ratio, full_threshold, probe_mult):

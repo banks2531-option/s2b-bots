@@ -1,5 +1,5 @@
 """Bot orchestrator: tick = reconcile -> manage -> enter, with halt-gating (spec §3,4,5,7)."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
@@ -10,7 +10,7 @@ from bot.features import S2bFeatures
 from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
-from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier
+from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier, _percentile
 from bot.portfolio.risk_budget import (size_qty, cap_to_budgets, remaining_stop_risk,
                                         planned_stop_loss_per_contract, structural_max_loss_per_contract)
 from bot.portfolio.gap_stress import gap_stress_losses
@@ -71,10 +71,6 @@ class Deps:
     degross_on_risk_off: bool = False                # Phase 1.5: close held positions in a risk_off downtrend
     degross_on_flow_flip: bool = False               # Flow-flip de-gross: close same-day, not-yet-profitable positions on a bull->bear flow flip
     flow_degross_same_day_only: bool = True          # restrict flow-flip de-gross to positions opened TODAY (recency)
-    min_credit_ratio: float = 0.0                    # adaptive credit tiering (partner review §2); 0.0 = feature OFF
-    credit_floor_ratio: float = 0.115                # floor for the full-size threshold (credit/wing_width)
-    probe_size_multiplier: float = 0.40              # size multiplier for a "probe" (below full threshold) entry
-    use_adaptive_credit: bool = False                # when True, the full-size threshold adapts per DTE bucket (p40 of prior ratios)
     features: object = field(default_factory=S2bFeatures)   # partner review v2 feature flags + thresholds (opt-in, OFF by default)
     risk_equity: callable = None            # () -> float; min(allocated_equity, broker_equity) (partner review v2 §2)
     account_spy_exposure: callable = None   # () -> {"structural": float, "stop": float} across EVERY SPY spread at the broker
@@ -366,7 +362,9 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
     if state.last_entry_date != today:
         state.entries_today = 0          # new calendar day -> reset the daily entry counter
-    exec_credit = None   # §4 conservative expected-executable credit; set once quote guards pass
+    exec_credit = None       # §4 conservative expected-executable credit; set once quote guards pass
+    credit_telemetry = None  # §3: credit_ratio/credit_pctl40/credit_sample_count/credit_threshold/
+                              # credit_quality_mult; set once the credit-tiers block runs (credit_tiers on)
 
     def _log_decision(reason, spot=None, atr=None, expiry=None, order=None):
         """§1/§12: write a DECISION record (reason + active flags + best-effort exposure telemetry)
@@ -386,6 +384,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         rec = {"event": "DECISION", "date": today, "decision": reason, "flags": flags}
         if exec_credit is not None:   # §4: the conservative expected-executable credit, once known
             rec["expected_executable_credit"] = round(exec_credit, 4)
+        if credit_telemetry is not None:   # §3: credit-tier decision inputs, once computed
+            rec.update(credit_telemetry)
         rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order))
         try:
             deps.trade_log(rec)
@@ -448,21 +448,44 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             # TODO(partner review v2 §4): MAX_QUOTE_AGE_SECONDS staleness enforcement is deferred --
             # OptionQuote/parse_chain doesn't carry a quote timestamp yet. Wire this once quote
             # timestamps are plumbed through parse_chain (a later task).
-    # Adaptive credit-quality tiering (partner review §2), OPT-IN via deps.min_credit_ratio (0.0 =
-    # feature OFF -> this entire block is a no-op, so default behavior is byte-identical to before).
-    # A credit too thin relative to the wing width is rejected outright; a mid-tier credit is sized
-    # down to a "probe"; a strong credit trades full size (see bot/strategy/credit_quality.py).
-    bucket = None
-    credit_mult = 1.0
-    if deps.min_credit_ratio > 0:
+    # Adaptive credit-quality tiering (partner review v2 §3), OPT-IN via deps.features.credit_tiers
+    # (False = feature OFF -> this entire block is a no-op, so default behavior is byte-identical to
+    # before). Sizes off exec_credit (the conservative expected-executable credit computed by the §4
+    # guards above, when available -- falls back to order.credit if quote guards were skipped)
+    # rather than the naive mid-quote credit. A credit too thin relative to the wing width is
+    # rejected outright; a mid-tier credit is sized down to a "probe"; a strong credit trades full
+    # size (see bot/strategy/credit_quality.py).
+    quality_multiplier = 1.0
+    if deps.features.credit_tiers:
+        wing = deps.s2b_cfg.wing_width
+        credit_for_tier = exec_credit if exec_credit is not None else order.credit
         dte = dte_from_expiry(expiry, today)
         bucket = dte_bucket(dte)
-        prior = state.credit_ratio_history.get(bucket, [])
-        thr = (full_size_threshold(prior, floor=deps.credit_floor_ratio)
-               if deps.use_adaptive_credit else deps.credit_floor_ratio)
-        credit_mult = credit_tier(order.credit, deps.s2b_cfg.wing_width, deps.min_credit_ratio,
-                                   thr, deps.probe_size_multiplier)
-        if credit_mult == 0.0:
+        ratio = credit_for_tier / wing
+        # COPY captured BEFORE appending the current candidate -- no look-ahead: the threshold for
+        # THIS decision must only ever see signals from PRIOR decisions.
+        prior = list(state.credit_ratio_history.get(bucket, []))
+        count = len(prior)
+        thr = full_size_threshold(prior, deps.features.full_size_credit_floor,
+                                   deps.features.full_size_credit_ceiling,
+                                   deps.features.credit_adapt_min_signals)
+        # §3: "Use prior candidate signals, including rejected signals" -- append EVERY evaluated
+        # candidate's ratio (even one about to be rejected below) so future thresholds see the full
+        # population of opportunities, not just fills.
+        hist = state.credit_ratio_history.setdefault(bucket, [])
+        hist.append(round(ratio, 4))
+        state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
+        mult = credit_tier(credit_for_tier, wing, deps.features.min_credit_ratio, thr,
+                            deps.features.probe_size_multiplier)
+        credit_telemetry = {
+            "credit_ratio": ratio,
+            "credit_pctl40": (_percentile(prior, 40) if count else None),
+            "credit_sample_count": count,
+            "credit_threshold": thr,
+            "credit_quality_mult": mult,
+        }
+        quality_multiplier = mult
+        if mult == 0.0:
             _log_decision("credit_too_low", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "credit_too_low"
     # Never STACK an identical spread (same strikes+expiry): the broker aggregates same-symbol legs,
@@ -480,18 +503,21 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # Aggregate dollar-risk budget sizing (partner review v2 §9), OPT-IN. Replaces the
         # equity/risk_pct sizing above with a budgeted qty derived from the entry-stop-risk and
         # structural constraints, then capped so this trade never blows through the book's
-        # same-day/expiry/total stop or total structural risk limits. quality_multiplier is
-        # stubbed at 1.0 here; a later phase wires expected_executable_credit/quality scoring in.
+        # same-day/expiry/total stop or total structural risk limits. Sizes off exec_credit (the
+        # conservative expected-executable credit, §4/§9) -- falls back to order.credit if it
+        # wasn't computed (credit_tiers and transaction_cost_gate both off) -- and folds in the
+        # credit-tier quality_multiplier from the block above (1.0 when credit_tiers is off).
         req = deps.risk_equity()
+        risk_credit = exec_credit if exec_credit is not None else order.credit
         # Foreign SPY positions at the broker (opened by another bot/human, not this one) MUST count
         # toward this bot's TOTAL stop/structural budgets (partner review v2 §2). Derived from the
         # raw broker-wide spread list minus this bot's own open positions (by strikes+expiry), so
         # this bot's own book is never double-counted. No spread-list feed wired -> zero (unchanged).
         foreign_spreads = deps.account_spy_spreads() if deps.account_spy_spreads is not None else []
         foreign = exposure.foreign_spy_exposure(foreign_spreads, state.open_positions)
-        qty = size_qty(req, order.credit, deps.s2b_cfg.wing_width, deps.features,
-                       quality_multiplier=1.0)
-        qty = cap_to_budgets(qty, order.credit, deps.s2b_cfg.wing_width, expiry, today,
+        qty = size_qty(req, risk_credit, deps.s2b_cfg.wing_width, deps.features,
+                       quality_multiplier=quality_multiplier)
+        qty = cap_to_budgets(qty, risk_credit, deps.s2b_cfg.wing_width, expiry, today,
                              state.open_positions, deps.mark_position, req, deps.features,
                              foreign_exposure=foreign)
         if qty <= 0:
@@ -503,11 +529,15 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # intrinsic-value repricing). If the 1.5-ATR total stressed loss exceeds the budget,
         # shrink the proposed qty (re-checking each step) until it fits, or reject outright if
         # even 1 contract doesn't. All three scenario losses are recorded for the final qty.
+        # The proposed leg is stressed at risk_credit (a `replace()` view -- the real `order`
+        # object, used for the broker payload/OPEN record below, is left untouched).
         gap_budget = deps.features.max_gap_stress_loss_pct * req
-        gap_losses = gap_stress_losses(state.open_positions + [order], spot, atr, deps.s2b_cfg.wing_width)
+        gap_losses = gap_stress_losses(state.open_positions + [replace(order, credit=risk_credit)],
+                                       spot, atr, deps.s2b_cfg.wing_width)
         while order.qty > 0 and gap_losses[1.5] > gap_budget:
             order.qty -= 1
-            gap_losses = gap_stress_losses(state.open_positions + [order], spot, atr, deps.s2b_cfg.wing_width)
+            gap_losses = gap_stress_losses(state.open_positions + [replace(order, credit=risk_credit)],
+                                           spot, atr, deps.s2b_cfg.wing_width)
         if order.qty <= 0:
             _log_decision("gap_stress", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "gap_stress"
@@ -522,13 +552,13 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         today_stop = sum(
             remaining_stop_risk(p.credit, deps.mark_position(p), p.qty, deps.features.expected_stop_slippage)
             for p in state.open_positions if p.entry_date == today)
-        proposed_stop = planned_stop_loss_per_contract(order.credit, deps.s2b_cfg.wing_width,
+        proposed_stop = planned_stop_loss_per_contract(risk_credit, deps.s2b_cfg.wing_width,
                                                         deps.features.expected_stop_slippage) * order.qty
         daily_risk_consumption = abs(min(state.realized_today, 0.0)) + today_stop + proposed_stop
         daily_risk_budget = deps.features.max_same_day_stop_risk_pct * req
         while order.qty > 0 and daily_risk_consumption > daily_risk_budget:
             order.qty -= 1
-            proposed_stop = planned_stop_loss_per_contract(order.credit, deps.s2b_cfg.wing_width,
+            proposed_stop = planned_stop_loss_per_contract(risk_credit, deps.s2b_cfg.wing_width,
                                                             deps.features.expected_stop_slippage) * order.qty
             daily_risk_consumption = abs(min(state.realized_today, 0.0)) + today_stop + proposed_stop
         if order.qty <= 0:
@@ -543,8 +573,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             return state, "day_loss_halt"
     else:
         order.qty = contracts_for_risk(acct.equity, order.max_loss_per_contract, risk)
-        if deps.min_credit_ratio > 0:
-            order.qty = max(1, int(order.qty * credit_mult))   # a probe of a 1-lot stays 1
+        if deps.features.credit_tiers:
+            order.qty = max(1, int(order.qty * quality_multiplier))   # a probe of a 1-lot stays 1
     decision = RiskGate(deps.risk_cfg).is_order_allowed(order, acct)
     if not decision.allowed:
         _log_decision(decision.reason, spot=spot, atr=atr, expiry=expiry, order=order)
@@ -575,10 +605,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             entry_date=today, opening_fees=opening_fees))
         state.last_entry_date = today
         state.entries_today += 1             # count toward the per-day entry cap
-        if deps.min_credit_ratio > 0:
-            hist = state.credit_ratio_history.setdefault(bucket, [])
-            hist.append(round(order.credit / deps.s2b_cfg.wing_width, 4))
-            state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
+        # NOTE: credit_ratio_history is already appended for EVERY evaluated candidate (including
+        # rejects) in the credit-tiers block above (partner review v2 §3) -- no separate append here.
         open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
                     "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
                     "qty": qty, "credit": credit, "status": status}

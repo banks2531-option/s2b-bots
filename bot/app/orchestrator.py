@@ -9,7 +9,7 @@ from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
 from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier
-from bot.portfolio.risk_budget import size_qty, cap_to_budgets
+from bot.portfolio.risk_budget import size_qty, cap_to_budgets, remaining_stop_risk, planned_stop_loss_per_contract
 from bot.portfolio.gap_stress import gap_stress_losses
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
@@ -28,6 +28,8 @@ class BotState:
     missing_streak: dict = field(default_factory=dict)    # position_key -> consecutive missing-at-broker reconciles
     prev_flow_bias: str = ""                              # UW flow_bias from the PRIOR tick, to detect a bull->bear flip
     credit_ratio_history: dict = field(default_factory=dict)  # DTE-bucket -> list of prior credit/wing_width ratios
+    realized_today: float = 0.0                           # sum of realized P&L from closes on `risk_day` (partner review v2 §11)
+    risk_day: str = ""                                    # the calendar date `realized_today` applies to
 
     def clear_halt(self):
         self.halted = False
@@ -76,6 +78,17 @@ class Deps:
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
                                # a position (debounce vs a transient empty positions read)
+
+
+def _accumulate_realized(state: BotState, today: str, pnl: float) -> None:
+    """Continuous daily-risk gate (partner review v2 §11): fold a close's realized P&L into
+    state.realized_today, resetting the running total (and state.risk_day) the first time we see
+    a close land on a new calendar day. Unconditional (not gated behind aggregate_risk_budget) --
+    the running total must be ready the moment the flag is later flipped on."""
+    if today != state.risk_day:
+        state.realized_today = 0.0
+        state.risk_day = today
+    state.realized_today += pnl
 
 
 def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
@@ -157,6 +170,7 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
             else:
                 # flag OFF -> byte-identical to before: (credit - triggering mark) * 100 * qty
                 rec["pnl"] = round((r.position.credit - r.value) * 100 * r.position.qty, 2)
+            _accumulate_realized(state, today, rec["pnl"])   # partner review v2 §11 (always on)
         deps.trade_log(rec)
     alerts = alerts_for_cycle(results, drift_report=None)
     if alerts:
@@ -216,6 +230,7 @@ def run_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> tuple:
                 else:
                     # flag OFF -> byte-identical to before: (credit - triggering mark) * 100 * qty
                     rec["pnl"] = round((p.credit - value) * 100 * p.qty, 2)
+                _accumulate_realized(state, today, rec["pnl"])   # partner review v2 §11 (always on)
             deps.trade_log(rec)
         else:                      # didn't fill: alert + retry next tick, but do NOT halt
             deps.alert_sink([Alert(Severity.WARN,
@@ -281,6 +296,7 @@ def run_flow_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> t
                 else:
                     # flag OFF -> byte-identical to before: (credit - triggering mark) * 100 * qty
                     rec["pnl"] = round((p.credit - value) * 100 * p.qty, 2)
+                _accumulate_realized(state, today, rec["pnl"])   # partner review v2 §11 (always on)
             deps.trade_log(rec)
         else:                      # didn't fill: alert + retry next tick, but do NOT halt
             deps.alert_sink([Alert(Severity.WARN,
@@ -367,6 +383,34 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             gap_losses = gap_stress_losses(state.open_positions + [order], spot, atr, deps.s2b_cfg.wing_width)
         if order.qty <= 0:
             return state, "gap_stress"
+        # Continuous daily-risk gate (partner review v2 §11), OPT-IN behind the same flag: don't
+        # wait for the first stop to restrict entries. daily_risk_consumption = today's realized
+        # loss (if any) + the remaining stop risk of positions already opened TODAY + this
+        # proposed trade's own planned stop risk. If that exceeds the same-day stop budget, shrink
+        # qty (re-checking each step) until it fits, or reject outright if even 1 doesn't.
+        if today != state.risk_day:
+            state.realized_today = 0.0
+            state.risk_day = today
+        today_stop = sum(
+            remaining_stop_risk(p.credit, deps.mark_position(p), p.qty, deps.features.expected_stop_slippage)
+            for p in state.open_positions if p.entry_date == today)
+        proposed_stop = planned_stop_loss_per_contract(order.credit, deps.s2b_cfg.wing_width,
+                                                        deps.features.expected_stop_slippage) * order.qty
+        daily_risk_consumption = abs(min(state.realized_today, 0.0)) + today_stop + proposed_stop
+        daily_risk_budget = deps.features.max_same_day_stop_risk_pct * req
+        while order.qty > 0 and daily_risk_consumption > daily_risk_budget:
+            order.qty -= 1
+            proposed_stop = planned_stop_loss_per_contract(order.credit, deps.s2b_cfg.wing_width,
+                                                            deps.features.expected_stop_slippage) * order.qty
+            daily_risk_consumption = abs(min(state.realized_today, 0.0)) + today_stop + proposed_stop
+        if order.qty <= 0:
+            return state, "daily_risk"
+        # ALSO halt new entries (but never management/closing) once today's total P&L (realized +
+        # unrealized on every currently-open position) breaches the daily loss-halt threshold.
+        unrealized_today = sum((p.credit - deps.mark_position(p)) * 100 * p.qty
+                                for p in state.open_positions)
+        if state.realized_today + unrealized_today <= -deps.features.daily_pnl_halt_pct * req:
+            return state, "day_loss_halt"
     else:
         order.qty = contracts_for_risk(acct.equity, order.max_loss_per_contract, risk)
         if deps.min_credit_ratio > 0:

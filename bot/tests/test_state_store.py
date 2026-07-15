@@ -1,3 +1,5 @@
+import pytest
+
 from bot.app.state_store import save_state, load_state
 from bot.app.orchestrator import BotState
 from bot.strategy.manage import ManagedPosition
@@ -32,6 +34,30 @@ def test_roundtrips_entry_date_and_prev_flow_bias(tmp_path):
     loaded = load_state(p)
     assert loaded.open_positions[0].entry_date == "2026-06-30"
     assert loaded.prev_flow_bias == "bullish"
+
+
+def test_roundtrips_realized_today_and_risk_day(tmp_path):
+    p = str(tmp_path / "state.json")
+    s = BotState(realized_today=-345.67, risk_day="2026-07-10")
+    save_state(s, p)
+    loaded = load_state(p)
+    assert loaded.realized_today == pytest.approx(-345.67)
+    assert loaded.risk_day == "2026-07-10"
+
+
+def test_old_state_file_missing_daily_gate_fields_defaults(tmp_path):
+    # a state file written before the daily-risk gate existed (no realized_today/risk_day)
+    # must load with safe defaults (fresh-day, zero realized P&L).
+    import json
+    p = str(tmp_path / "old_state.json")
+    with open(p, "w") as f:
+        json.dump({
+            "open_positions": [], "halted": False, "halt_reason": "",
+            "last_entry_date": "2026-06-24", "entries_today": 1,
+        }, f)
+    loaded = load_state(p)
+    assert loaded.realized_today == 0.0
+    assert loaded.risk_day == ""
 
 
 def test_old_state_file_missing_new_fields_defaults(tmp_path):

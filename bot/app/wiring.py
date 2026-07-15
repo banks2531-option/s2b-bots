@@ -14,9 +14,17 @@ _COST_LOG_FIELDS = ["gross_pnl", "net_pnl"]   # only added when actual_fill_acco
 _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_expiry",
                         "adjacent_strike_distance", "agg_remaining_stop", "agg_structural",
                         "agg_gap_stress_1_5"]   # only added when decision_logging is on (spec §1, §12)
+_SHADOW_LOG_FIELDS = ["shadow_score", "shadow_action", "spy", "spy_vwap", "spy_atr",
+                      "session_high", "session_low", "opening_range_high", "opening_range_low",
+                      "qqq_ret", "dia_ret", "soxx_ret", "spy_ret", "qqq_vs_vwap", "soxx_vs_vwap",
+                      "vix", "vix1d", "dist_from_vwap_atr", "dist_from_high_atr",
+                      "vix1d_vix_ratio", "qqq_minus_dia", "soxx_minus_spy", "put_skew",
+                      "short_delta", "short_gamma", "short_iv", "breadth", "up_down_vol",
+                      "whale_flow"]   # only added when regime_shadow_monitor is on (spec §13)
 
 
-def make_trade_logger(path, include_cost_columns=False, include_decision_columns=False):
+def make_trade_logger(path, include_cost_columns=False, include_decision_columns=False,
+                      include_shadow_columns=False):
     """Return a callable that appends a trade-record dict to a CSV (header written once).
     Used per-bot so a shared-account A/B can be measured from separate files.
 
@@ -26,12 +34,18 @@ def make_trade_logger(path, include_cost_columns=False, include_decision_columns
 
     include_decision_columns=False (default) likewise keeps the CSV shape byte-identical for the
     live bot (decision_logging always OFF there). Pass True only for a bot with the flag on, so its
-    DECISION rows' reason/flags/exposure-telemetry columns are populated."""
+    DECISION rows' reason/flags/exposure-telemetry columns are populated.
+
+    include_shadow_columns=False (default) likewise keeps the CSV shape byte-identical for the
+    live bot (regime_shadow_monitor always OFF there). Pass True only for a bot with the flag on,
+    so its SHADOW rows' §13 signal/score/action columns are populated."""
     fields = list(_LOG_FIELDS)
     if include_cost_columns:
         fields += _COST_LOG_FIELDS
     if include_decision_columns:
         fields += _DECISION_LOG_FIELDS
+    if include_shadow_columns:
+        fields += _SHADOW_LOG_FIELDS
     def log(record):
         exists = _os.path.exists(path)
         with open(path, "a", newline="") as f:
@@ -352,6 +366,170 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
             from bot.regime.state import RegimeState
             return RegimeState()
 
+    # ── §13 shadow monitor data fetch (partner review v2 §13) ────────────────────────────────────
+    # Only ever CALLED when deps.features.regime_shadow_monitor is on (gated in the orchestrator's
+    # run_shadow_monitor_cycle) -- LOG ONLY, never feeds back into any order/size/entry decision.
+
+    _SHADOW_BASKET = ("SPY", "QQQ", "DIA", "SOXX", "VIX", "VIX1D")
+
+    def _fetch_basket_quotes():
+        """One bulk Tradier quote fetch for SPY + the cross-asset/vol basket. Returns
+        {symbol: {"last":.., "high":.., "low":.., "change_percentage":..}}, defaulting every
+        field to None per-symbol on any parse hiccup. NEVER raises."""
+        out = {s: {"last": None, "high": None, "low": None, "change_percentage": None}
+              for s in _SHADOW_BASKET}
+        try:
+            resp = http("GET", "/markets/quotes", params={"symbols": ",".join(_SHADOW_BASKET)})
+            quotes = (resp.get("quotes") or {}).get("quote") or []
+            if isinstance(quotes, dict):
+                quotes = [quotes]
+            for q in quotes:
+                sym = q.get("symbol")
+                if sym not in out:
+                    continue
+                for field in ("last", "high", "low", "change_percentage"):
+                    v = q.get(field)
+                    out[sym][field] = float(v) if v is not None else None
+        except Exception:
+            pass
+        return out
+
+    def _session_vwap_and_opening_range(symbol, today_str):
+        """Best-effort intraday VWAP (volume-weighted typical price over the session so far) +
+        opening-range high/low (first ~30 one-minute bars) from Tradier timesales.
+        (vwap, or_high, or_low); any/all may be None. NEVER raises."""
+        try:
+            resp = http("GET", "/markets/timesales",
+                       params={"symbol": symbol, "interval": "1min",
+                               "start": f"{today_str} 09:30", "end": f"{today_str} 16:00",
+                               "session_filter": "open"})
+            series = (resp.get("series") or {}).get("data") or []
+            if isinstance(series, dict):
+                series = [series]
+            if not series:
+                return None, None, None
+            or_bars = series[:30]
+            or_high = max(float(b["high"]) for b in or_bars) if or_bars else None
+            or_low = min(float(b["low"]) for b in or_bars) if or_bars else None
+            pv_sum, vol_sum = 0.0, 0.0
+            for b in series:
+                h, l, c = float(b["high"]), float(b["low"]), float(b["close"])
+                v = float(b.get("volume") or 0)
+                pv_sum += ((h + l + c) / 3.0) * v
+                vol_sum += v
+            vwap = round(pv_sum / vol_sum, 4) if vol_sum > 0 else None
+            return vwap, or_high, or_low
+        except Exception:
+            return None, None, None
+
+    def _fetch_put_greeks(symbol, expiry):
+        """Raw Tradier chain fetch for PUTS carrying gamma/IV (feeds.parse_chain only keeps
+        delta/bid/ask). NEVER raises; [] on any failure."""
+        try:
+            resp = http("GET", "/markets/options/chains",
+                       params={"symbol": symbol, "expiration": expiry, "greeks": "true"})
+            options = (resp.get("options") or {}).get("option") or []
+            if isinstance(options, dict):
+                options = [options]
+            out = []
+            for o in options:
+                if o.get("option_type") != "put":
+                    continue
+                greeks = o.get("greeks") or {}
+                delta = greeks.get("delta")
+                if delta is None or o.get("bid") is None or o.get("ask") is None:
+                    continue
+                iv = greeks.get("mid_iv")
+                if iv is None:
+                    iv = greeks.get("smv_vol")
+                out.append({"strike": float(o["strike"]), "delta": abs(float(delta)),
+                           "gamma": greeks.get("gamma"), "iv": (float(iv) if iv is not None else None),
+                           "bid": float(o["bid"]), "ask": float(o["ask"])})
+            return out
+        except Exception:
+            return []
+
+    def _select_shadow_short(puts, spot, atr, cfg):
+        """Mirrors bot.strategy.s2b.select_short_put's delta-band + ATR-cushion selection, on the
+        raw {strike, delta, gamma, iv} dicts above (which carry gamma/iv that OptionQuote doesn't).
+        None if nothing qualifies (missing spot/atr, zero atr, no eligible strike)."""
+        if not puts or not atr or spot is None:
+            return None
+        eligible = [o for o in puts
+                   if o["strike"] < spot and (spot - o["strike"]) / atr >= cfg.min_cushion_atr
+                   and cfg.min_delta <= o["delta"] <= cfg.max_delta]
+        if not eligible:
+            return None
+        return min(eligible, key=lambda o: abs(o["delta"] - cfg.target_delta))
+
+    def _put_skew_proxy(puts, short):
+        """Simple skew proxy: IV of the most-OTM available put (lowest strike) minus the shadow
+        short leg's IV. Positive = downside puts pricier (fear); None if not computable."""
+        if not puts or short is None or short.get("iv") is None:
+            return None
+        far = [o for o in puts if o["strike"] < short["strike"] and o.get("iv") is not None]
+        if not far:
+            return None
+        farthest = min(far, key=lambda o: o["strike"])
+        return round(farthest["iv"] - short["iv"], 4)
+
+    def shadow_data():
+        """§13 raw signal fetch (LOG ONLY -- see bot/regime/shadow_monitor.py for the scoring).
+        Best-effort: any leg that can't be fetched/parsed is None; the whole thing NEVER raises.
+        breadth/up_down_vol/whale_flow stay None (not fetchable today -- UW is down)."""
+        from zoneinfo import ZoneInfo
+        today = _datetime.datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+        out = {k: None for k in (
+            "spy", "spy_vwap", "spy_atr", "session_high", "session_low", "opening_range",
+            "qqq_ret", "dia_ret", "soxx_ret", "spy_ret", "qqq_vs_vwap", "soxx_vs_vwap",
+            "vix", "vix1d", "put_skew", "short_delta", "short_gamma", "short_iv",
+            "breadth", "up_down_vol", "whale_flow")}
+        try:
+            out["spy"] = get_spot("SPY")
+        except Exception:
+            pass
+        try:
+            out["spy_atr"] = get_atr("SPY")
+        except Exception:
+            pass
+
+        quotes = _fetch_basket_quotes()
+        spy_q = quotes["SPY"]
+        out["session_high"] = spy_q["high"]
+        out["session_low"] = spy_q["low"]
+        out["spy_ret"] = ((spy_q["change_percentage"] / 100.0)
+                         if spy_q["change_percentage"] is not None else None)
+        for tag, sym in (("qqq_ret", "QQQ"), ("dia_ret", "DIA"), ("soxx_ret", "SOXX")):
+            cp = quotes[sym]["change_percentage"]
+            out[tag] = (cp / 100.0) if cp is not None else None
+        out["vix"] = quotes["VIX"]["last"]
+        out["vix1d"] = quotes["VIX1D"]["last"]
+
+        vwap, or_high, or_low = _session_vwap_and_opening_range("SPY", today)
+        out["spy_vwap"] = vwap
+        out["opening_range"] = {"high": or_high, "low": or_low}
+
+        qqq_vwap, _, _ = _session_vwap_and_opening_range("QQQ", today)
+        soxx_vwap, _, _ = _session_vwap_and_opening_range("SOXX", today)
+        qqq_last, soxx_last = quotes["QQQ"]["last"], quotes["SOXX"]["last"]
+        out["qqq_vs_vwap"] = ((qqq_last - qqq_vwap)
+                              if qqq_last is not None and qqq_vwap is not None else None)
+        out["soxx_vs_vwap"] = ((soxx_last - soxx_vwap)
+                               if soxx_last is not None and soxx_vwap is not None else None)
+
+        try:
+            expiry = pick_expiry(today)
+            puts = _fetch_put_greeks("SPY", expiry)
+            short = _select_shadow_short(puts, out["spy"], out["spy_atr"], s2b_cfg)
+            if short is not None:
+                out["short_delta"] = short["delta"]
+                out["short_gamma"] = short.get("gamma")
+                out["short_iv"] = short.get("iv")
+                out["put_skew"] = _put_skew_proxy(puts, short)
+        except Exception:
+            pass
+        return out
+
     return Deps(
         get_spot=get_spot, get_atr=get_atr, get_chain=get_chain,
         pick_expiry=pick_expiry,
@@ -361,6 +539,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         broker_positions=lambda: feeds.reconstruct_spreads(broker_legs()),
         broker_equity=broker_equity, bot_equity=broker_equity,
         alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
+        shadow_data=shadow_data,
         base_risk_pct=base_risk_pct, risk_cfg=risk_cfg, s2b_cfg=s2b_cfg,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=trade_log,

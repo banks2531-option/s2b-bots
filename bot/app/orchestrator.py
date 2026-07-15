@@ -18,6 +18,20 @@ from bot.portfolio.gap_stress import gap_stress_losses
 from bot.portfolio import exposure
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
+from bot.regime.shadow_monitor import compute_shadow_signals, shadow_caution_score
+
+
+# §13 shadow-monitor raw input keys (compute_shadow_signals' required kwargs). Used as the safe
+# no-op default for Deps.shadow_data so an unwired bot (or a test) that never overrides it still
+# feeds compute_shadow_signals a complete (all-None) kwarg set rather than raising a TypeError.
+_SHADOW_INPUT_KEYS = ("spy", "spy_vwap", "spy_atr", "session_high", "session_low", "opening_range",
+                     "qqq_ret", "dia_ret", "soxx_ret", "spy_ret", "qqq_vs_vwap", "soxx_vs_vwap",
+                     "vix", "vix1d", "put_skew", "short_delta", "short_gamma", "short_iv",
+                     "breadth", "up_down_vol", "whale_flow")
+
+
+def _default_shadow_data():
+    return {k: None for k in _SHADOW_INPUT_KEYS}
 
 
 @dataclass
@@ -77,6 +91,9 @@ class Deps:
     account_spy_exposure: callable = None   # () -> {"structural": float, "stop": float} across EVERY SPY spread at the broker
     account_spy_spreads: callable = None    # () -> list[ManagedPosition]; the RAW broker-wide SPY spread list (own + foreign),
                                              # used to derive foreign-only exposure via exposure.foreign_spy_exposure (§2)
+    shadow_data: callable = _default_shadow_data   # () -> dict of §13 raw inputs (partner review v2 §13).
+                                             # ONLY called when deps.features.regime_shadow_monitor is on;
+                                             # best-effort, wired for real in bot.app.wiring.build_deps.
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -310,6 +327,29 @@ def run_flow_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> t
         deps.alert_sink([Alert(Severity.WARN,
             f"flow-degrossed {len(closed)} same-day position(s) on a bull->bear flow flip")])
     return state, closed
+
+
+def run_shadow_monitor_cycle(state: BotState, deps: Deps, today: str) -> None:
+    """Partner review v2 §13: LOG-ONLY downturn-detection shadow monitor. Computes the §13 signal
+    set, a bounded caution score, and the shadow action the (not-yet-live) defensive engine WOULD
+    have taken -- and writes it all to the trade log as a SHADOW record. Reads state; NEVER writes
+    it, never touches an order, and never changes any live decision.
+
+    No-op unless deps.features.regime_shadow_monitor is on (Bot C / run_s2b_live.py: always off).
+    Best-effort: any failure fetching/computing the signals (a down feed, a bad shadow_data())
+    is swallowed -- a SHADOW logging failure must never affect trading, and must never raise out
+    of tick()."""
+    if not deps.features.regime_shadow_monitor:
+        return
+    try:
+        raw = deps.shadow_data()
+        signals = compute_shadow_signals(**raw)
+        score, action = shadow_caution_score(signals)
+        rec = {"event": "SHADOW", "date": today, "shadow_score": score, "shadow_action": action}
+        rec.update(signals)
+        deps.trade_log(rec)
+    except Exception:
+        pass
 
 
 def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None, expiry=None, order=None):
@@ -664,6 +704,9 @@ def tick(state: BotState, deps: Deps, now) -> BotState:
     state, _ = run_flow_degross_cycle(state, deps, today, regime)  # flow-flip de-gross (gated, off by default)
     if reconcile_ok:
         state, _ = run_entry_cycle(state, deps, now, regime)
+    # §13 shadow monitor: ALWAYS runs (regardless of whether an entry happened, or even whether
+    # reconcile succeeded) when the feature is on -- it only reads state/logs, never gates entry.
+    run_shadow_monitor_cycle(state, deps, today)
     if regime is not None:
         try:
             deps.regime_log(regime, now.isoformat(), "TICK")

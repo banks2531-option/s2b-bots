@@ -20,6 +20,7 @@ class BotState:
     last_entry_date: str = ""                             # the day the entries_today counter applies to
     entries_today: int = 0                                # entries opened so far on last_entry_date
     missing_streak: dict = field(default_factory=dict)    # position_key -> consecutive missing-at-broker reconciles
+    prev_flow_bias: str = ""                              # UW flow_bias from the PRIOR tick, to detect a bull->bear flip
 
     def clear_halt(self):
         self.halted = False
@@ -55,6 +56,8 @@ class Deps:
     regime_log: callable = (lambda state, ts, event: None)   # (RegimeState, ts, event) -> None
     trend_gate_enabled: bool = False                 # Phase 1: pause entries when SPY < 200d MA (risk_off)
     degross_on_risk_off: bool = False                # Phase 1.5: close held positions in a risk_off downtrend
+    degross_on_flow_flip: bool = False               # Flow-flip de-gross: close same-day, not-yet-profitable positions on a bull->bear flow flip
+    flow_degross_same_day_only: bool = True          # restrict flow-flip de-gross to positions opened TODAY (recency)
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -181,6 +184,55 @@ def run_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> tuple:
     return state, closed
 
 
+def run_flow_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> tuple:
+    """FLOW-FLIP de-gross (backtested): when market-wide options flow flips from BULLISH to BEARISH
+    across ticks (state.prev_flow_bias == 'bullish' and regime.flow_bias == 'bearish'), CLOSE any
+    open position that is BOTH (a) opened TODAY (same-day / very recent) AND (b) not yet profitable
+    (debit-to-close mark >= entry credit). Profitable positions, and positions opened on a prior day,
+    are LEFT to normal management.
+
+    Best-effort and fail-safe (mirrors run_degross_cycle exactly): opt-in (deps.degross_on_flow_flip);
+    only acts on a positive bull->bear flip with a live regime (a regime fault -> None -> no action);
+    a close that doesn't fill is alerted and retried next tick but NEVER halts; one position's error
+    does not block de-grossing the others."""
+    if not (deps.degross_on_flow_flip and regime is not None
+            and state.prev_flow_bias == "bullish"
+            and getattr(regime, "flow_bias", "neutral") == "bearish"):
+        return state, []
+    closed = []
+    for p in list(state.open_positions):
+        # recency gate: only same-day positions (unless the same-day restriction is disabled)
+        if deps.flow_degross_same_day_only and getattr(p, "entry_date", "") != today:
+            continue
+        try:
+            value = deps.mark_position(p)
+            if value < p.credit:          # already profitable -> leave to normal management
+                continue
+            status = deps.close_spread(p, ExitAction.FLOW_DEGROSS)
+        except Exception as exc:   # one position's error must NOT block the others' de-gross
+            deps.alert_sink([Alert(Severity.WARN,
+                f"flow-degross close error {p.ticker} {p.short_strike}/{p.long_strike}: {exc}")])
+            continue
+        if str(status).lower() == "filled":
+            closed.append(p)
+            rec = {"event": "FLOW_DEGROSS", "date": today, "ticker": p.ticker,
+                   "short": p.short_strike, "long": p.long_strike, "expiry": p.expiry,
+                   "qty": p.qty, "credit": p.credit, "action": ExitAction.FLOW_DEGROSS.value,
+                   "exit_value": value, "status": status}
+            if value is not None:
+                rec["pnl"] = round((p.credit - value) * 100 * p.qty, 2)
+            deps.trade_log(rec)
+        else:                      # didn't fill: alert + retry next tick, but do NOT halt
+            deps.alert_sink([Alert(Severity.WARN,
+                f"flow-degross close not filled ({status}) {p.ticker} {p.short_strike}/{p.long_strike}")])
+    if closed:
+        ck = {position_key(p) for p in closed}
+        state.open_positions = [p for p in state.open_positions if position_key(p) not in ck]
+        deps.alert_sink([Alert(Severity.WARN,
+            f"flow-degrossed {len(closed)} same-day position(s) on a bull->bear flow flip")])
+    return state, closed
+
+
 def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
     if state.last_entry_date != today:
@@ -219,7 +271,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     status = deps.open_spread(to_tradier_payload(order, expiry, order.qty))
     if status == "filled":
         state.open_positions.append(ManagedPosition(
-            "SPY", order.short_strike, order.long_strike, order.credit, order.qty, expiry))
+            "SPY", order.short_strike, order.long_strike, order.credit, order.qty, expiry,
+            entry_date=today))
         state.last_entry_date = today
         state.entries_today += 1             # count toward the per-day entry cap
         deps.trade_log({"event": "OPEN", "date": today, "ticker": "SPY",
@@ -244,6 +297,7 @@ def tick(state: BotState, deps: Deps, now) -> BotState:
     state, reconcile_ok = run_reconcile_cycle(state, deps)
     state, _ = run_management_cycle(state, deps, today)   # ALWAYS runs (stops must fire)
     state, _ = run_degross_cycle(state, deps, today, regime)  # PHASE 1.5: ALWAYS runs (risk reduction)
+    state, _ = run_flow_degross_cycle(state, deps, today, regime)  # flow-flip de-gross (gated, off by default)
     if reconcile_ok:
         state, _ = run_entry_cycle(state, deps, now, regime)
     if regime is not None:
@@ -251,4 +305,7 @@ def tick(state: BotState, deps: Deps, now) -> BotState:
             deps.regime_log(regime, now.isoformat(), "TICK")
         except Exception:
             pass
+    # remember this tick's flow bias so the NEXT tick can detect a bull->bear flip (flow-degross)
+    if regime is not None:
+        state.prev_flow_bias = getattr(regime, "flow_bias", state.prev_flow_bias)
     return state

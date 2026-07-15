@@ -12,6 +12,7 @@ class ExitAction(str, Enum):
     STOP = "stop"
     TIME_EXIT = "time_exit"
     DEGROSS = "degross"        # Phase 1.5: defensive de-gross of a held position in a risk_off downtrend
+    FLOW_DEGROSS = "flow_degross"  # Flow-flip de-gross: close a same-day, not-yet-profitable position on a bull->bear flow flip
     ERROR = "error"
 
 
@@ -42,6 +43,7 @@ class ManagedPosition:
     credit: float
     qty: int
     expiry: str        # YYYY-MM-DD
+    entry_date: str = ""   # YYYY-MM-DD the position was opened (default "" keeps back-compat with old state files)
 
 
 def spread_value_mid(short_q, long_q) -> float:

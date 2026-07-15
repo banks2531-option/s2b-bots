@@ -60,7 +60,8 @@ def parse_args(argv=None):
 
 
 def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, label="MONDAY",
-                  shared_account=False, max_entries_per_day=1, s2b_cfg=None, base_risk_pct=0.10):
+                  shared_account=False, max_entries_per_day=1, s2b_cfg=None, base_risk_pct=0.10,
+                  degross_on_flow_flip=False):
     """Shared bot core. The A/B variable is (entry_days, max_open) — Monday-only vs all-days.
     s2b_cfg overrides the spread geometry (e.g. a narrow wing for a small live account); base_risk_pct
     sizes the per-trade budget (raised for a tiny account where one spread is already a large % )."""
@@ -116,6 +117,7 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         s2b_cfg=s2b_cfg, base_risk_pct=base_risk_pct,
         trend_gate_enabled=True,        # Phase 1: pause put-selling when SPY < 200d MA (validated 76yr)
         degross_on_risk_off=True,       # Phase 1.5: close held positions in a confirmed risk_off downtrend
+        degross_on_flow_flip=degross_on_flow_flip,  # flow-flip de-gross (opt-in; default OFF for existing bots)
     )
     def market_gated_tick(st, dp, now):
         if not feeds.is_market_hours(now):

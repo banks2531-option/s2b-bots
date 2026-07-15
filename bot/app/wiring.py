@@ -55,7 +55,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                trade_log=(lambda record: None),
                regime_log=(lambda s, ts, e: None), uw_http=None,
                poll_s=2, timeout_s=30, base_risk_pct=0.10, s2b_cfg=None, trend_gate_enabled=False,
-               degross_on_risk_off=False):
+               degross_on_risk_off=False, degross_on_flow_flip=False):
     """Assemble a production Deps from a Tradier http callable + injected market-data feeds.
     s2b_cfg overrides the spread geometry (default = standard $10-wing S2bConfig)."""
     from bot.strategy.s2b import S2bConfig
@@ -156,4 +156,5 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         regime_provider=regime_provider, regime_log=regime_log,
         trend_gate_enabled=trend_gate_enabled,
         degross_on_risk_off=degross_on_risk_off,
+        degross_on_flow_flip=degross_on_flow_flip,
     )

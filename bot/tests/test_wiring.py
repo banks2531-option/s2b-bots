@@ -141,3 +141,36 @@ def test_build_deps_attaches_regime_provider_that_returns_state():
     rs = deps.regime_provider()           # must return a RegimeState, never raise
     from bot.regime.state import RegimeState
     assert isinstance(rs, RegimeState)
+
+
+def test_build_deps_risk_equity_caps_at_allocation(): # partner review v2 §2
+    http = _fake_http({"/balances": {"balances": {"total_equity": 80_000.0}}})
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01))
+    assert deps.risk_equity() == 72_000.0   # default allocated_equity from S2bFeatures
+
+
+def test_build_deps_risk_equity_uses_broker_equity_when_below_allocation():
+    http = _fake_http({"/balances": {"balances": {"total_equity": 60_000.0}}})
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01))
+    assert deps.risk_equity() == 60_000.0
+
+
+def test_build_deps_account_spy_exposure_includes_foreign_positions():
+    # A position not opened by this bot (reconstructed with credit=0.0) must still count toward
+    # account-level SPY exposure per partner spec §2 ("must not ignore them when calculating
+    # total SPY risk").
+    positions_resp = {"positions": {"position": [
+        {"symbol": "SPY260619P00568000", "quantity": -2},
+        {"symbol": "SPY260619P00558000", "quantity": 2},
+    ]}}
+    http = _fake_http({
+        "/positions": positions_resp,
+        "/balances": {"balances": {"total_equity": 20_000.0}},
+    })
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01))
+    exposure = deps.account_spy_exposure()
+    # width 10, credit 0.0 (unknown from broker) -> structural = 10*100*2 = 2000, stop = same (conservative)
+    assert exposure == {"structural": 2000.0, "stop": 2000.0}

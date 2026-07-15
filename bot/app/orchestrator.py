@@ -67,6 +67,8 @@ class Deps:
     probe_size_multiplier: float = 0.40              # size multiplier for a "probe" (below full threshold) entry
     use_adaptive_credit: bool = False                # when True, the full-size threshold adapts per DTE bucket (p40 of prior ratios)
     features: object = field(default_factory=S2bFeatures)   # partner review v2 feature flags + thresholds (opt-in, OFF by default)
+    risk_equity: callable = None            # () -> float; min(allocated_equity, broker_equity) (partner review v2 §2)
+    account_spy_exposure: callable = None   # () -> {"structural": float, "stop": float} across EVERY SPY spread at the broker
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking

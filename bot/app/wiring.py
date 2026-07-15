@@ -47,6 +47,7 @@ from bot.broker.submit import submit_and_verify
 from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_payload
 from bot.strategy.s2b import OptionQuote
 from bot.risk_gate import AccountState, RiskConfig
+from bot.portfolio import exposure
 import time
 import datetime as _datetime
 
@@ -161,4 +162,6 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         degross_on_risk_off=degross_on_risk_off,
         degross_on_flow_flip=degross_on_flow_flip,
         features=features,
+        risk_equity=lambda: exposure.risk_equity(features.allocated_equity, broker_equity()),
+        account_spy_exposure=lambda: exposure.account_spy_exposure(feeds.reconstruct_spreads(broker_legs())),
     )

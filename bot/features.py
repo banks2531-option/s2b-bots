@@ -33,7 +33,7 @@ class S2bFeatures:
     # §5 cost gate
     take_profit_percent: float = 0.50
     min_target_to_cost_ratio: float = 4.0
-    est_commission_per_leg_rt: float = 0.65
+    commission_per_contract_per_leg_per_side: float = 0.65
     # §6/§7 ladders
     entry_reprice_seconds: float = 5.0
     entry_reprice_increment: float = 0.01

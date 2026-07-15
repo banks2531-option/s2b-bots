@@ -180,7 +180,7 @@ def test_reported_zero_commission_and_fees_are_not_treated_as_unreported():
 
     deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
                       get_vix_regime=lambda: (0.5, 0.01),
-                      features=S2bFeatures(est_commission_per_leg_rt=0.70))
+                      features=S2bFeatures(commission_per_contract_per_leg_per_side=0.70))
     result = deps.open_spread({"price": 1.70, "quantity[0]": 2})
     assert result.commissions == 0.0        # NOT the synthetic 0.70*2*2 = 2.80
     assert result.regulatory_fees == 0.0
@@ -203,7 +203,7 @@ def test_reported_zero_commission_only_still_uses_reported_fees_field():
 
     deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
                       get_vix_regime=lambda: (0.5, 0.01),
-                      features=S2bFeatures(est_commission_per_leg_rt=0.70))
+                      features=S2bFeatures(commission_per_contract_per_leg_per_side=0.70))
     result = deps.open_spread({"price": 1.70, "quantity[0]": 2})
     assert result.commissions == 0.0     # reported field honored, no synthetic fallback triggered
     assert result.regulatory_fees == 0.0

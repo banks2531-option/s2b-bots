@@ -41,14 +41,15 @@ def test_open_spread_returns_execution_result_with_fill_fields():
 
     deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
                       get_vix_regime=lambda: (0.5, 0.01),
-                      features=S2bFeatures(est_commission_per_leg_rt=0.70))
+                      features=S2bFeatures(commission_per_contract_per_leg_per_side=0.70))
     result = deps.open_spread({"price": 1.70, "quantity[0]": 2})
     assert isinstance(result, ExecutionResult)
     assert result.status == "filled"
     assert result.filled_quantity == 2
     assert result.average_fill_price == 1.65        # actual broker fill, not the requested 1.70
     assert result.submitted_limit == 1.70
-    # sandbox reported no commissions -> synthetic fallback: est_commission_per_leg_rt * 2 legs * qty
+    # sandbox reported no commissions -> synthetic fallback:
+    # commission_per_contract_per_leg_per_side * 2 legs * qty
     assert result.commissions == 0.70 * 2 * 2
     assert result.regulatory_fees == 0.0
 
@@ -71,7 +72,7 @@ def test_open_spread_falls_back_to_submitted_limit_and_requested_qty_when_broker
     result = deps.open_spread({"price": 1.71, "quantity[0]": 3})
     assert result.average_fill_price == 1.71   # fallback: the credit/debit we sent
     assert result.filled_quantity == 3         # fallback: the requested quantity (status == filled)
-    assert result.commissions == 0.65 * 2 * 3  # default est_commission_per_leg_rt = 0.65
+    assert result.commissions == 0.65 * 2 * 3  # default commission_per_contract_per_leg_per_side = 0.65
 
 
 def test_open_spread_not_filled_has_zero_filled_quantity():
@@ -401,7 +402,7 @@ def test_build_deps_tick_end_to_end_records_actual_fill_when_flag_on():
     deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
                       get_vix_regime=lambda: (0.5, 0.01),
                       features=S2bFeatures(actual_fill_accounting=True,
-                                           est_commission_per_leg_rt=0.65))
+                                           commission_per_contract_per_leg_per_side=0.65))
     state = tick(BotState(), deps, datetime(2026, 6, 15, 10, 5))   # Monday 10:05
     assert len(state.open_positions) == 1
     pos = state.open_positions[0]

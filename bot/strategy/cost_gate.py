@@ -1,10 +1,15 @@
 """Transaction-cost profitability gate (partner review v2 §5)."""
 
 
+def round_trip_commission_per_contract(f):
+    """2 legs x 2 sides (entry + exit), per contract."""
+    return f.commission_per_contract_per_leg_per_side * 2 * 2
+
+
 def estimated_round_trip_cost(f):
-    """f = S2bFeatures. Commission = est_commission_per_leg_rt * 2 legs; slippage = (entry+exit) est,
-    using expected_entry_slippage as the per-side estimate, in dollars/contract."""
-    commission = f.est_commission_per_leg_rt * 2.0
+    """f = S2bFeatures. Commission = round_trip_commission_per_contract (2 legs x 2 sides); slippage =
+    (entry+exit) est, using expected_entry_slippage as the per-side estimate, in dollars/contract."""
+    commission = round_trip_commission_per_contract(f)
     slippage = (f.expected_entry_slippage + f.expected_entry_slippage) * 100.0
     return commission + slippage
 

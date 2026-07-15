@@ -370,3 +370,92 @@ def test_open_spread_ladder_on_never_crosses_below_min_credit():
     prices = [p["price"] for p in posts]
     assert min(prices) >= 1.77
     assert prices == [1.80, 1.79, 1.78, 1.77]
+
+
+# ── Task 3.2: tp_price_ladder wired into close_spread (partner spec §7) ──────────────────────────
+
+def _managed_position(qty=2):
+    from bot.strategy.manage import ManagedPosition
+    return ManagedPosition(ticker="SPY", short_strike=568.0, long_strike=558.0, credit=1.70,
+                           qty=qty, expiry="2026-06-19")
+
+
+def test_close_spread_ladder_off_is_exact_single_submit_behavior():
+    from bot.strategy.manage import ExitAction
+    # default S2bFeatures() -> tp_price_ladder=False (always the case for run_s2b_live.py) -- every
+    # action (including TAKE_PROFIT) must be the pre-existing single-submit marketable-natural
+    # close: ONE POST at short.ask - long.bid (3.50 - 1.60 = 1.90), no cancel/reprice machinery.
+    for action in (ExitAction.TAKE_PROFIT, ExitAction.STOP, ExitAction.TIME_EXIT):
+        http, posts, deletes = _ladder_http([["filled"]])
+        deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                          get_vix_regime=lambda: (0.5, 0.01))
+        assert deps.features.tp_price_ladder is False
+        result = deps.close_spread(_managed_position(), action)
+        assert result.status == "filled"
+        assert len(posts) == 1
+        assert posts[0]["price"] == 1.90          # marketable natural, untouched
+        assert deletes == []
+
+
+def test_close_spread_tp_ladder_on_starts_at_package_mid_debit_and_fills_first_rung():
+    from bot.features import S2bFeatures
+    from bot.strategy.manage import ExitAction
+    # short 3.40/3.50 (mid 3.45), long 1.60/1.70 (mid 1.65) -> mid debit = 1.80, natural = 1.90
+    http, posts, deletes = _ladder_http([["filled"]])
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), poll_s=0.01,
+                      features=S2bFeatures(tp_price_ladder=True, entry_reprice_seconds=0.02,
+                                          entry_max_work_seconds=5.0))
+    result = deps.close_spread(_managed_position(), ExitAction.TAKE_PROFIT)
+    assert result.status == "filled"
+    assert len(posts) == 1
+    assert posts[0]["price"] == 1.80          # started at the package mid debit, not the natural
+
+
+def test_close_spread_tp_ladder_on_cancels_and_reprices_up_toward_natural_before_filling():
+    from bot.features import S2bFeatures
+    from bot.strategy.manage import ExitAction
+    # first rung (1.80, the mid) never fills within the dwell -> must be cancel-confirmed, then the
+    # ladder steps UP a penny (toward the 1.90 natural) and the second rung (1.81) fills.
+    http, posts, deletes = _ladder_http([["open", "open"], ["filled"]])
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), poll_s=0.01,
+                      features=S2bFeatures(tp_price_ladder=True, entry_reprice_seconds=0.02,
+                                          entry_max_work_seconds=5.0))
+    result = deps.close_spread(_managed_position(), ExitAction.TAKE_PROFIT)
+    assert result.status == "filled"
+    assert [p["price"] for p in posts] == [1.80, 1.81]
+    assert len(deletes) == 1   # the first (never-filled) rung's order was cancel-confirmed
+
+
+def test_close_spread_tp_ladder_on_never_exceeds_the_natural():
+    from bot.features import S2bFeatures
+    from bot.strategy.manage import ExitAction
+    # every rung stays open forever -> the ladder must give up once the next rung would cross
+    # above the natural (1.90) rather than ever paying 1.91 or more.
+    http, posts, deletes = _ladder_http([["open", "open"]] * 20)
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), poll_s=0.01,
+                      features=S2bFeatures(tp_price_ladder=True, entry_reprice_seconds=0.02,
+                                          entry_max_work_seconds=5.0))
+    result = deps.close_spread(_managed_position(), ExitAction.TAKE_PROFIT)
+    assert result.status != "filled"
+    prices = [p["price"] for p in posts]
+    assert max(prices) <= 1.90
+    assert prices == [round(1.80 + 0.01 * i, 2) for i in range(11)]   # 1.80..1.90 inclusive
+
+
+def test_close_spread_stop_with_tp_ladder_on_still_uses_marketable_natural_single_submit():
+    from bot.features import S2bFeatures
+    from bot.strategy.manage import ExitAction
+    # even with tp_price_ladder ON, STOP must never delay for price improvement (spec §7) -- it
+    # stays the single marketable-natural submit, exactly like the flag-off path.
+    http, posts, deletes = _ladder_http([["filled"]])
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01),
+                      features=S2bFeatures(tp_price_ladder=True))
+    result = deps.close_spread(_managed_position(), ExitAction.STOP)
+    assert result.status == "filled"
+    assert len(posts) == 1
+    assert posts[0]["price"] == 1.90
+    assert deletes == []

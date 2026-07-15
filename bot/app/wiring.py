@@ -60,9 +60,9 @@ def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick, state_pat
 
 
 from bot.broker.tradier import TradierClient, BrokerError
-from bot.broker.submit import submit_and_verify, submit_entry_ladder
+from bot.broker.submit import submit_and_verify, submit_entry_ladder, submit_close_ladder
 from bot.broker.order_state import ExecutionResult, OrderState, map_broker_status, TERMINAL
-from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_payload
+from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_payload, ExitAction
 from bot.strategy.s2b import OptionQuote
 from bot.strategy.execution_price import (package_mid, expected_executable_credit, quotes_valid,
                                           package_too_wide, spot_moved_too_far)
@@ -241,9 +241,80 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         state, order = submit_and_verify(client, payload, poll_s, timeout_s, time.time, time.sleep)
         return _to_execution_result(state, order, payload)
 
+    def _close_spread_ladder(pos, start_short, start_long, natural):
+        """Package-mid->natural DEBIT close ladder (partner spec §7 take-profit exits): start at
+        the package midpoint (short_mid - long_mid, the cheapest close), submit ONE multileg debit
+        order, wait, cancel+confirm, refresh quotes, step the debit UP by entry_reprice_increment
+        toward (never past) the natural, repeat for up to entry_max_work_seconds -- never holding
+        two live closing orders. "Up" here means paying MORE to get filled, the mirror image of
+        the entry credit ladder stepping down.
+
+        LIVE-VALIDATION-REQUIRED: only reachable when features.tp_price_ladder is True AND action
+        is TAKE_PROFIT (never the case for run_s2b_live.py, whose features default to all-off).
+        STOP/TIME_EXIT/DEGROSS/FLOW_DEGROSS always use the single marketable-natural submit
+        regardless of this flag -- spec §7 requires stops to never delay for price improvement."""
+        last_payload = {"payload": None}
+        late_fill = {"result": None}
+
+        def _fresh_legs():
+            return _leg_quotes(pos)
+
+        def place_fn(debit):
+            payload = build_close_payload(pos, limit_price=debit)
+            last_payload["payload"] = payload
+            oid = client.place_order(payload)
+            t0 = time.time()
+            while True:
+                order = client.get_order(oid)
+                state = map_broker_status(order.get("status"))
+                if state in TERMINAL:
+                    return _to_execution_result(state, order, payload)
+                if time.time() - t0 >= features.entry_reprice_seconds:
+                    return _to_execution_result(state, order, payload)   # still open -> ladder cancels
+                time.sleep(poll_s)
+
+        def cancel_fn(order_id):
+            try:
+                client.cancel_order(order_id)
+            except BrokerError:
+                pass   # may have just filled -- confirm below rather than trust the exception
+            order = client.get_order(order_id)
+            state = map_broker_status(order.get("status"))
+            if state == OrderState.FILLED:
+                late_fill["result"] = _to_execution_result(state, order, last_payload["payload"])
+                return False   # NOT a confirmed cancel -- tells the ladder to stop, not reprice
+            return state in (OrderState.CANCELLED, OrderState.REJECTED, OrderState.EXPIRED)
+
+        def on_reprice(next_debit):
+            short, long = _fresh_legs()   # refresh quotes before every replacement (spec §7)
+            if not quotes_valid(short.bid, short.ask, long.bid, long.ask):
+                return {"abort": True}
+            # TODO(live-validation, spec §7): re-derive the natural from the refreshed quotes and
+            # escalate/clamp if the market has moved past the originally-captured natural.
+            return {}
+
+        def should_abort():
+            short, long = _fresh_legs()
+            return not quotes_valid(short.bid, short.ask, long.bid, long.ask)
+
+        start_debit = package_mid(start_short.bid, start_short.ask, start_long.bid, start_long.ask)
+
+        result = submit_close_ladder(
+            place_fn=place_fn, cancel_fn=cancel_fn, start_debit=start_debit,
+            max_debit=natural, step=features.entry_reprice_increment,
+            max_seconds=features.entry_max_work_seconds, now_fn=time.time, sleep_fn=time.sleep,
+            on_reprice=on_reprice, should_abort=should_abort)
+
+        return late_fill["result"] if late_fill["result"] is not None else result
+
     def close_spread(pos, action):
         short, long = _leg_quotes(pos)
         limit = round(short.ask - long.bid, 2)   # marketable cost-to-close -> fills under stress
+        # take-profit ladder (spec §7) is opt-in and TAKE_PROFIT-only: stops/time-exits/degrosses
+        # must never delay for price improvement, so they always take the single marketable-natural
+        # path below -- this branch is the ONLY behavior change, and only when tp_price_ladder is on.
+        if features.tp_price_ladder and action == ExitAction.TAKE_PROFIT:
+            return _close_spread_ladder(pos, short, long, limit)
         payload = build_close_payload(pos, limit_price=limit)
         state, order = submit_and_verify(client, payload, poll_s, timeout_s, time.time, time.sleep)
         return _to_execution_result(state, order, payload)

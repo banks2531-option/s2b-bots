@@ -103,3 +103,70 @@ def submit_entry_ladder(place_fn, cancel_fn, start_credit, min_credit, step, max
             return dataclasses.replace(result, status="canceled")   # never cross below min_credit
 
         credit = next_credit
+
+
+def submit_close_ladder(place_fn, cancel_fn, start_debit, max_debit, step, max_seconds,
+                        now_fn, sleep_fn, on_reprice=None, should_abort=None):
+    """Ladder a CLOSE from start_debit (package mid: short_mid - long_mid) UP toward max_debit
+    (natural: short_ask - long_bid) in `step` increments (partner spec §7 take-profit exits).
+
+    Mirrors submit_entry_ladder's discipline exactly, but inverted: a close is a DEBIT, so "toward
+    the natural / more marketable price" means INCREASING the debit (paying more to get filled),
+    not decreasing it. Every other rule is identical:
+
+    place_fn(debit) -> ExecutionResult (status 'filled'/'open'/'partially_filled'/'rejected', ...).
+    cancel_fn(order_id) -> True once cancellation is CONFIRMED (must confirm before re-placing) --
+    this function NEVER holds two live closing orders.
+    on_reprice(new_debit) -> optionally refreshes quotes; may return a dict
+    {'debit':.., 'qty':.., 'abort':bool} to override the next debit or force an abort.
+    should_abort() -> True to abort immediately; checked before the first order and after every
+    cancel-confirm.
+
+    Returns the final ExecutionResult. Stops after max_seconds, on fill, on abort, or once the
+    next rung would cross above max_debit (never pays more than the natural). On partial fill,
+    stops and returns the partial -- the remainder is never silently re-submitted."""
+    start_time = now_fn()
+    debit = round(start_debit, 2)
+
+    if should_abort is not None and should_abort():
+        return _no_order_result()
+
+    while True:
+        result = place_fn(debit)
+
+        if result.status == "filled":
+            return result
+        if result.status == "rejected":
+            return result
+        if result.status == "partially_filled" or result.status == "partial":
+            if result.order_id is not None:
+                cancel_fn(result.order_id)
+            return result
+
+        # Still working: cancel + CONFIRM before doing anything else -- never leave this rung's
+        # order live while we decide what's next.
+        confirmed = True
+        if result.order_id is not None:
+            confirmed = cancel_fn(result.order_id)
+
+        if should_abort is not None and should_abort():
+            return dataclasses.replace(result, status="canceled")
+        if not confirmed:
+            # Can't safely reprice without a confirmed cancel (e.g. the broker reports the order
+            # actually filled during the race) -- stop here rather than risk two live orders.
+            return dataclasses.replace(result, status="canceled")
+        if now_fn() - start_time >= max_seconds:
+            return dataclasses.replace(result, status="canceled")
+
+        next_debit = round(debit + step, 2)
+        if on_reprice is not None:
+            info = on_reprice(next_debit) or {}
+            if info.get("abort"):
+                return dataclasses.replace(result, status="canceled")
+            if "debit" in info:
+                next_debit = round(info["debit"], 2)
+
+        if next_debit > round(max_debit, 2) + 1e-9:
+            return dataclasses.replace(result, status="canceled")   # never exceed max_debit (natural)
+
+        debit = next_debit

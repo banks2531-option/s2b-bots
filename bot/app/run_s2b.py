@@ -120,7 +120,8 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account,
         trade_log=make_trade_logger(log_path,
-                                    include_cost_columns=resolved_features.actual_fill_accounting),
+                                    include_cost_columns=resolved_features.actual_fill_accounting,
+                                    include_decision_columns=resolved_features.decision_logging),
         regime_log=regime_log, uw_http=uw_http,
         s2b_cfg=s2b_cfg, base_risk_pct=base_risk_pct,
         trend_gate_enabled=True,        # Phase 1: pause put-selling when SPY < 200d MA (validated 76yr)

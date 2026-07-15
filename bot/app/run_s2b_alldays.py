@@ -20,6 +20,7 @@ ALLDAYS_FEATURES = S2bFeatures(
     aggregate_risk_budget=True,
     actual_fill_accounting=True,
     regime_shadow_monitor=True,
+    decision_logging=True,
 )
 
 

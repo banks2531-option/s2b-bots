@@ -11,6 +11,7 @@ class S2bFeatures:
     aggregate_risk_budget: bool = False
     actual_fill_accounting: bool = False
     regime_shadow_monitor: bool = False
+    decision_logging: bool = False   # §1/§12: write a DECISION record (reason+flags+telemetry) per entry-cycle return
     # explicitly-off Phase-4 alpha (never enabled in this program)
     regime_entry_blocks: bool = False
     automatic_hedging: bool = False

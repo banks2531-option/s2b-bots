@@ -9,7 +9,8 @@ from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
 from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier
-from bot.portfolio.risk_budget import size_qty, cap_to_budgets, remaining_stop_risk, planned_stop_loss_per_contract
+from bot.portfolio.risk_budget import (size_qty, cap_to_budgets, remaining_stop_risk,
+                                        planned_stop_loss_per_contract, structural_max_loss_per_contract)
 from bot.portfolio.gap_stress import gap_stress_losses
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
@@ -309,27 +310,112 @@ def run_flow_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> t
     return state, closed
 
 
+def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None, expiry=None, order=None):
+    """Best-effort per-entry exposure snapshot for the DECISION log (partner review v2 §12): positions
+    opened today, positions in the target expiration, distance between adjacent short strikes
+    (including the proposed spread, when one exists), aggregate remaining stop risk, aggregate
+    structural risk, and aggregate 1.5-ATR gap-stress loss. NEVER raises: anything not computable at
+    a given return point (e.g. rejected before spot/atr/expiry/order were known) is left None.
+
+    NOTE: aggregate SPY delta/gamma are deferred to the Phase-4 shadow monitor (spec §13) -- omitted
+    here by design, not an oversight."""
+    tel = {"positions_today": None, "positions_in_expiry": None, "adjacent_strike_distance": None,
+           "agg_remaining_stop": None, "agg_structural": None, "agg_gap_stress_1_5": None}
+    try:
+        tel["positions_today"] = sum(1 for p in state.open_positions if p.entry_date == today)
+    except Exception:
+        pass
+    try:
+        wing_width = deps.s2b_cfg.wing_width
+        tel["agg_remaining_stop"] = round(sum(
+            remaining_stop_risk(p.credit, deps.mark_position(p), p.qty, deps.features.expected_stop_slippage)
+            for p in state.open_positions), 2)
+        tel["agg_structural"] = round(sum(
+            structural_max_loss_per_contract(wing_width, p.credit) * p.qty
+            for p in state.open_positions), 2)
+    except Exception:
+        pass
+    if expiry is not None:
+        try:
+            same_expiry = [p for p in state.open_positions if p.expiry == expiry]
+            tel["positions_in_expiry"] = len(same_expiry)
+            strikes = {p.short_strike for p in same_expiry}
+            if order is not None:
+                strikes.add(order.short_strike)
+            strikes = sorted(strikes)
+            if len(strikes) >= 2:
+                tel["adjacent_strike_distance"] = min(b - a for a, b in zip(strikes, strikes[1:]))
+        except Exception:
+            pass
+    if spot is not None and atr is not None:
+        try:
+            positions_for_stress = list(state.open_positions) + ([order] if order is not None else [])
+            tel["agg_gap_stress_1_5"] = gap_stress_losses(
+                positions_for_stress, spot, atr, deps.s2b_cfg.wing_width)[1.5]
+        except Exception:
+            pass
+    return tel
+
+
 def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
     if state.last_entry_date != today:
         state.entries_today = 0          # new calendar day -> reset the daily entry counter
+
+    def _log_decision(reason, spot=None, atr=None, expiry=None, order=None):
+        """§1/§12: write a DECISION record (reason + active flags + best-effort exposure telemetry)
+        to the trade log. No-op unless deps.features.decision_logging is on; never raises."""
+        if not deps.features.decision_logging:
+            return
+        try:
+            flags = {"credit_tiers": deps.features.credit_tiers,
+                      "transaction_cost_gate": deps.features.transaction_cost_gate,
+                      "entry_price_ladder": deps.features.entry_price_ladder,
+                      "tp_price_ladder": deps.features.tp_price_ladder,
+                      "aggregate_risk_budget": deps.features.aggregate_risk_budget,
+                      "actual_fill_accounting": deps.features.actual_fill_accounting,
+                      "regime_shadow_monitor": deps.features.regime_shadow_monitor}
+        except Exception:
+            flags = {}
+        rec = {"event": "DECISION", "date": today, "decision": reason, "flags": flags}
+        rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order))
+        try:
+            deps.trade_log(rec)
+        except Exception:
+            pass
+
     # `now` MUST be in US/Eastern (the live wiring is responsible for that). Enter only 10:00-15:59 ET.
     # Gates: not halted; allowed entry weekday (A/B variable); within RTH; under the concurrent-
-    # position cap; and under the per-day entry cap.
-    if (state.halted or now.weekday() not in deps.entry_days or not (10 <= now.hour < 16)
-            or len(state.open_positions) >= deps.max_open
-            or state.entries_today >= deps.max_entries_per_day):
+    # position cap; and under the per-day entry cap. Each gate is checked individually (rather than
+    # one combined condition) so the DECISION log can record WHICH gate blocked the entry; the
+    # returned `info` stays None for all five, exactly as before (byte-identical behavior).
+    if state.halted:
+        _log_decision("halted")
+        return state, None
+    if now.weekday() not in deps.entry_days:
+        _log_decision("wrong_weekday")
+        return state, None
+    if not (10 <= now.hour < 16):
+        _log_decision("off_hours")
+        return state, None
+    if len(state.open_positions) >= deps.max_open:
+        _log_decision("max_open")
+        return state, None
+    if state.entries_today >= deps.max_entries_per_day:
+        _log_decision("max_entries")
         return state, None
     # PHASE 1 defensive guard (validated 76yr, p=0.001): pause new put-selling in a confirmed
     # downtrend (SPY below its 200d MA). Only acts on a positive risk_off signal; an unknown/missing
     # regime falls through to normal trading (a regime fault must not block the validated strategy).
     if deps.trend_gate_enabled and regime is not None and getattr(regime, "trend_regime", "unknown") == "risk_off":
+        _log_decision("trend_paused")
         return state, "trend_paused"
     spot = deps.get_spot("SPY")
     atr = deps.get_atr("SPY")
     expiry = deps.pick_expiry(today)
     order = build_spread_order(spot, atr, deps.get_chain("SPY", expiry), deps.s2b_cfg)
     if order is None:
+        _log_decision("no_order", spot=spot, atr=atr, expiry=expiry)
         return state, "no_order"
     # Adaptive credit-quality tiering (partner review §2), OPT-IN via deps.min_credit_ratio (0.0 =
     # feature OFF -> this entire block is a no-op, so default behavior is byte-identical to before).
@@ -346,12 +432,14 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         credit_mult = credit_tier(order.credit, deps.s2b_cfg.wing_width, deps.min_credit_ratio,
                                    thr, deps.probe_size_multiplier)
         if credit_mult == 0.0:
+            _log_decision("credit_too_low", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "credit_too_low"
     # Never STACK an identical spread (same strikes+expiry): the broker aggregates same-symbol legs,
     # but the position model keys on (ticker,short,long,expiry), so a duplicate collapses to one key
     # and breaks reconcile (qty_mismatch -> halt). Skip until a different strike or the position closes.
     if any(p.short_strike == order.short_strike and p.long_strike == order.long_strike
            and p.expiry == expiry for p in state.open_positions):
+        _log_decision("duplicate_strikes", spot=spot, atr=atr, expiry=expiry, order=order)
         return state, "duplicate_strikes"
     acct = deps.account_state(today, len(state.open_positions))
     pct_rank, change = deps.get_vix_regime()
@@ -369,6 +457,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         qty = cap_to_budgets(qty, order.credit, deps.s2b_cfg.wing_width, expiry, today,
                              state.open_positions, deps.mark_position, req, deps.features)
         if qty <= 0:
+            _log_decision("risk_budget", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "risk_budget"
         order.qty = qty
         # Gap-risk stress test (partner review v2 §10), OPT-IN behind the same flag: stress ALL
@@ -382,6 +471,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             order.qty -= 1
             gap_losses = gap_stress_losses(state.open_positions + [order], spot, atr, deps.s2b_cfg.wing_width)
         if order.qty <= 0:
+            _log_decision("gap_stress", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "gap_stress"
         # Continuous daily-risk gate (partner review v2 §11), OPT-IN behind the same flag: don't
         # wait for the first stop to restrict entries. daily_risk_consumption = today's realized
@@ -404,12 +494,14 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                                             deps.features.expected_stop_slippage) * order.qty
             daily_risk_consumption = abs(min(state.realized_today, 0.0)) + today_stop + proposed_stop
         if order.qty <= 0:
+            _log_decision("daily_risk", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "daily_risk"
         # ALSO halt new entries (but never management/closing) once today's total P&L (realized +
         # unrealized on every currently-open position) breaches the daily loss-halt threshold.
         unrealized_today = sum((p.credit - deps.mark_position(p)) * 100 * p.qty
                                 for p in state.open_positions)
         if state.realized_today + unrealized_today <= -deps.features.daily_pnl_halt_pct * req:
+            _log_decision("day_loss_halt", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "day_loss_halt"
     else:
         order.qty = contracts_for_risk(acct.equity, order.max_loss_per_contract, risk)
@@ -417,6 +509,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             order.qty = max(1, int(order.qty * credit_mult))   # a probe of a 1-lot stays 1
     decision = RiskGate(deps.risk_cfg).is_order_allowed(order, acct)
     if not decision.allowed:
+        _log_decision(decision.reason, spot=spot, atr=atr, expiry=expiry, order=order)
         return state, decision.reason
     open_result = deps.open_spread(to_tradier_payload(order, expiry, order.qty))
     status = result_status(open_result)
@@ -436,6 +529,9 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             commissions = getattr(open_result, "commissions", 0.0) or 0.0
             reg_fees = getattr(open_result, "regulatory_fees", 0.0) or 0.0
             opening_fees = commissions + reg_fees
+        # DECISION log BEFORE the new position is folded into state.open_positions, so the exposure
+        # telemetry reads as "book so far + this proposed trade" (consistent with every reject path).
+        _log_decision("filled", spot=spot, atr=atr, expiry=expiry, order=order)
         state.open_positions.append(ManagedPosition(
             "SPY", order.short_strike, order.long_strike, credit, qty, expiry,
             entry_date=today, opening_fees=opening_fees))
@@ -453,6 +549,10 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             open_rec["gap_stress_1_5"] = gap_losses[1.5]
             open_rec["gap_stress_2_0"] = gap_losses[2.0]
         deps.trade_log(open_rec)
+    else:
+        # order submitted but did not fill (e.g. timeout/rejected at the broker) -- still a return
+        # path that must be decision-logged (spec §1: EVERY decision, not just the happy path).
+        _log_decision(status, spot=spot, atr=atr, expiry=expiry, order=order)
     return state, status
 
 

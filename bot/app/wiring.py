@@ -11,16 +11,27 @@ from bot.features import S2bFeatures
 _LOG_FIELDS = ["event", "date", "ticker", "short", "long", "expiry", "qty",
                "credit", "action", "exit_value", "pnl", "status"]
 _COST_LOG_FIELDS = ["gross_pnl", "net_pnl"]   # only added when actual_fill_accounting is on (spec §8)
+_DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_expiry",
+                        "adjacent_strike_distance", "agg_remaining_stop", "agg_structural",
+                        "agg_gap_stress_1_5"]   # only added when decision_logging is on (spec §1, §12)
 
 
-def make_trade_logger(path, include_cost_columns=False):
+def make_trade_logger(path, include_cost_columns=False, include_decision_columns=False):
     """Return a callable that appends a trade-record dict to a CSV (header written once).
     Used per-bot so a shared-account A/B can be measured from separate files.
 
     include_cost_columns=False (default) keeps the original 11-column CSV shape byte-identical --
     critical for the real-money live bot (run_s2b_live.py), whose actual_fill_accounting is always
-    OFF. Pass True only for a bot with the flag on, so its gross_pnl/net_pnl columns are populated."""
-    fields = _LOG_FIELDS + _COST_LOG_FIELDS if include_cost_columns else _LOG_FIELDS
+    OFF. Pass True only for a bot with the flag on, so its gross_pnl/net_pnl columns are populated.
+
+    include_decision_columns=False (default) likewise keeps the CSV shape byte-identical for the
+    live bot (decision_logging always OFF there). Pass True only for a bot with the flag on, so its
+    DECISION rows' reason/flags/exposure-telemetry columns are populated."""
+    fields = list(_LOG_FIELDS)
+    if include_cost_columns:
+        fields += _COST_LOG_FIELDS
+    if include_decision_columns:
+        fields += _DECISION_LOG_FIELDS
     def log(record):
         exists = _os.path.exists(path)
         with open(path, "a", newline="") as f:

@@ -16,6 +16,7 @@ def save_state(state: BotState, path: str) -> None:
         "last_entry_date": state.last_entry_date,
         "entries_today": state.entries_today,
         "prev_flow_bias": state.prev_flow_bias,
+        "credit_ratio_history": state.credit_ratio_history,
     }
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
@@ -35,4 +36,5 @@ def load_state(path: str) -> BotState:
                     halt_reason=d.get("halt_reason", ""),
                     last_entry_date=d.get("last_entry_date", ""),
                     entries_today=d.get("entries_today", 0),
-                    prev_flow_bias=d.get("prev_flow_bias", ""))
+                    prev_flow_bias=d.get("prev_flow_bias", ""),
+                    credit_ratio_history=d.get("credit_ratio_history", {}))

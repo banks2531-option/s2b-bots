@@ -4,7 +4,9 @@ from dataclasses import dataclass, field
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
 from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload
-from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction)
+from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
+                                  dte_from_expiry)
+from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 
@@ -21,6 +23,7 @@ class BotState:
     entries_today: int = 0                                # entries opened so far on last_entry_date
     missing_streak: dict = field(default_factory=dict)    # position_key -> consecutive missing-at-broker reconciles
     prev_flow_bias: str = ""                              # UW flow_bias from the PRIOR tick, to detect a bull->bear flip
+    credit_ratio_history: dict = field(default_factory=dict)  # DTE-bucket -> list of prior credit/wing_width ratios
 
     def clear_halt(self):
         self.halted = False
@@ -58,6 +61,10 @@ class Deps:
     degross_on_risk_off: bool = False                # Phase 1.5: close held positions in a risk_off downtrend
     degross_on_flow_flip: bool = False               # Flow-flip de-gross: close same-day, not-yet-profitable positions on a bull->bear flow flip
     flow_degross_same_day_only: bool = True          # restrict flow-flip de-gross to positions opened TODAY (recency)
+    min_credit_ratio: float = 0.0                    # adaptive credit tiering (partner review §2); 0.0 = feature OFF
+    credit_floor_ratio: float = 0.115                # floor for the full-size threshold (credit/wing_width)
+    probe_size_multiplier: float = 0.40              # size multiplier for a "probe" (below full threshold) entry
+    use_adaptive_credit: bool = False                # when True, the full-size threshold adapts per DTE bucket (p40 of prior ratios)
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -255,6 +262,22 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     order = build_spread_order(spot, atr, deps.get_chain("SPY", expiry), deps.s2b_cfg)
     if order is None:
         return state, "no_order"
+    # Adaptive credit-quality tiering (partner review §2), OPT-IN via deps.min_credit_ratio (0.0 =
+    # feature OFF -> this entire block is a no-op, so default behavior is byte-identical to before).
+    # A credit too thin relative to the wing width is rejected outright; a mid-tier credit is sized
+    # down to a "probe"; a strong credit trades full size (see bot/strategy/credit_quality.py).
+    bucket = None
+    credit_mult = 1.0
+    if deps.min_credit_ratio > 0:
+        dte = dte_from_expiry(expiry, today)
+        bucket = dte_bucket(dte)
+        prior = state.credit_ratio_history.get(bucket, [])
+        thr = (full_size_threshold(prior, floor=deps.credit_floor_ratio)
+               if deps.use_adaptive_credit else deps.credit_floor_ratio)
+        credit_mult = credit_tier(order.credit, deps.s2b_cfg.wing_width, deps.min_credit_ratio,
+                                   thr, deps.probe_size_multiplier)
+        if credit_mult == 0.0:
+            return state, "credit_too_low"
     # Never STACK an identical spread (same strikes+expiry): the broker aggregates same-symbol legs,
     # but the position model keys on (ticker,short,long,expiry), so a duplicate collapses to one key
     # and breaks reconcile (qty_mismatch -> halt). Skip until a different strike or the position closes.
@@ -265,6 +288,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     pct_rank, change = deps.get_vix_regime()
     risk = regime_adjusted_risk_pct(deps.base_risk_pct, pct_rank, change)
     order.qty = contracts_for_risk(acct.equity, order.max_loss_per_contract, risk)
+    if deps.min_credit_ratio > 0:
+        order.qty = max(1, int(order.qty * credit_mult))   # a probe of a 1-lot stays 1
     decision = RiskGate(deps.risk_cfg).is_order_allowed(order, acct)
     if not decision.allowed:
         return state, decision.reason
@@ -275,6 +300,10 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             entry_date=today))
         state.last_entry_date = today
         state.entries_today += 1             # count toward the per-day entry cap
+        if deps.min_credit_ratio > 0:
+            hist = state.credit_ratio_history.setdefault(bucket, [])
+            hist.append(round(order.credit / deps.s2b_cfg.wing_width, 4))
+            state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
         deps.trade_log({"event": "OPEN", "date": today, "ticker": "SPY",
                         "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
                         "qty": order.qty, "credit": order.credit, "status": status})

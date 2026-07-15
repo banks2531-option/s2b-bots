@@ -22,6 +22,33 @@ _SHADOW_LOG_FIELDS = ["shadow_score", "shadow_action", "spy", "spy_vwap", "spy_a
                       "short_delta", "short_gamma", "short_iv", "breadth", "up_down_vol",
                       "whale_flow"]   # only added when regime_shadow_monitor is on (spec §13)
 
+# §14 (partner review v2): a wholly SEPARATE research-only CSV -- entry markouts are never mixed
+# into the trade log, and never read back into any trading decision.
+_MARKOUT_LOG_FIELDS = ["event", "signal_id", "ticker", "short_strike", "long_strike", "expiry",
+                      "filled", "entry_spy", "entry_spread_value", "credit", "qty",
+                      "entry_delta", "entry_iv", "mfe", "mae", "time_to_tp", "time_to_stop",
+                      "mfe_before_stop", "mae_before_tp",
+                      "spy_move_1m", "spread_move_1m", "delta_change_1m", "iv_change_1m",
+                      "spy_move_5m", "spread_move_5m", "delta_change_5m", "iv_change_5m",
+                      "spy_move_15m", "spread_move_15m", "delta_change_15m", "iv_change_15m",
+                      "spy_move_30m", "spread_move_30m", "delta_change_30m", "iv_change_30m",
+                      "spy_move_60m", "spread_move_60m", "delta_change_60m", "iv_change_60m",
+                      "eod_spy_move", "eod_spread_value", "eod_spread_move"]
+
+
+def make_markout_logger(path):
+    """Return a callable that appends one §14 markout record dict to a research-only CSV (header
+    written once, lazily on first write -- so the flag-off path, which never calls it, never
+    creates the file at all). Wholly separate from make_trade_logger's trade/decision/shadow CSV."""
+    def log(record):
+        exists = _os.path.exists(path)
+        with open(path, "a", newline="") as f:
+            w = _csv.DictWriter(f, fieldnames=_MARKOUT_LOG_FIELDS, extrasaction="ignore")
+            if not exists:
+                w.writeheader()
+            w.writerow(record)
+    return log
+
 
 def make_trade_logger(path, include_cost_columns=False, include_decision_columns=False,
                       include_shadow_columns=False):
@@ -91,7 +118,8 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                trade_log=(lambda record: None),
                regime_log=(lambda s, ts, e: None), uw_http=None,
                poll_s=2, timeout_s=30, base_risk_pct=0.10, s2b_cfg=None, trend_gate_enabled=False,
-               degross_on_risk_off=False, degross_on_flow_flip=False, features=None):
+               degross_on_risk_off=False, degross_on_flow_flip=False, features=None,
+               markout_log=(lambda record: None)):
     """Assemble a production Deps from a Tradier http callable + injected market-data feeds.
     s2b_cfg overrides the spread geometry (default = standard $10-wing S2bConfig).
     features overrides the partner-review-v2 feature flags (default = all-off S2bFeatures)."""
@@ -540,6 +568,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         broker_equity=broker_equity, bot_equity=broker_equity,
         alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
         shadow_data=shadow_data,
+        markout_log=markout_log,
         base_risk_pct=base_risk_pct, risk_cfg=risk_cfg, s2b_cfg=s2b_cfg,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=trade_log,

@@ -60,6 +60,45 @@ def test_old_state_file_missing_daily_gate_fields_defaults(tmp_path):
     assert loaded.risk_day == ""
 
 
+def test_roundtrips_markout_pending_and_seq(tmp_path):
+    # partner review v2 §14: pending research markouts must survive a restart (they resolve
+    # 1-60 min after the signal, which can straddle a restart).
+    from bot.research.markouts import MarkoutTracker
+    from datetime import datetime
+    p = str(tmp_path / "state.json")
+    tr = MarkoutTracker(write_fn=lambda rec: None)
+    tr.record_signal(datetime(2026, 6, 15, 10, 5), {
+        "signal_id": "2026-06-15-1", "ticker": "SPY", "short_strike": 568.0, "long_strike": 558.0,
+        "expiry": "2026-06-19", "filled": True, "entry_spy": 575.0, "entry_spread_value": 3.0,
+        "credit": 3.0, "qty": 1,
+    })
+    s = BotState(markout_pending=tr.to_state(), markout_seq=1)
+    save_state(s, p)
+    loaded = load_state(p)
+    assert loaded.markout_seq == 1
+    assert len(loaded.markout_pending) == 1
+    # the restored pending list must still resolve correctly (ts/horizon-keys parsed back)
+    tr2 = MarkoutTracker.from_state(loaded.markout_pending, write_fn=lambda rec: None)
+    tr2.resolve_due(datetime(2026, 6, 15, 10, 6), spy_now=576.0, spread_value_fn=lambda item: 2.9)
+    restored_item = tr2.to_state()[0]
+    assert restored_item["horizons"][1]["spy_move"] == 1.0
+
+
+def test_old_state_file_missing_markout_fields_defaults(tmp_path):
+    # a state file written before Task 4.2 existed (no markout_pending/markout_seq) must load
+    # with safe defaults (empty pending, zero counter).
+    import json
+    p = str(tmp_path / "old_state.json")
+    with open(p, "w") as f:
+        json.dump({
+            "open_positions": [], "halted": False, "halt_reason": "",
+            "last_entry_date": "2026-06-24", "entries_today": 1,
+        }, f)
+    loaded = load_state(p)
+    assert loaded.markout_pending == []
+    assert loaded.markout_seq == 0
+
+
 def test_old_state_file_missing_new_fields_defaults(tmp_path):
     # a state file written by the OLD bot (no entry_date / prev_flow_bias) must load with safe defaults
     import json

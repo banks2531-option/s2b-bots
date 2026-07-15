@@ -19,6 +19,8 @@ def save_state(state: BotState, path: str) -> None:
         "credit_ratio_history": state.credit_ratio_history,
         "realized_today": state.realized_today,
         "risk_day": state.risk_day,
+        "markout_pending": state.markout_pending,
+        "markout_seq": state.markout_seq,
     }
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
@@ -41,4 +43,6 @@ def load_state(path: str) -> BotState:
                     prev_flow_bias=d.get("prev_flow_bias", ""),
                     credit_ratio_history=d.get("credit_ratio_history", {}),
                     realized_today=d.get("realized_today", 0.0),
-                    risk_day=d.get("risk_day", ""))
+                    risk_day=d.get("risk_day", ""),
+                    markout_pending=d.get("markout_pending", []),
+                    markout_seq=d.get("markout_seq", 0))

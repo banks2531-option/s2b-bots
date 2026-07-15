@@ -19,6 +19,7 @@ from bot.portfolio import exposure
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 from bot.regime.shadow_monitor import compute_shadow_signals, shadow_caution_score
+from bot.research.markouts import MarkoutTracker
 
 
 # §13 shadow-monitor raw input keys (compute_shadow_signals' required kwargs). Used as the safe
@@ -49,6 +50,12 @@ class BotState:
     credit_ratio_history: dict = field(default_factory=dict)  # DTE-bucket -> list of prior credit/wing_width ratios
     realized_today: float = 0.0                           # sum of realized P&L from closes on `risk_day` (partner review v2 §11)
     risk_day: str = ""                                    # the calendar date `realized_today` applies to
+    markout_pending: list = field(default_factory=list)   # persisted MarkoutTracker pending state
+                                                           # (partner review v2 §14); round-trips
+                                                           # via state_store. Only ever populated
+                                                           # when deps.features.regime_shadow_monitor
+                                                           # is on -- stays [] forever for Bot C.
+    markout_seq: int = 0                                  # monotonic counter -> unique markout signal_ids
 
     def clear_halt(self):
         self.halted = False
@@ -94,6 +101,10 @@ class Deps:
     shadow_data: callable = _default_shadow_data   # () -> dict of §13 raw inputs (partner review v2 §13).
                                              # ONLY called when deps.features.regime_shadow_monitor is on;
                                              # best-effort, wired for real in bot.app.wiring.build_deps.
+    markout_log: callable = (lambda record: None)   # (dict) -> None; SEPARATE research-log sink for
+                                             # §14 entry markouts (partner review v2 §14) -- never the
+                                             # trade log. ONLY called when deps.features.regime_shadow_monitor
+                                             # is on; best-effort, wired for real in bot.app.wiring.build_deps.
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -352,6 +363,39 @@ def run_shadow_monitor_cycle(state: BotState, deps: Deps, today: str) -> None:
         pass
 
 
+def run_markout_cycle(state: BotState, deps: Deps, now) -> None:
+    """§14 (partner review v2): once per tick, advance every pending research markout's due
+    horizons (1/5/15/30/60 min) off the current SPY spot, and write the EOD row once the session
+    is past RTH close (>= 16:00 ET) -- see bot/research/markouts.py for the resolution logic.
+
+    The spread-value marker reuses deps.mark_position against a synthetic ManagedPosition built
+    from the pending item's own strikes/expiry (mark_position only reads leg quotes off
+    ticker/expiry/short_strike/long_strike, so this works for a candidate spread that was NEVER
+    actually opened at the broker -- exactly what §14 requires for rejected signals).
+
+    LOG ONLY: reads/writes only state.markout_pending via MarkoutTracker; never touches an order,
+    a size, or any trading decision. No-op unless deps.features.regime_shadow_monitor is on (Bot C:
+    always off). Best-effort: any failure (a down feed, a bad quote) is swallowed -- a markout
+    logging failure must never affect trading, and must never raise out of tick()."""
+    if not deps.features.regime_shadow_monitor:
+        return
+    try:
+        tracker = MarkoutTracker.from_state(state.markout_pending, deps.markout_log)
+
+        def _spread_value(item):
+            pos = ManagedPosition(item["ticker"], item["short_strike"], item["long_strike"],
+                                  credit=0.0, qty=1, expiry=item["expiry"])
+            return deps.mark_position(pos)
+
+        spy_now = deps.get_spot("SPY")
+        tracker.resolve_due(now, spy_now, _spread_value)
+        if now.hour >= 16:                    # past RTH close -> finalize the day's EOD result
+            tracker.finalize_eod(spy_now, _spread_value)
+        state.markout_pending = tracker.to_state()
+    except Exception:
+        pass
+
+
 def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None, expiry=None, order=None):
     """Best-effort per-entry exposure snapshot for the DECISION log (partner review v2 §12): positions
     opened today, positions in the target expiration, distance between adjacent short strikes
@@ -408,10 +452,43 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                               # credit_quality_mult; set once the credit-tiers block runs (credit_tiers on)
     cost_telemetry = None    # §5: cost_gross_target/cost_round_trip/cost_target_ratio; set once the
                               # transaction-cost gate block runs (transaction_cost_gate on)
+    entry_delta = None       # §14: best-effort short-put delta at signal time, set once the chain is
+                              # fetched and an order is built; feeds _record_markout below
+
+    def _record_markout(reason, order, expiry, spot):
+        """§14 (partner review v2): record ONE research markout signal for this evaluated
+        candidate (filled OR rejected -- reason=="filled" is the only fill marker). Independently
+        gated on regime_shadow_monitor (NOT decision_logging) so markouts are captured even when
+        decision logging itself is off. LOG ONLY: only ever appends to state.markout_pending;
+        NEVER touches an order/size/decision. Best-effort -- never raises out of run_entry_cycle."""
+        try:
+            state.markout_seq += 1
+            tracker = MarkoutTracker.from_state(state.markout_pending, deps.markout_log)
+            cfg = deps.manage_cfg
+            filled = (reason == "filled")
+            tracker.record_signal(now, {
+                "signal_id": f"{today}-{state.markout_seq}", "ticker": order.ticker,
+                "short_strike": order.short_strike, "long_strike": order.long_strike,
+                "expiry": expiry, "filled": filled,
+                "entry_spy": spot, "entry_spread_value": order.credit,
+                "credit": order.credit, "qty": order.qty,
+                "entry_delta": entry_delta, "entry_iv": None,
+                "tp_value": (round(order.credit * (1 - cfg.tp_pct), 4) if filled else None),
+                "stop_value": (round(order.credit * (1 + cfg.stop_mult), 4) if filled else None),
+            })
+            state.markout_pending = tracker.to_state()
+        except Exception:
+            pass
 
     def _log_decision(reason, spot=None, atr=None, expiry=None, order=None):
         """§1/§12: write a DECISION record (reason + active flags + best-effort exposure telemetry)
-        to the trade log. No-op unless deps.features.decision_logging is on; never raises."""
+        to the trade log. No-op unless deps.features.decision_logging is on; never raises.
+
+        Also independently triggers the §14 research markout record (_record_markout) whenever
+        regime_shadow_monitor is on and a concrete candidate (order) exists -- that piece runs
+        regardless of decision_logging, since the two flags are orthogonal."""
+        if deps.features.regime_shadow_monitor and order is not None:
+            _record_markout(reason, order, expiry, spot)
         if not deps.features.decision_logging:
             return
         try:
@@ -466,10 +543,17 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     spot = deps.get_spot("SPY")
     atr = deps.get_atr("SPY")
     expiry = deps.pick_expiry(today)
-    order = build_spread_order(spot, atr, deps.get_chain("SPY", expiry), deps.s2b_cfg)
+    chain = deps.get_chain("SPY", expiry)
+    order = build_spread_order(spot, atr, chain, deps.s2b_cfg)
     if order is None:
         _log_decision("no_order", spot=spot, atr=atr, expiry=expiry)
         return state, "no_order"
+    # §14: best-effort short-put delta at signal time, for the markout record (_record_markout
+    # above). None if not found in the chain (IV isn't carried by OptionQuote/parse_chain today).
+    for _q in chain:
+        if abs(_q.strike - order.short_strike) < 1e-6:
+            entry_delta = _q.delta
+            break
     # Expected-executable-credit + quote-quality guards (partner review v2 §4), OPT-IN when
     # credit_tiers OR transaction_cost_gate is on (both need the conservative credit downstream).
     # Bot C (both flags off) never enters this block -> byte-identical behavior.
@@ -707,6 +791,9 @@ def tick(state: BotState, deps: Deps, now) -> BotState:
     # §13 shadow monitor: ALWAYS runs (regardless of whether an entry happened, or even whether
     # reconcile succeeded) when the feature is on -- it only reads state/logs, never gates entry.
     run_shadow_monitor_cycle(state, deps, today)
+    # §14 research markouts: ALWAYS runs (same rationale as the shadow monitor above) when the
+    # feature is on -- advances due horizons / writes the EOD row; never gates entry.
+    run_markout_cycle(state, deps, now)
     if regime is not None:
         try:
             deps.regime_log(regime, now.isoformat(), "TICK")

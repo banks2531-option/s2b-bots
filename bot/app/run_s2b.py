@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 
 from bot.broker.tradier import make_http_from_env
 from bot.app import feeds
-from bot.app.wiring import build_deps, runner, make_trade_logger
+from bot.app.wiring import build_deps, runner, make_trade_logger, make_markout_logger
 from bot.app.state_store import load_state
 from bot.app.orchestrator import tick
 from bot.features import S2bFeatures
@@ -97,6 +97,13 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
     # original 12-column trades_live.csv byte-identical (spec §8 / partner review fix).
     resolved_features = features if features is not None else S2bFeatures()
 
+    # §14 (partner review v2): a wholly SEPARATE research-only markouts_<tag>.csv, gated on the
+    # SAME regime_shadow_monitor flag as the shadow monitor (Phase-4 research umbrella). The live
+    # bot (features=None -> flag off) keeps the lambda no-op -- the file is never even created.
+    markout_log_path = f"markouts_{tag}.csv"
+    markout_log = (make_markout_logger(markout_log_path) if resolved_features.regime_shadow_monitor
+                  else (lambda record: None))
+
     from bot.regime.logger import make_regime_logger
     regime_log = make_regime_logger(f"regime_{tag}")   # daily-rotated: regime_{tag}_YYYYMMDD.csv
     # build a UW http callable from env if a token is present (else None -> neutral flow).
@@ -129,6 +136,7 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         degross_on_risk_off=True,       # Phase 1.5: close held positions in a confirmed risk_off downtrend
         degross_on_flow_flip=degross_on_flow_flip,  # flow-flip de-gross (opt-in; default OFF for existing bots)
         features=resolved_features,     # partner review v2 feature flags (opt-in; default OFF for existing bots)
+        markout_log=markout_log,        # §14 research markouts (opt-in; default OFF for existing bots)
     )
     def market_gated_tick(st, dp, now):
         if not feeds.is_market_hours(now):

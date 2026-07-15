@@ -10,6 +10,7 @@ from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPositio
                                   dte_from_expiry)
 from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier
 from bot.portfolio.risk_budget import size_qty, cap_to_budgets
+from bot.portfolio.gap_stress import gap_stress_losses
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 
@@ -339,6 +340,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     acct = deps.account_state(today, len(state.open_positions))
     pct_rank, change = deps.get_vix_regime()
     risk = regime_adjusted_risk_pct(deps.base_risk_pct, pct_rank, change)
+    gap_losses = None   # only populated (and only logged) when aggregate_risk_budget is on
     if deps.features.aggregate_risk_budget:
         # Aggregate dollar-risk budget sizing (partner review v2 §9), OPT-IN. Replaces the
         # equity/risk_pct sizing above with a budgeted qty derived from the entry-stop-risk and
@@ -353,6 +355,18 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         if qty <= 0:
             return state, "risk_budget"
         order.qty = qty
+        # Gap-risk stress test (partner review v2 §10), OPT-IN behind the same flag: stress ALL
+        # open positions AND the proposed trade at SPY down 1.0/1.5/2.0 ATR (conservative
+        # intrinsic-value repricing). If the 1.5-ATR total stressed loss exceeds the budget,
+        # shrink the proposed qty (re-checking each step) until it fits, or reject outright if
+        # even 1 contract doesn't. All three scenario losses are recorded for the final qty.
+        gap_budget = deps.features.max_gap_stress_loss_pct * req
+        gap_losses = gap_stress_losses(state.open_positions + [order], spot, atr, deps.s2b_cfg.wing_width)
+        while order.qty > 0 and gap_losses[1.5] > gap_budget:
+            order.qty -= 1
+            gap_losses = gap_stress_losses(state.open_positions + [order], spot, atr, deps.s2b_cfg.wing_width)
+        if order.qty <= 0:
+            return state, "gap_stress"
     else:
         order.qty = contracts_for_risk(acct.equity, order.max_loss_per_contract, risk)
         if deps.min_credit_ratio > 0:
@@ -387,9 +401,14 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             hist = state.credit_ratio_history.setdefault(bucket, [])
             hist.append(round(order.credit / deps.s2b_cfg.wing_width, 4))
             state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
-        deps.trade_log({"event": "OPEN", "date": today, "ticker": "SPY",
-                        "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
-                        "qty": qty, "credit": credit, "status": status})
+        open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
+                    "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
+                    "qty": qty, "credit": credit, "status": status}
+        if gap_losses is not None:   # partner review v2 §10: log all three stress scenarios
+            open_rec["gap_stress_1_0"] = gap_losses[1.0]
+            open_rec["gap_stress_1_5"] = gap_losses[1.5]
+            open_rec["gap_stress_2_0"] = gap_losses[2.0]
+        deps.trade_log(open_rec)
     return state, status
 
 

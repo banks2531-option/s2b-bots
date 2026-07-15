@@ -9,6 +9,7 @@ from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
 from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier
+from bot.portfolio.risk_budget import size_qty, cap_to_budgets
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 
@@ -338,9 +339,24 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     acct = deps.account_state(today, len(state.open_positions))
     pct_rank, change = deps.get_vix_regime()
     risk = regime_adjusted_risk_pct(deps.base_risk_pct, pct_rank, change)
-    order.qty = contracts_for_risk(acct.equity, order.max_loss_per_contract, risk)
-    if deps.min_credit_ratio > 0:
-        order.qty = max(1, int(order.qty * credit_mult))   # a probe of a 1-lot stays 1
+    if deps.features.aggregate_risk_budget:
+        # Aggregate dollar-risk budget sizing (partner review v2 §9), OPT-IN. Replaces the
+        # equity/risk_pct sizing above with a budgeted qty derived from the entry-stop-risk and
+        # structural constraints, then capped so this trade never blows through the book's
+        # same-day/expiry/total stop or total structural risk limits. quality_multiplier is
+        # stubbed at 1.0 here; a later phase wires expected_executable_credit/quality scoring in.
+        req = deps.risk_equity()
+        qty = size_qty(req, order.credit, deps.s2b_cfg.wing_width, deps.features,
+                       quality_multiplier=1.0)
+        qty = cap_to_budgets(qty, order.credit, deps.s2b_cfg.wing_width, expiry, today,
+                             state.open_positions, deps.mark_position, req, deps.features)
+        if qty <= 0:
+            return state, "risk_budget"
+        order.qty = qty
+    else:
+        order.qty = contracts_for_risk(acct.equity, order.max_loss_per_contract, risk)
+        if deps.min_credit_ratio > 0:
+            order.qty = max(1, int(order.qty * credit_mult))   # a probe of a 1-lot stays 1
     decision = RiskGate(deps.risk_cfg).is_order_allowed(order, acct)
     if not decision.allowed:
         return state, decision.reason

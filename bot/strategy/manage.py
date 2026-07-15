@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+from bot.broker.order_state import result_status
 from bot.strategy.s2b import _occ
 
 
@@ -44,6 +45,8 @@ class ManagedPosition:
     qty: int
     expiry: str        # YYYY-MM-DD
     entry_date: str = ""   # YYYY-MM-DD the position was opened (default "" keeps back-compat with old state files)
+    opening_fees: float = 0.0   # commissions+regulatory fees on the OPENING fill (spec §8); 0.0 default
+                                 # keeps back-compat with old state files and the flag-off path
 
 
 def spread_value_mid(short_q, long_q) -> float:
@@ -79,12 +82,15 @@ class ExitResult:
     close_status: str       # e.g. "filled", "timeout", "rejected"
     failed: bool            # True if the close did not reach "filled"
     value: float = None     # the debit-to-close mark that triggered the exit (for P&L logging)
+    close_result: object = None   # raw close_fn return (ExecutionResult when actual_fill_accounting
+                                   # is on; may be a bare status string from a legacy test double)
 
 
 def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
     """Check each open position; on a non-HOLD decision, close via close_fn and record result.
-    close_fn(position, action) -> status string (e.g. 'filled'). A close that is not 'filled'
-    is flagged failed=True so the caller can alert (a stop that didn't execute is never silent)."""
+    close_fn(position, action) -> an ExecutionResult (spec §8) or a legacy bare status string
+    (e.g. 'filled'). A close that is not 'filled' is flagged failed=True so the caller can alert
+    (a stop that didn't execute is never silent)."""
     results = []
     for p in positions:
         try:
@@ -92,9 +98,11 @@ def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
             action = decide_exit(value, p.credit, dte_fn(p), cfg)
             if action == ExitAction.HOLD:
                 continue
-            status = close_fn(p, action)
+            close_result = close_fn(p, action)
+            status = result_status(close_result)
             results.append(ExitResult(position=p, action=action, close_status=status,
-                                      failed=(str(status).lower() != "filled"), value=value))
+                                      failed=(str(status).lower() != "filled"), value=value,
+                                      close_result=close_result))
         except Exception as exc:  # one position's error must NOT block the others' stops
             results.append(ExitResult(position=p, action=ExitAction.ERROR,
                                       close_status=f"error: {exc}", failed=True))

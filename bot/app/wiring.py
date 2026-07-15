@@ -9,7 +9,8 @@ from bot.strategy.s2b import _occ
 from bot.features import S2bFeatures
 
 _LOG_FIELDS = ["event", "date", "ticker", "short", "long", "expiry", "qty",
-               "credit", "action", "exit_value", "pnl", "status"]
+               "credit", "action", "exit_value", "pnl", "status",
+               "gross_pnl", "net_pnl"]   # populated only when actual_fill_accounting is on (spec §8)
 
 
 def make_trade_logger(path):
@@ -44,6 +45,7 @@ def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick, state_pat
 
 from bot.broker.tradier import TradierClient
 from bot.broker.submit import submit_and_verify
+from bot.broker.order_state import ExecutionResult
 from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_payload
 from bot.strategy.s2b import OptionQuote
 from bot.risk_gate import AccountState, RiskConfig
@@ -101,16 +103,44 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
     def broker_equity():
         return feeds.parse_equity(http("GET", f"/accounts/{account_id}/balances"))
 
+    def _to_execution_result(state, order, payload):
+        """Build an ExecutionResult (spec §8) from a terminal OrderState + the raw Tradier order.
+        Falls back to the requested/submitted values whenever the broker doesn't report an actual
+        fill (always true against the sandbox), and synthesizes commissions when the broker
+        reports none (sandbox never charges/reports fees)."""
+        status = state.value
+        requested_qty = int(payload.get("quantity[0]", 0) or 0)
+        submitted_limit = payload.get("price")
+        raw_filled_qty = order.get("exec_quantity") if isinstance(order, dict) else None
+        filled_quantity = (int(raw_filled_qty) if raw_filled_qty is not None
+                           else (requested_qty if status == "filled" else 0))
+        raw_fill_price = order.get("avg_fill_price") if isinstance(order, dict) else None
+        average_fill_price = float(raw_fill_price) if raw_fill_price is not None else submitted_limit
+        raw_commission = order.get("commission") if isinstance(order, dict) else None
+        raw_reg_fees = order.get("regulatory_fees") if isinstance(order, dict) else None
+        if raw_commission or raw_reg_fees:               # broker actually reported fees -> use them
+            commissions = float(raw_commission or 0.0)
+            regulatory_fees = float(raw_reg_fees or 0.0)
+        else:                                             # sandbox reports none -> synthetic fallback
+            commissions = features.est_commission_per_leg_rt * 2 * filled_quantity   # 2 legs
+            regulatory_fees = 0.0
+        oid = order.get("id") if isinstance(order, dict) else None
+        return ExecutionResult(status=status, requested_quantity=requested_qty,
+                               filled_quantity=filled_quantity, average_fill_price=average_fill_price,
+                               submitted_limit=submitted_limit, commissions=commissions,
+                               regulatory_fees=regulatory_fees,
+                               order_id=(str(oid) if oid is not None else None))
+
     def open_spread(payload):
-        state, _ = submit_and_verify(client, payload, poll_s, timeout_s, time.time, time.sleep)
-        return state.value
+        state, order = submit_and_verify(client, payload, poll_s, timeout_s, time.time, time.sleep)
+        return _to_execution_result(state, order, payload)
 
     def close_spread(pos, action):
         short, long = _leg_quotes(pos)
         limit = round(short.ask - long.bid, 2)   # marketable cost-to-close -> fills under stress
         payload = build_close_payload(pos, limit_price=limit)
-        state, _ = submit_and_verify(client, payload, poll_s, timeout_s, time.time, time.sleep)
-        return state.value
+        state, order = submit_and_verify(client, payload, poll_s, timeout_s, time.time, time.sleep)
+        return _to_execution_result(state, order, payload)
 
     def account_state(today, concurrent):
         eq = broker_equity()

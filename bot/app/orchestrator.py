@@ -5,6 +5,7 @@ from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
 from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload
 from bot.features import S2bFeatures
+from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
 from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier
@@ -41,8 +42,8 @@ class Deps:
     account_state: callable       # (today, concurrent) -> AccountState
     mark_position: callable       # (ManagedPosition) -> float (debit to close)
     dte_of: callable              # (ManagedPosition, today) -> int
-    open_spread: callable         # (payload) -> status str ("filled" on success)
-    close_spread: callable        # (ManagedPosition, action) -> status str
+    open_spread: callable          # (payload) -> ExecutionResult (spec §8; status "filled" on success)
+    close_spread: callable         # (ManagedPosition, action) -> ExecutionResult
     broker_positions: callable    # () -> list[ManagedPosition]
     broker_equity: callable       # () -> float
     bot_equity: callable          # () -> float
@@ -138,8 +139,22 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
                "expiry": r.position.expiry, "qty": r.position.qty, "credit": r.position.credit,
                "action": r.action.value, "exit_value": r.value, "status": r.close_status}
         if not r.failed and r.value is not None:
-            # realized P&L estimate = (credit collected - debit to close) * 100 * contracts
-            rec["pnl"] = round((r.position.credit - r.value) * 100 * r.position.qty, 2)
+            if deps.features.actual_fill_accounting:
+                # §8: realized P&L must use the ACTUAL close fill, never the triggering mark;
+                # report BOTH gross and net (net subtracts opening + closing fees/commissions).
+                actual_close = getattr(r.close_result, "average_fill_price", None)
+                close_value = actual_close if actual_close is not None else r.value
+                gross_pnl = round((r.position.credit - close_value) * 100 * r.position.qty, 2)
+                close_commissions = getattr(r.close_result, "commissions", 0.0) or 0.0
+                close_reg_fees = getattr(r.close_result, "regulatory_fees", 0.0) or 0.0
+                net_pnl = round(gross_pnl - r.position.opening_fees
+                                - close_commissions - close_reg_fees, 2)
+                rec["gross_pnl"] = gross_pnl
+                rec["net_pnl"] = net_pnl
+                rec["pnl"] = net_pnl                       # the bottom-line number, now cost-aware
+            else:
+                # flag OFF -> byte-identical to before: (credit - triggering mark) * 100 * qty
+                rec["pnl"] = round((r.position.credit - r.value) * 100 * r.position.qty, 2)
         deps.trade_log(rec)
     alerts = alerts_for_cycle(results, drift_report=None)
     if alerts:
@@ -170,7 +185,7 @@ def run_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> tuple:
     for p in list(state.open_positions):
         try:
             value = deps.mark_position(p)
-            status = deps.close_spread(p, ExitAction.DEGROSS)
+            status = result_status(deps.close_spread(p, ExitAction.DEGROSS))
         except Exception as exc:   # one position's error must NOT block the others' de-gross
             deps.alert_sink([Alert(Severity.WARN,
                 f"de-gross close error {p.ticker} {p.short_strike}/{p.long_strike}: {exc}")])
@@ -219,7 +234,7 @@ def run_flow_degross_cycle(state: BotState, deps: Deps, today: str, regime) -> t
             value = deps.mark_position(p)
             if value < p.credit:          # already profitable -> leave to normal management
                 continue
-            status = deps.close_spread(p, ExitAction.FLOW_DEGROSS)
+            status = result_status(deps.close_spread(p, ExitAction.FLOW_DEGROSS))
         except Exception as exc:   # one position's error must NOT block the others' de-gross
             deps.alert_sink([Alert(Severity.WARN,
                 f"flow-degross close error {p.ticker} {p.short_strike}/{p.long_strike}: {exc}")])
@@ -297,11 +312,27 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     decision = RiskGate(deps.risk_cfg).is_order_allowed(order, acct)
     if not decision.allowed:
         return state, decision.reason
-    status = deps.open_spread(to_tradier_payload(order, expiry, order.qty))
+    open_result = deps.open_spread(to_tradier_payload(order, expiry, order.qty))
+    status = result_status(open_result)
     if status == "filled":
+        # §8: with actual_fill_accounting ON, the position is recorded off the ACTUAL fill
+        # (price + quantity), never the requested/quoted values; opening fees are captured too.
+        # With the flag OFF (default, and always for the live bot) this is byte-identical to
+        # before: the requested credit/qty, and opening_fees stays 0.0.
+        credit, qty, opening_fees = order.credit, order.qty, 0.0
+        if deps.features.actual_fill_accounting:
+            fill_price = getattr(open_result, "average_fill_price", None)
+            if fill_price is not None:
+                credit = fill_price
+            filled_qty = getattr(open_result, "filled_quantity", None)
+            if filled_qty:
+                qty = filled_qty
+            commissions = getattr(open_result, "commissions", 0.0) or 0.0
+            reg_fees = getattr(open_result, "regulatory_fees", 0.0) or 0.0
+            opening_fees = commissions + reg_fees
         state.open_positions.append(ManagedPosition(
-            "SPY", order.short_strike, order.long_strike, order.credit, order.qty, expiry,
-            entry_date=today))
+            "SPY", order.short_strike, order.long_strike, credit, qty, expiry,
+            entry_date=today, opening_fees=opening_fees))
         state.last_entry_date = today
         state.entries_today += 1             # count toward the per-day entry cap
         if deps.min_credit_ratio > 0:
@@ -310,7 +341,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
         deps.trade_log({"event": "OPEN", "date": today, "ticker": "SPY",
                         "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
-                        "qty": order.qty, "credit": order.credit, "status": status})
+                        "qty": qty, "credit": credit, "status": status})
     return state, status
 
 

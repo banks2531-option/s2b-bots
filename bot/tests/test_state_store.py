@@ -72,10 +72,12 @@ def test_roundtrips_markout_pending_and_seq(tmp_path):
         "expiry": "2026-06-19", "filled": True, "entry_spy": 575.0, "entry_spread_value": 3.0,
         "credit": 3.0, "qty": 1,
     })
-    s = BotState(markout_pending=tr.to_state(), markout_seq=1)
+    obs = {"date": "2026-06-15", "expiry": "2026-06-19", "short": 568.0, "long": 558.0, "bucket15": 2}
+    s = BotState(markout_pending=tr.to_state(), markout_seq=1, markout_obs_last=obs)
     save_state(s, p)
     loaded = load_state(p)
     assert loaded.markout_seq == 1
+    assert loaded.markout_obs_last == obs
     assert len(loaded.markout_pending) == 1
     # the restored pending list must still resolve correctly (ts/horizon-keys parsed back)
     tr2 = MarkoutTracker.from_state(loaded.markout_pending, write_fn=lambda rec: None)
@@ -97,6 +99,7 @@ def test_old_state_file_missing_markout_fields_defaults(tmp_path):
     loaded = load_state(p)
     assert loaded.markout_pending == []
     assert loaded.markout_seq == 0
+    assert loaded.markout_obs_last == {}
 
 
 def test_old_state_file_missing_new_fields_defaults(tmp_path):

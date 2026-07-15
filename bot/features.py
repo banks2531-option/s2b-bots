@@ -11,6 +11,11 @@ class S2bFeatures:
     aggregate_risk_budget: bool = False
     actual_fill_accounting: bool = False
     regime_shadow_monitor: bool = False
+    markout_tracking: bool = False   # §14 (Priority-0 fix item 4): research entry-markout collector.
+                                      # SEPARATE flag from regime_shadow_monitor so the §14 markout
+                                      # path (record + batched resolve) can be toggled independently
+                                      # of the shadow monitor. LOG ONLY; left OFF in the deployed
+                                      # all-days config and always OFF for Bot C (byte-identical).
     decision_logging: bool = False   # §1/§12: write a DECISION record (reason+flags+telemetry) per entry-cycle return
     # explicitly-off Phase-4 alpha (never enabled in this program)
     regime_entry_blocks: bool = False

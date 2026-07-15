@@ -59,9 +59,16 @@ class BotState:
     markout_pending: list = field(default_factory=list)   # persisted MarkoutTracker pending state
                                                            # (partner review v2 §14); round-trips
                                                            # via state_store. Only ever populated
-                                                           # when deps.features.regime_shadow_monitor
+                                                           # when deps.features.markout_tracking
                                                            # is on -- stays [] forever for Bot C.
     markout_seq: int = 0                                  # monotonic counter -> unique markout signal_ids
+    markout_obs_last: dict = field(default_factory=dict)  # last RECORDED markout candidate key
+                                                            # {date,expiry,short,long,bucket15}; used to
+                                                            # dedup repeated identical candidates polled
+                                                            # many times in one 15-min window so they do
+                                                            # not each spawn a pending markout (partner
+                                                            # review v2 item 4). Only touched when
+                                                            # markout_tracking is on -> stays {} for Bot C.
 
     def clear_halt(self):
         self.halted = False
@@ -114,8 +121,15 @@ class Deps:
                                              # best-effort, wired for real in bot.app.wiring.build_deps.
     markout_log: callable = (lambda record: None)   # (dict) -> None; SEPARATE research-log sink for
                                              # §14 entry markouts (partner review v2 §14) -- never the
-                                             # trade log. ONLY called when deps.features.regime_shadow_monitor
+                                             # trade log. ONLY called when deps.features.markout_tracking
                                              # is on; best-effort, wired for real in bot.app.wiring.build_deps.
+    option_quotes: callable = None           # (list[occ_symbol]) -> {occ_symbol: mid_price}; ONE batched
+                                             # Tradier /markets/quotes fetch used by run_markout_cycle's
+                                             # resolve_due_batched to price all due-markout legs off the
+                                             # critical tick() path in a single call (Priority-0 fix item 4).
+                                             # None -> run_markout_cycle falls back to the per-item
+                                             # deps.mark_position loop. ONLY invoked when markout_tracking
+                                             # is on, so the live Bot C never calls it (zero new API traffic).
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -384,11 +398,16 @@ def run_markout_cycle(state: BotState, deps: Deps, now) -> None:
     ticker/expiry/short_strike/long_strike, so this works for a candidate spread that was NEVER
     actually opened at the broker -- exactly what §14 requires for rejected signals).
 
+    Batching (Priority-0 fix item 4): when deps.option_quotes is wired, all due-markout leg quotes
+    are priced in ONE batched broker call via resolve_due_batched -- cheap and off the critical
+    path -- instead of one deps.mark_position quote call per pending item. When option_quotes is
+    None the per-item deps.mark_position fallback preserves the original behavior.
+
     LOG ONLY: reads/writes only state.markout_pending via MarkoutTracker; never touches an order,
-    a size, or any trading decision. No-op unless deps.features.regime_shadow_monitor is on (Bot C:
+    a size, or any trading decision. No-op unless deps.features.markout_tracking is on (Bot C:
     always off). Best-effort: any failure (a down feed, a bad quote) is swallowed -- a markout
     logging failure must never affect trading, and must never raise out of tick()."""
-    if not deps.features.regime_shadow_monitor:
+    if not deps.features.markout_tracking:
         return
     try:
         tracker = MarkoutTracker.from_state(state.markout_pending, deps.markout_log)
@@ -399,7 +418,11 @@ def run_markout_cycle(state: BotState, deps: Deps, now) -> None:
             return deps.mark_position(pos)
 
         spy_now = deps.get_spot("SPY")
-        tracker.resolve_due(now, spy_now, _spread_value)
+        if deps.option_quotes is not None:
+            # ONE batched quote call for every due-markout leg, off the critical path.
+            tracker.resolve_due_batched(now, spy_now, deps.option_quotes)
+        else:
+            tracker.resolve_due(now, spy_now, _spread_value)   # per-item fallback (unwired)
         if now.hour >= 16:                    # past RTH close -> finalize the day's EOD result
             tracker.finalize_eod(spy_now, _spread_value)
         state.markout_pending = tracker.to_state()
@@ -573,10 +596,23 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     def _record_markout(reason, order, expiry, spot):
         """§14 (partner review v2): record ONE research markout signal for this evaluated
         candidate (filled OR rejected -- reason=="filled" is the only fill marker). Independently
-        gated on regime_shadow_monitor (NOT decision_logging) so markouts are captured even when
+        gated on markout_tracking (NOT decision_logging) so markouts are captured even when
         decision logging itself is off. LOG ONLY: only ever appends to state.markout_pending;
-        NEVER touches an order/size/decision. Best-effort -- never raises out of run_entry_cycle."""
+        NEVER touches an order/size/decision. Best-effort -- never raises out of run_entry_cycle.
+
+        Dedup (Priority-0 fix item 4): a bot polling every few minutes re-evaluates the SAME
+        candidate spread dozens of times a day; without dedup each poll would spawn its own pending
+        markout, flooding the research log with near-duplicate follow-ups of one signal. Reusing the
+        item-3 dedup notion, we key on (date, expiry, short, long, bucket15) and skip recording when
+        this candidate matches the last one recorded -- so repeated identical candidates in one
+        15-minute window spawn at most one pending markout; a new window or a new strike spawns another."""
         try:
+            minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET
+            bucket15 = minutes_since_open // 15
+            key = {"date": today, "expiry": expiry, "short": order.short_strike,
+                   "long": order.long_strike, "bucket15": bucket15}
+            if state.markout_obs_last == key:
+                return                       # same candidate already recorded this 15-min window
             state.markout_seq += 1
             tracker = MarkoutTracker.from_state(state.markout_pending, deps.markout_log)
             cfg = deps.manage_cfg
@@ -592,6 +628,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                 "stop_value": (round(order.credit * (1 + cfg.stop_mult), 4) if filled else None),
             })
             state.markout_pending = tracker.to_state()
+            state.markout_obs_last = key     # remember this candidate for the next poll's dedup
         except Exception:
             pass
 
@@ -600,9 +637,9 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         to the trade log. No-op unless deps.features.decision_logging is on; never raises.
 
         Also independently triggers the §14 research markout record (_record_markout) whenever
-        regime_shadow_monitor is on and a concrete candidate (order) exists -- that piece runs
+        markout_tracking is on and a concrete candidate (order) exists -- that piece runs
         regardless of decision_logging, since the two flags are orthogonal."""
-        if deps.features.regime_shadow_monitor and order is not None:
+        if deps.features.markout_tracking and order is not None:
             _record_markout(reason, order, expiry, spot)
         if not deps.features.decision_logging:
             return

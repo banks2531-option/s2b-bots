@@ -212,6 +212,35 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
             pass
         return out
 
+    def option_quotes(symbols):
+        """§14 markout batching (Priority-0 fix item 4): ONE batched Tradier quote fetch for a list
+        of OCC option symbols -> {symbol: mid}. mid = (bid+ask)/2 per leg. A single /markets/quotes
+        call for the whole due-markout book, so run_markout_cycle prices every pending leg off the
+        critical tick() path in one request instead of one per item. Best-effort: a symbol without a
+        usable bid/ask is simply absent from the map (the tracker treats it as a missing mark).
+        NEVER raises. Only ever called when markout_tracking is on, so Bot C issues no such request."""
+        out = {}
+        if not symbols:
+            return out
+        try:
+            resp = http("GET", "/markets/quotes", params={"symbols": ",".join(symbols)})
+            quotes = (resp.get("quotes") or {}).get("quote") or []
+            if isinstance(quotes, dict):
+                quotes = [quotes]
+            for q in quotes:
+                sym = q.get("symbol")
+                bid = q.get("bid")
+                ask = q.get("ask")
+                if sym is None or bid is None or ask is None:
+                    continue
+                try:
+                    out[sym] = (float(bid) + float(ask)) / 2.0
+                except (TypeError, ValueError):
+                    continue
+        except Exception:
+            pass
+        return out
+
     def _to_execution_result(state, order, payload):
         """Build an ExecutionResult (spec §8) from a terminal OrderState + the raw Tradier order.
         Falls back to the requested/submitted values whenever the broker doesn't report an actual
@@ -619,6 +648,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
         shadow_data=shadow_data,
         markout_log=markout_log,
+        option_quotes=option_quotes,
         base_risk_pct=base_risk_pct, risk_cfg=risk_cfg, s2b_cfg=s2b_cfg,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=trade_log,

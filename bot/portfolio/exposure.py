@@ -38,13 +38,21 @@ def foreign_spreads(all_broker_spy_spreads, own_positions):
     for p in own_positions:
         k = (p.short_strike, p.long_strike, p.expiry)
         own_qty[k] = own_qty.get(k, 0) + p.qty
-    out = []
+    # Aggregate broker-side rows by key (summing qty) BEFORE subtracting own_qty, so a duplicate
+    # broker row at the same key can't double-subtract own_qty and undercount foreign. Not
+    # exploitable today (the broker feed dedupes), but keeps this helper safe as a general utility.
+    broker_qty = {}
+    broker_credit = {}
     for b in all_broker_spy_spreads:
         k = (b.short_strike, b.long_strike, b.expiry)
-        fq = max(0, b.qty - own_qty.get(k, 0))
+        broker_qty[k] = broker_qty.get(k, 0) + b.qty
+        broker_credit.setdefault(k, getattr(b, "credit", 0.0) or 0.0)
+    out = []
+    for k, bqty in broker_qty.items():
+        fq = max(0, bqty - own_qty.get(k, 0))
         if fq > 0:
-            out.append(_ForeignSpread(b.short_strike, b.long_strike,
-                                      getattr(b, "credit", 0.0) or 0.0, fq, b.expiry))
+            short_strike, long_strike, expiry = k
+            out.append(_ForeignSpread(short_strike, long_strike, broker_credit[k], fq, expiry))
     return out
 
 

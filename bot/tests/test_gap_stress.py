@@ -170,6 +170,29 @@ def test_orchestrator_foreign_position_raises_gap_stress_total():
     assert rec_with_foreign["gap_stress_2_0"] > rec_no_foreign["gap_stress_2_0"]
 
 
+def test_orchestrator_decision_and_open_gap_stress_agree_with_foreign():
+    """Priority-0 fix item 6 (logged == enforced): the §12 DECISION row's agg_gap_stress_1_5 must
+    equal the §10 OPEN row's gap_stress_1_5 when a foreign position exists -- both must fold the
+    foreign spread into the gap-stress book. Scenario keeps exec_credit == order.credit (credit_tiers
+    and transaction_cost_gate both OFF) so the proposed leg is stressed at the same credit on both
+    paths, isolating the foreign-inclusion consistency (not the exec_credit nuance deferred to Task 5).
+    Gap budget is loose (1.0) so neither path shrinks qty."""
+    foreign = ManagedPosition("SPY", 572.0, 562.0, credit=0.0, qty=3, expiry="2026-06-19",
+                               entry_date="2026-06-10")
+    log = []
+    state = BotState()
+    f = S2bFeatures(aggregate_risk_budget=True, decision_logging=True, max_gap_stress_loss_pct=1.0)
+    d = _deps(features=f, trade_log=lambda rec: log.append(rec),
+              account_spy_spreads=lambda: [foreign])
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert info == "filled"
+    decision = next(r for r in log if r["event"] == "DECISION" and r["decision"] == "filled")
+    open_rec = next(r for r in log if r["event"] == "OPEN")
+    assert decision["agg_gap_stress_1_5"] == pytest.approx(open_rec["gap_stress_1_5"])
+    # sanity: the foreign spread actually contributes, so this isn't a trivial 0 == 0.
+    assert open_rec["gap_stress_1_5"] != 0.0
+
+
 def test_orchestrator_gap_stress_off_flag_unchanged():
     # aggregate_risk_budget False (default) -> gap-stress logic is a no-op even though it would
     # have blown a tiny budget; legacy sizing path is used and the trade goes through untouched.

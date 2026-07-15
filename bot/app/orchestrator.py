@@ -396,7 +396,8 @@ def run_markout_cycle(state: BotState, deps: Deps, now) -> None:
         pass
 
 
-def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None, expiry=None, order=None):
+def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None, expiry=None, order=None,
+                        foreign_positions=()):
     """Best-effort per-entry exposure snapshot for the DECISION log (partner review v2 §12): positions
     opened today, positions in the target expiration, distance between adjacent short strikes
     (including the proposed spread, when one exists), aggregate remaining stop risk, aggregate
@@ -435,7 +436,14 @@ def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None,
             pass
     if spot is not None and atr is not None:
         try:
-            positions_for_stress = list(state.open_positions) + ([order] if order is not None else [])
+            # Priority-0 fix item 6: foreign SPY spreads are folded into the gap-stress book here so
+            # the DECISION row's agg_gap_stress_1_5 is book-aligned with the enforcement calc (and the
+            # OPEN row) whenever a foreign position exists. NOTE: this stresses the proposed leg at
+            # order.credit whereas enforcement stresses it at risk_credit (exec_credit); those differ
+            # only when exec_credit != order.credit (credit-tier/cost path), a pre-existing
+            # telemetry/credit nuance to be revisited in the gap-stress rework (Task 5).
+            positions_for_stress = (list(state.open_positions) + list(foreign_positions)
+                                    + ([order] if order is not None else []))
             tel["agg_gap_stress_1_5"] = gap_stress_losses(
                 positions_for_stress, spot, atr, deps.s2b_cfg.wing_width)[1.5]
         except Exception:
@@ -458,6 +466,11 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                     # set once the aggregate_risk_budget block runs and caps to 0
     entry_delta = None       # §14: best-effort short-put delta at signal time, set once the chain is
                               # fetched and an order is built; feeds _record_markout below
+    foreign_position_list = []   # Priority-0 fix item 6: quantity-aware foreign SPY spreads at the
+                                  # broker; set once the aggregate_risk_budget block runs. Initialized
+                                  # here (before any _log_decision -> _decision_telemetry call on an
+                                  # early-reject path) so the DECISION row's gap-stress book stays
+                                  # aligned with the OPEN row's, and so early rejects don't UnboundLocalError.
 
     def _record_markout(reason, order, expiry, spot):
         """§14 (partner review v2): record ONE research markout signal for this evaluated
@@ -514,7 +527,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             rec.update(cost_telemetry)
         if risk_budget_telemetry is not None:   # item 7: which budget bound a risk_budget reject
             rec.update(risk_budget_telemetry)
-        rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order))
+        rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order,
+                                        foreign_positions=foreign_position_list))
         try:
             deps.trade_log(rec)
         except Exception:

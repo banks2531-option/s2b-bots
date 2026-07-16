@@ -20,6 +20,9 @@ ALLDAYS_FEATURES = S2bFeatures(
     aggregate_risk_budget=True,
     actual_fill_accounting=True,
     regime_shadow_monitor=True,
+    # markouts were collected pre-branch via regime_shadow_monitor; the Task 4 flag split moved them
+    # to their own flag -> keep them ON for Bot B
+    markout_tracking=True,
     decision_logging=True,
 )
 

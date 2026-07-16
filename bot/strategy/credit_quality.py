@@ -41,3 +41,17 @@ def credit_tier(credit, wing_width, min_ratio, full_threshold, probe_mult):
     if ratio < full_threshold:
         return probe_mult
     return 1.0
+
+
+def should_record_observation(last, *, date, expiry, short, long, ratio, bucket15):
+    """Record a new adaptive-credit-history observation only when this candidate is materially
+    different from the last recorded one for its DTE bucket: new day/expiry/strike, a new 15-minute
+    research window, or a credit-ratio move >= 0.5 percentage point. Dedups repeated near-identical
+    observations of the same spread across a polling day (partner review v2 item 3)."""
+    if last is None:
+        return True
+    if (date, expiry, short, long) != (last["date"], last["expiry"], last["short"], last["long"]):
+        return True
+    if bucket15 != last["bucket15"]:
+        return True
+    return abs(ratio - last["ratio"]) >= 0.005   # 0.5 percentage point

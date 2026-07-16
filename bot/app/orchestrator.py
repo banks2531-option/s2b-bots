@@ -3,14 +3,15 @@ from dataclasses import dataclass, field, replace
 
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
-from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload
+from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload, _occ
 from bot.strategy.execution_price import (quotes_valid, package_too_wide,
                                            expected_executable_credit, spot_moved_too_far)
 from bot.features import S2bFeatures
 from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
-from bot.strategy.credit_quality import dte_bucket, full_size_threshold, credit_tier, _percentile
+from bot.strategy.credit_quality import (dte_bucket, full_size_threshold, credit_tier, _percentile,
+                                          should_record_observation)
 from bot.strategy.cost_gate import cost_gate_eval
 from bot.portfolio.risk_budget import (size_qty, cap_to_budgets, remaining_stop_risk,
                                         planned_stop_loss_per_contract, structural_max_loss_per_contract)
@@ -48,14 +49,26 @@ class BotState:
     missing_streak: dict = field(default_factory=dict)    # position_key -> consecutive missing-at-broker reconciles
     prev_flow_bias: str = ""                              # UW flow_bias from the PRIOR tick, to detect a bull->bear flip
     credit_ratio_history: dict = field(default_factory=dict)  # DTE-bucket -> list of prior credit/wing_width ratios
+    credit_obs_last: dict = field(default_factory=dict)   # DTE-bucket -> last RECORDED observation dict
+                                                            # {date,expiry,short,long,ratio,bucket15}, used by
+                                                            # should_record_observation to dedup repeated
+                                                            # near-identical candidates within a polling day
+                                                            # (partner review v2 item 3 fix)
     realized_today: float = 0.0                           # sum of realized P&L from closes on `risk_day` (partner review v2 §11)
     risk_day: str = ""                                    # the calendar date `realized_today` applies to
     markout_pending: list = field(default_factory=list)   # persisted MarkoutTracker pending state
                                                            # (partner review v2 §14); round-trips
                                                            # via state_store. Only ever populated
-                                                           # when deps.features.regime_shadow_monitor
+                                                           # when deps.features.markout_tracking
                                                            # is on -- stays [] forever for Bot C.
     markout_seq: int = 0                                  # monotonic counter -> unique markout signal_ids
+    markout_obs_last: dict = field(default_factory=dict)  # last RECORDED markout candidate key
+                                                            # {date,expiry,short,long,bucket15}; used to
+                                                            # dedup repeated identical candidates polled
+                                                            # many times in one 15-min window so they do
+                                                            # not each spawn a pending markout (partner
+                                                            # review v2 item 4). Only touched when
+                                                            # markout_tracking is on -> stays {} for Bot C.
 
     def clear_halt(self):
         self.halted = False
@@ -98,13 +111,25 @@ class Deps:
     account_spy_exposure: callable = None   # () -> {"structural": float, "stop": float} across EVERY SPY spread at the broker
     account_spy_spreads: callable = None    # () -> list[ManagedPosition]; the RAW broker-wide SPY spread list (own + foreign),
                                              # used to derive foreign-only exposure via exposure.foreign_spy_exposure (§2)
+    option_greeks_iv: callable = None       # (list[occ_symbol]) -> {occ_symbol: mid_iv float}; ONE batched Tradier
+                                             # greeks fetch for the BS gap-stress iv_fn (Priority-0 fix item 5). None ->
+                                             # iv_fn uses VIX-derived/gap_fallback_iv only. ONLY invoked on the gated
+                                             # Bot-B gap-stress paths (via _make_gap_iv_resolver's lazy prime), so the
+                                             # ungated live Bot C never calls it (zero new API traffic).
     shadow_data: callable = _default_shadow_data   # () -> dict of §13 raw inputs (partner review v2 §13).
                                              # ONLY called when deps.features.regime_shadow_monitor is on;
                                              # best-effort, wired for real in bot.app.wiring.build_deps.
     markout_log: callable = (lambda record: None)   # (dict) -> None; SEPARATE research-log sink for
                                              # §14 entry markouts (partner review v2 §14) -- never the
-                                             # trade log. ONLY called when deps.features.regime_shadow_monitor
+                                             # trade log. ONLY called when deps.features.markout_tracking
                                              # is on; best-effort, wired for real in bot.app.wiring.build_deps.
+    option_quotes: callable = None           # (list[occ_symbol]) -> {occ_symbol: mid_price}; ONE batched
+                                             # Tradier /markets/quotes fetch used by run_markout_cycle's
+                                             # resolve_due_batched to price all due-markout legs off the
+                                             # critical tick() path in a single call (Priority-0 fix item 4).
+                                             # None -> run_markout_cycle falls back to the per-item
+                                             # deps.mark_position loop. ONLY invoked when markout_tracking
+                                             # is on, so the live Bot C never calls it (zero new API traffic).
 
 
 MISSING_REMOVE_THRESHOLD = 2   # consecutive missing-at-broker reconciles before we stop tracking
@@ -179,35 +204,83 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
         close_fn=deps.close_spread,
         cfg=deps.manage_cfg,
     )
+    # Task 2 (advisor-mandated PARTIAL-FILL accounting): a close may fill only SOME of a position's
+    # contracts. On the Bot C path such a partial surfaces as failed=True with a NON-"filled" status
+    # ("canceled"/"timeout"), yet close_result.filled_quantity > 0 -- so we CLASSIFY off
+    # filled_quantity, never the status string. The submit layer has ALREADY cancelled/left the
+    # unfilled remainder (both the ladder and non-ladder paths cancel it themselves), so we NEVER
+    # cancel here. A partial that filled SOME is PROGRESS, not a stuck stop: we book realized P&L on
+    # the filled contracts, reduce the position's qty by that amount, and KEEP the remainder under
+    # management -- it must NOT trip the "failed close" halt (only a close that filled NOTHING does).
+    closed_ok = set()          # positions whose close FULLY filled -> removed from the book
+    hard_failed = []           # closes that filled NOTHING (failed, cfq == 0) -> alert + halt (unchanged)
+    partial_alerts = []        # non-halting WARN for each partial-with-progress (never silent, never halts)
     for r in results:                                    # per-bot trade log (for A/B measurement)
+        cfq = getattr(r.close_result, "filled_quantity", 0) or 0
+        # A status-"filled" close is a FULL close (byte-identical to before). A failed close that
+        # nonetheless reports cfq >= the tracked qty is ALSO treated as full (defensive: a
+        # "shouldn't happen" broker state we never want to leave tracked). Anything strictly between
+        # (0 < cfq < qty) is a genuine partial; cfq == 0 on a failed close is a real stuck close.
+        full_close = (not r.failed) or (cfq >= r.position.qty)
+        partial_close = (not full_close) and cfq > 0
+        # ONLY a genuine partial logs cfq; full closes AND hard fails (nothing filled) log the full
+        # position qty. Keying off partial_close (not `full_close else cfq`) keeps a ZERO-fill stuck
+        # close's CLOSE-row qty byte-identical to pre-Task-2 (cfq==0 would otherwise regress it to 0);
+        # book_qty for a hard fail is used ONLY in the CLOSE rec qty field (the P&L block is skipped).
+        book_qty = cfq if partial_close else r.position.qty
+        # Fix 1: prorate the position's opening_fees by the fraction of contracts closed on THIS fill,
+        # so a partial close deducts only its share and the surviving remainder keeps the rest (see the
+        # partial_close branch, which decrements the stored fees by exactly this amount). Across any
+        # number of partials plus the final full close this telescopes back to the ORIGINAL fee, with
+        # no double-count. r.position.qty here is the PRE-reduction qty (the correct denominator); for
+        # a full close book_qty == qty so opening_fees_booked == opening_fees -> byte-identical to today.
+        opening_fees_booked = round(r.position.opening_fees * book_qty / r.position.qty, 2)
         rec = {"event": "CLOSE", "date": today, "ticker": r.position.ticker,
                "short": r.position.short_strike, "long": r.position.long_strike,
-               "expiry": r.position.expiry, "qty": r.position.qty, "credit": r.position.credit,
+               "expiry": r.position.expiry, "qty": book_qty, "credit": r.position.credit,
                "action": r.action.value, "exit_value": r.value, "status": r.close_status}
-        if not r.failed and r.value is not None:
+        if (full_close or partial_close) and r.value is not None:
             if deps.features.actual_fill_accounting:
                 # §8: realized P&L must use the ACTUAL close fill, never the triggering mark;
                 # report BOTH gross and net (net subtracts opening + closing fees/commissions).
                 actual_close = getattr(r.close_result, "average_fill_price", None)
                 close_value = actual_close if actual_close is not None else r.value
-                gross_pnl = round((r.position.credit - close_value) * 100 * r.position.qty, 2)
+                gross_pnl = round((r.position.credit - close_value) * 100 * book_qty, 2)
                 close_commissions = getattr(r.close_result, "commissions", 0.0) or 0.0
                 close_reg_fees = getattr(r.close_result, "regulatory_fees", 0.0) or 0.0
-                net_pnl = round(gross_pnl - r.position.opening_fees
+                net_pnl = round(gross_pnl - opening_fees_booked
                                 - close_commissions - close_reg_fees, 2)
                 rec["gross_pnl"] = gross_pnl
                 rec["net_pnl"] = net_pnl
                 rec["pnl"] = net_pnl                       # the bottom-line number, now cost-aware
             else:
                 # flag OFF -> byte-identical to before: (credit - triggering mark) * 100 * qty
-                rec["pnl"] = round((r.position.credit - r.value) * 100 * r.position.qty, 2)
+                rec["pnl"] = round((r.position.credit - r.value) * 100 * book_qty, 2)
             _accumulate_realized(state, today, rec["pnl"])   # partner review v2 §11 (always on)
         deps.trade_log(rec)
-    alerts = alerts_for_cycle(results, drift_report=None)
+        if full_close:
+            closed_ok.add(position_key(r.position))
+        elif partial_close:
+            # reduce the tracked qty to the still-working remainder and KEEP the position; the submit
+            # layer already cancelled the balance, so there is nothing to cancel here. Mutating qty is
+            # safe: position_key keys on (ticker,short,long,expiry), so the open_positions rebuild
+            # below keeps this same object at its reduced qty. Fix 1: decrement the stored opening_fees
+            # by exactly the prorated share booked above, so the remainder carries only its unbooked
+            # portion and the fee is never double-counted when that remainder later closes.
+            r.position.qty -= cfq
+            r.position.opening_fees = round(r.position.opening_fees - opening_fees_booked, 2)
+            partial_alerts.append(Alert(Severity.WARN,
+                f"partial close ({r.action.value}) for {r.position.ticker} "
+                f"{r.position.short_strike}/{r.position.long_strike}: filled {cfq}, "
+                f"remainder {r.position.qty} still working"))
+        else:
+            hard_failed.append(r)     # filled nothing -> a genuine stuck close (alert + halt)
+    # Only a close that filled NOTHING is a "failed close" that can halt new entries. A partial that
+    # filled SOME is surfaced as a (non-halting) WARN so it is never silent but never trips the halt.
+    alerts = alerts_for_cycle(hard_failed, drift_report=None) + partial_alerts
     if alerts:
         deps.alert_sink(alerts)
-    # remove only positions whose close actually filled
-    closed_ok = {position_key(r.position) for r in results if not r.failed}
+    # remove only positions whose close FULLY filled; partials stay (at reduced qty), hard fails stay
     state.open_positions = [p for p in state.open_positions if position_key(p) not in closed_ok]
     if should_halt_new_entries(alerts):
         state.halted = True
@@ -373,11 +446,16 @@ def run_markout_cycle(state: BotState, deps: Deps, now) -> None:
     ticker/expiry/short_strike/long_strike, so this works for a candidate spread that was NEVER
     actually opened at the broker -- exactly what §14 requires for rejected signals).
 
+    Batching (Priority-0 fix item 4): when deps.option_quotes is wired, all due-markout leg quotes
+    are priced in ONE batched broker call via resolve_due_batched -- cheap and off the critical
+    path -- instead of one deps.mark_position quote call per pending item. When option_quotes is
+    None the per-item deps.mark_position fallback preserves the original behavior.
+
     LOG ONLY: reads/writes only state.markout_pending via MarkoutTracker; never touches an order,
-    a size, or any trading decision. No-op unless deps.features.regime_shadow_monitor is on (Bot C:
+    a size, or any trading decision. No-op unless deps.features.markout_tracking is on (Bot C:
     always off). Best-effort: any failure (a down feed, a bad quote) is swallowed -- a markout
     logging failure must never affect trading, and must never raise out of tick()."""
-    if not deps.features.regime_shadow_monitor:
+    if not deps.features.markout_tracking:
         return
     try:
         tracker = MarkoutTracker.from_state(state.markout_pending, deps.markout_log)
@@ -388,7 +466,11 @@ def run_markout_cycle(state: BotState, deps: Deps, now) -> None:
             return deps.mark_position(pos)
 
         spy_now = deps.get_spot("SPY")
-        tracker.resolve_due(now, spy_now, _spread_value)
+        if deps.option_quotes is not None:
+            # ONE batched quote call for every due-markout leg, off the critical path.
+            tracker.resolve_due_batched(now, spy_now, deps.option_quotes)
+        else:
+            tracker.resolve_due(now, spy_now, _spread_value)   # per-item fallback (unwired)
         if now.hour >= 16:                    # past RTH close -> finalize the day's EOD result
             tracker.finalize_eod(spy_now, _spread_value)
         state.markout_pending = tracker.to_state()
@@ -396,7 +478,81 @@ def run_markout_cycle(state: BotState, deps: Deps, now) -> None:
         pass
 
 
-def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None, expiry=None, order=None):
+def _make_gap_iv_resolver(deps, regime):
+    """Build the (prime, iv_fn) pair used by the BS gap-stress reprice (Priority-0 fix item 5).
+
+    Per-leg IV is sourced in priority order:
+      1. REAL market mid_iv per leg -- from a SINGLE batched, memoized Tradier greeks fetch
+         (deps.option_greeks_iv), primed once per entry cycle from the whole gap-stress book;
+      2. VIX-derived (regime.vix_level / 100, a 30d annualized vol);
+      3. features.gap_fallback_iv.
+
+    iv_fn ALWAYS returns a positive (short_iv, long_iv) -- never None/raises/<=0 -- so foreign
+    spreads and any leg whose greeks are missing still get a finite stress. The stressed put-skew
+    bump is applied ON TOP of these real IVs inside the BS grid (features.gap_skew_bump), separately.
+
+    GUARDRAIL: the greeks fetch is LAZY -- it only runs when `prime` is actually called, which only
+    happens on the gated gap-stress paths (aggregate_risk_budget enforcement / decision_logging
+    telemetry). Both are OFF on the live Bot C, so Bot C triggers ZERO greeks fetches. Factored out
+    of run_entry_cycle so iv_fn/prime are unit-testable in isolation."""
+    base_iv = deps.features.gap_fallback_iv
+    vl = getattr(regime, "vix_level", None) if regime is not None else None
+    if isinstance(vl, (int, float)) and vl > 0:
+        base_iv = float(vl) / 100.0
+    if not (base_iv and base_iv > 0):
+        base_iv = deps.features.gap_fallback_iv
+
+    cache = {}          # OCC option symbol -> real market mid_iv (>0)
+    fetched = [False]   # one-shot latch: the batched greeks fetch happens AT MOST once per cycle
+
+    def leg_symbol(p, strike):
+        return _occ(getattr(p, "ticker", "SPY") or "SPY", getattr(p, "expiry", None), "P", strike)
+
+    def prime(book):
+        """Batched, memoized real-greeks fetch for EVERY leg symbol in `book` (own + foreign +
+        proposed). One deps.option_greeks_iv call for all symbols; runs at most once per cycle;
+        skipped entirely when deps.option_greeks_iv is unwired. Best-effort -- never raises."""
+        if fetched[0]:
+            return
+        fetched[0] = True   # latch BEFORE the call so even a raising fetch can't retry-storm
+        if deps.option_greeks_iv is None:
+            return
+        syms = set()
+        for p in book:
+            if not getattr(p, "expiry", None):
+                continue
+            try:
+                syms.add(leg_symbol(p, p.short_strike))
+                syms.add(leg_symbol(p, p.long_strike))
+            except Exception:
+                pass
+        if not syms:
+            return
+        try:
+            got = deps.option_greeks_iv(sorted(syms)) or {}
+            for k, v in got.items():
+                if v is not None and v > 0:
+                    cache[k] = float(v)
+        except Exception:
+            pass
+
+    def iv_fn(position):
+        """(short_iv, long_iv): real per-leg mid_iv when cached (>0), else VIX-derived, else fallback."""
+        out = []
+        for strike in (position.short_strike, position.long_strike):
+            v = None
+            try:
+                v = cache.get(leg_symbol(position, strike))
+            except Exception:
+                v = None
+            out.append(v if (v is not None and v > 0) else base_iv)
+        return (out[0], out[1])
+
+    return prime, iv_fn
+
+
+def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None, expiry=None, order=None,
+                        foreign_positions=(), iv_fn=None, prime_iv=None):
     """Best-effort per-entry exposure snapshot for the DECISION log (partner review v2 §12): positions
     opened today, positions in the target expiration, distance between adjacent short strikes
     (including the proposed spread, when one exists), aggregate remaining stop risk, aggregate
@@ -435,9 +591,23 @@ def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None,
             pass
     if spot is not None and atr is not None:
         try:
-            positions_for_stress = list(state.open_positions) + ([order] if order is not None else [])
+            # Priority-0 fix item 6: foreign SPY spreads are folded into the gap-stress book here so
+            # the DECISION row's agg_gap_stress_1_5 is book-aligned with the enforcement calc (and the
+            # OPEN row) whenever a foreign position exists. NOTE: this stresses the proposed leg at
+            # order.credit whereas enforcement stresses it at risk_credit (exec_credit); those differ
+            # only when exec_credit != order.credit (credit-tier/cost path), a pre-existing
+            # telemetry/credit nuance to be revisited in the gap-stress rework (Task 5).
+            positions_for_stress = (list(state.open_positions) + list(foreign_positions)
+                                    + ([order] if order is not None else []))
+            # Priority-0 fix item 5: same BS model + IV source + `today` as the §10 enforcement calc,
+            # so this logged agg_gap_stress_1_5 stays == the enforced/OPEN-row gap_stress_1_5 (holds
+            # exactly when risk_credit == order.credit; see the enforcement-site note). prime_iv is the
+            # SAME memoized resolver, so the batched greeks fetch is shared (no extra call here).
+            if prime_iv is not None:
+                prime_iv(positions_for_stress)
             tel["agg_gap_stress_1_5"] = gap_stress_losses(
-                positions_for_stress, spot, atr, deps.s2b_cfg.wing_width)[1.5]
+                positions_for_stress, spot, atr, deps.s2b_cfg.wing_width,
+                today=today, iv_fn=iv_fn, f=deps.features)[1.5]
         except Exception:
             pass
     return tel
@@ -447,25 +617,58 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
     if state.last_entry_date != today:
         state.entries_today = 0          # new calendar day -> reset the daily entry counter
+
+    # Priority-0 fix item 5: per-leg IV source for the BS gap-stress reprice, built once and shared by
+    # ALL THREE gap-stress call sites (telemetry + enforcement + shrink-loop) so logged == enforced.
+    # The resolver primes a batched, memoized real-greeks fetch (mid_iv) lazily -- see
+    # _make_gap_iv_resolver -- so an ungated live-path bot never triggers a fetch.
+    _prime_leg_ivs, iv_fn = _make_gap_iv_resolver(deps, regime)
+
     exec_credit = None       # §4 conservative expected-executable credit; set once quote guards pass
     credit_telemetry = None  # §3: credit_ratio/credit_pctl40/credit_sample_count/credit_threshold/
                               # credit_quality_mult; set once the credit-tiers block runs (credit_tiers on)
     cost_telemetry = None    # §5: cost_gross_target/cost_round_trip/cost_target_ratio; set once the
                               # transaction-cost gate block runs (transaction_cost_gate on)
+    risk_budget_telemetry = None   # Priority-0 fix item 7: which of the four aggregate risk budgets
+                                    # (same_day_stop/expiry_stop/total_stop/total_structural) bound
+                                    # a risk_budget reject, + its exposure/limit/headroom numbers;
+                                    # set once the aggregate_risk_budget block runs and caps to 0
     entry_delta = None       # §14: best-effort short-put delta at signal time, set once the chain is
                               # fetched and an order is built; feeds _record_markout below
+    foreign_position_list = []   # Priority-0 fix item 6: quantity-aware foreign SPY spreads at the
+                                  # broker; set once the aggregate_risk_budget block runs. Initialized
+                                  # here (before any _log_decision -> _decision_telemetry call on an
+                                  # early-reject path) so the DECISION row's gap-stress book stays
+                                  # aligned with the OPEN row's, and so early rejects don't UnboundLocalError.
 
     def _record_markout(reason, order, expiry, spot):
         """§14 (partner review v2): record ONE research markout signal for this evaluated
         candidate (filled OR rejected -- reason=="filled" is the only fill marker). Independently
-        gated on regime_shadow_monitor (NOT decision_logging) so markouts are captured even when
+        gated on markout_tracking (NOT decision_logging) so markouts are captured even when
         decision logging itself is off. LOG ONLY: only ever appends to state.markout_pending;
-        NEVER touches an order/size/decision. Best-effort -- never raises out of run_entry_cycle."""
+        NEVER touches an order/size/decision. Best-effort -- never raises out of run_entry_cycle.
+
+        Dedup (Priority-0 fix item 4): a bot polling every few minutes re-evaluates the SAME
+        candidate spread dozens of times a day; without dedup each poll would spawn its own pending
+        markout, flooding the research log with near-duplicate follow-ups of one signal. Reusing the
+        item-3 dedup notion, we key on (date, expiry, short, long, bucket15, filled) and skip
+        recording when this candidate matches the last one recorded -- so repeated identical
+        candidates in one 15-minute window spawn at most one pending markout; a new window or a new
+        strike spawns another. `filled` is part of the key on purpose: a candidate that is rejected
+        and then FILLED at the same strikes in the same window must still capture the fill's richer
+        follow-up (filled=True carries tp_value/stop_value and drives time-to-TP/time-to-stop) -- the
+        reject->fill transition is exactly the filled-vs-rejected comparison §14 exists to measure."""
         try:
+            minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET
+            bucket15 = minutes_since_open // 15
+            filled = (reason == "filled")
+            key = {"date": today, "expiry": expiry, "short": order.short_strike,
+                   "long": order.long_strike, "bucket15": bucket15, "filled": filled}
+            if state.markout_obs_last == key:
+                return                       # same candidate+outcome already recorded this 15-min window
             state.markout_seq += 1
             tracker = MarkoutTracker.from_state(state.markout_pending, deps.markout_log)
             cfg = deps.manage_cfg
-            filled = (reason == "filled")
             tracker.record_signal(now, {
                 "signal_id": f"{today}-{state.markout_seq}", "ticker": order.ticker,
                 "short_strike": order.short_strike, "long_strike": order.long_strike,
@@ -477,6 +680,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                 "stop_value": (round(order.credit * (1 + cfg.stop_mult), 4) if filled else None),
             })
             state.markout_pending = tracker.to_state()
+            state.markout_obs_last = key     # remember this candidate for the next poll's dedup
         except Exception:
             pass
 
@@ -485,9 +689,9 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         to the trade log. No-op unless deps.features.decision_logging is on; never raises.
 
         Also independently triggers the §14 research markout record (_record_markout) whenever
-        regime_shadow_monitor is on and a concrete candidate (order) exists -- that piece runs
+        markout_tracking is on and a concrete candidate (order) exists -- that piece runs
         regardless of decision_logging, since the two flags are orthogonal."""
-        if deps.features.regime_shadow_monitor and order is not None:
+        if deps.features.markout_tracking and order is not None:
             _record_markout(reason, order, expiry, spot)
         if not deps.features.decision_logging:
             return
@@ -508,11 +712,43 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             rec.update(credit_telemetry)
         if cost_telemetry is not None:   # §5: cost-gate decision inputs, once computed
             rec.update(cost_telemetry)
-        rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order))
+        if risk_budget_telemetry is not None:   # item 7: which budget bound a risk_budget reject
+            rec.update(risk_budget_telemetry)
+        rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order,
+                                        foreign_positions=foreign_position_list, iv_fn=iv_fn,
+                                        prime_iv=_prime_leg_ivs))
         try:
             deps.trade_log(rec)
         except Exception:
             pass
+
+    def _record_open(*, decision_reason, order, expiry, status, qty, credit, opening_fees,
+                     gap_losses, spot, atr):
+        """Fold a newly-opened position into the book and emit its OPEN row -- SHARED by the full-fill
+        and partial-fill branches so a future OPEN-row/telemetry field can never silently drift onto
+        only one path (this is the real-money order path). Each caller computes its own qty/credit/
+        opening_fees/decision reason AND the OPEN-row `status` cell (the only real deltas), then hands
+        them here. The DECISION log runs BEFORE the append, so the exposure telemetry reads as "book
+        so far + this proposed trade" (consistent with every reject path).
+
+        A partial open is disambiguated purely via the `status` field the caller passes ("partial_fill"
+        instead of the raw broker "canceled"/"timeout") -- NOT a separate "partial" column: the live
+        trade CSV is pinned to exactly 12 fields (_LOG_FIELDS) and DictWriter(extrasaction="ignore")
+        would silently drop any extra key, so a boolean flag would never reach trades_live.csv."""
+        _log_decision(decision_reason, spot=spot, atr=atr, expiry=expiry, order=order)
+        state.open_positions.append(ManagedPosition(
+            "SPY", order.short_strike, order.long_strike, credit, qty, expiry,
+            entry_date=today, opening_fees=opening_fees))
+        state.last_entry_date = today
+        state.entries_today += 1             # count toward the per-day entry cap
+        open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
+                    "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
+                    "qty": qty, "credit": credit, "status": status}
+        if gap_losses is not None:   # partner review v2 §10: log all three stress scenarios
+            open_rec["gap_stress_1_0"] = gap_losses[1.0]
+            open_rec["gap_stress_1_5"] = gap_losses[1.5]
+            open_rec["gap_stress_2_0"] = gap_losses[2.0]
+        deps.trade_log(open_rec)
 
     # `now` MUST be in US/Eastern (the live wiring is responsible for that). Enter only 10:00-15:59 ET.
     # Gates: not halted; allowed entry weekday (A/B variable); within RTH; under the concurrent-
@@ -548,6 +784,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     if order is None:
         _log_decision("no_order", spot=spot, atr=atr, expiry=expiry)
         return state, "no_order"
+    order.expiry = expiry   # item 5: carry expiry on the proposed order so the BS gap-stress reprice
+                            # (below + in _decision_telemetry) can derive its DTE, identically on both.
     # §14: best-effort short-put delta at signal time, for the markout record (_record_markout
     # above). None if not found in the chain (IV isn't carried by OptionQuote/parse_chain today).
     for _q in chain:
@@ -598,12 +836,29 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         thr = full_size_threshold(prior, deps.features.full_size_credit_floor,
                                    deps.features.full_size_credit_ceiling,
                                    deps.features.credit_adapt_min_signals)
-        # §3: "Use prior candidate signals, including rejected signals" -- append EVERY evaluated
-        # candidate's ratio (even one about to be rejected below) so future thresholds see the full
-        # population of opportunities, not just fills.
-        hist = state.credit_ratio_history.setdefault(bucket, [])
-        hist.append(round(ratio, 4))
-        state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
+        # §3: "Use prior candidate signals, including rejected signals" -- append EVERY MATERIALLY
+        # DISTINCT evaluated candidate (even one about to be rejected below) so future thresholds see
+        # a genuine population of opportunities, not just fills. Priority-0 fix item 3: a bot polling
+        # every few minutes re-evaluates the SAME spread dozens of times a day; without dedup, one
+        # ordinary day (e.g. 240 cycles) overwrites the entire 60-signal window with near-duplicate
+        # observations of a single candidate, degrading the adaptive threshold into a polling-
+        # frequency indicator. should_record_observation gates the append on the candidate being new
+        # (day/expiry/strike), in a new 15-minute research window, or having moved >= 0.5pp in ratio.
+        # NOTE: `prior`/`thr` above are computed from the copy captured BEFORE this append -- that
+        # ordering is unchanged, so there is still no look-ahead regardless of whether this candidate
+        # gets recorded.
+        minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET (see run_entry_cycle docstring)
+        bucket15 = minutes_since_open // 15
+        ratio_r = round(ratio, 4)   # single rounded value shared by the dedup key, the append, and the anchor
+        obs = {"date": today, "expiry": expiry, "short": order.short_strike, "long": order.long_strike,
+               "ratio": ratio_r, "bucket15": bucket15}
+        if should_record_observation(state.credit_obs_last.get(bucket), date=today, expiry=expiry,
+                                      short=order.short_strike, long=order.long_strike,
+                                      ratio=ratio_r, bucket15=bucket15):
+            hist = state.credit_ratio_history.setdefault(bucket, [])
+            hist.append(ratio_r)
+            state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
+            state.credit_obs_last[bucket] = obs
         mult = credit_tier(credit_for_tier, wing, deps.features.min_credit_ratio, thr,
                             deps.features.probe_size_multiplier)
         credit_telemetry = {
@@ -660,31 +915,74 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # toward this bot's TOTAL stop/structural budgets (partner review v2 §2). Derived from the
         # raw broker-wide spread list minus this bot's own open positions (by strikes+expiry), so
         # this bot's own book is never double-counted. No spread-list feed wired -> zero (unchanged).
-        foreign_spreads = deps.account_spy_spreads() if deps.account_spy_spreads is not None else []
-        foreign = exposure.foreign_spy_exposure(foreign_spreads, state.open_positions)
-        qty = size_qty(req, risk_credit, deps.s2b_cfg.wing_width, deps.features,
-                       quality_multiplier=quality_multiplier)
-        qty = cap_to_budgets(qty, risk_credit, deps.s2b_cfg.wing_width, expiry, today,
-                             state.open_positions, deps.mark_position, req, deps.features,
-                             foreign_exposure=foreign)
+        broker_spy_spreads = deps.account_spy_spreads() if deps.account_spy_spreads is not None else []
+        # Priority-0 fix item 6: quantity-aware -- a broker spread matching an own position's
+        # (short,long,expiry) key is no longer excluded wholesale; only the qty in excess of this
+        # bot's own tracked qty at that key is foreign. foreign_position_list is reused below to
+        # also fold foreign spreads into the gap-stress book (they were previously counted toward
+        # the stop/structural budgets but silently absent from the gap-stress stress test).
+        foreign_position_list = exposure.foreign_spreads(broker_spy_spreads, state.open_positions)
+        foreign = exposure.account_spy_exposure(foreign_position_list)
+        proposed_qty = size_qty(req, risk_credit, deps.s2b_cfg.wing_width, deps.features,
+                                quality_multiplier=quality_multiplier)
+        # Priority-0 fix item 7: cap_to_budgets now returns a RiskBudgetResult naming WHICH of the
+        # four budgets (if any) bound the candidate down, not just a bare int -- so a reject can be
+        # decision-logged as e.g. "risk_budget:expiry_stop" instead of an undifferentiated
+        # "risk_budget". int(budget_result) is used for sizing so behavior/qty is unchanged
+        # (RiskBudgetResult is int-compatible via __int__/__eq__ for any other caller too).
+        budget_result = cap_to_budgets(proposed_qty, risk_credit, deps.s2b_cfg.wing_width, expiry,
+                                       today, state.open_positions, deps.mark_position, req,
+                                       deps.features, foreign_exposure=foreign)
+        qty = int(budget_result)
         if qty <= 0:
-            _log_decision("risk_budget", spot=spot, atr=atr, expiry=expiry, order=order)
+            limiting = budget_result.limiting_budget
+            # limiting is None when proposed_qty itself was already <=0 (size_qty rounded to zero
+            # before any book budget was even consulted) -- keep the bare "risk_budget" reason in
+            # that case since no specific budget can be blamed; only suffix it when a real budget
+            # bound (unconstrained-input case is a pure regression: exact same reason as before).
+            reason = f"risk_budget:{limiting}" if limiting is not None else "risk_budget"
+            # Read exposure/limit straight off the result (keyed on ITS OWN limiting_budget) rather
+            # than re-deriving the mapping here -- so a budget rename can't silently drift into None.
+            binding_exposure, binding_limit = budget_result.limiting_exposure_and_limit()
+            risk_budget_telemetry = {
+                "risk_budget_limiting": limiting,
+                "risk_budget_exposure": (round(binding_exposure, 2)
+                                         if binding_exposure is not None else None),
+                "risk_budget_limit": round(binding_limit, 2) if binding_limit is not None else None,
+                "risk_budget_headroom": (round(binding_limit - binding_exposure, 2)
+                                         if binding_exposure is not None and binding_limit is not None
+                                         else None),
+                "risk_budget_proposed_qty": proposed_qty,
+                "risk_budget_permitted_qty": qty,
+            }
+            _log_decision(reason, spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "risk_budget"
         order.qty = qty
         # Gap-risk stress test (partner review v2 §10), OPT-IN behind the same flag: stress ALL
-        # open positions AND the proposed trade at SPY down 1.0/1.5/2.0 ATR (conservative
-        # intrinsic-value repricing). If the 1.5-ATR total stressed loss exceeds the budget,
-        # shrink the proposed qty (re-checking each step) until it fits, or reject outright if
-        # even 1 contract doesn't. All three scenario losses are recorded for the final qty.
-        # The proposed leg is stressed at risk_credit (a `replace()` view -- the real `order`
-        # object, used for the broker payload/OPEN record below, is left untouched).
+        # open positions, FOREIGN positions (Priority-0 fix item 6 -- foreign_position_list, same
+        # quantity-aware helper used for the stop/structural budgets above), AND the proposed trade
+        # at SPY down 1.0/1.5/2.0 ATR (conservative intrinsic-value repricing). If the 1.5-ATR total
+        # stressed loss exceeds the budget, shrink the proposed qty (re-checking each step) until it
+        # fits, or reject outright if even 1 contract doesn't. All three scenario losses are
+        # recorded for the final qty. The proposed leg is stressed at risk_credit (a `replace()`
+        # view -- the real `order` object, used for the broker payload/OPEN record below, is left
+        # untouched).
         gap_budget = deps.features.max_gap_stress_loss_pct * req
-        gap_losses = gap_stress_losses(state.open_positions + [replace(order, credit=risk_credit)],
-                                       spot, atr, deps.s2b_cfg.wing_width)
+        # Priority-0 fix item 5: BS shock-grid reprice (worst-cell) instead of intrinsic-only. Uses
+        # the SAME memoized iv_fn/today/features as the §12 DECISION-telemetry calc, so the logged
+        # agg_gap_stress_1_5 matches this enforced/OPEN-row gap_stress_1_5 -- exactly when
+        # risk_credit == order.credit (they diverge only on the credit-tier/cost-gate path, where the
+        # proposed leg is stressed at exec_credit here vs order.credit in telemetry; deferred nuance).
+        # prime_leg_ivs runs the single batched greeks fetch for the whole book (memoized thereafter).
+        gap_stress_book = state.open_positions + foreign_position_list + [replace(order, credit=risk_credit)]
+        _prime_leg_ivs(gap_stress_book)
+        gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width,
+                                       today=today, iv_fn=iv_fn, f=deps.features)
         while order.qty > 0 and gap_losses[1.5] > gap_budget:
             order.qty -= 1
-            gap_losses = gap_stress_losses(state.open_positions + [replace(order, credit=risk_credit)],
-                                           spot, atr, deps.s2b_cfg.wing_width)
+            gap_stress_book = state.open_positions + foreign_position_list + [replace(order, credit=risk_credit)]
+            gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width,
+                                           today=today, iv_fn=iv_fn, f=deps.features)
         if order.qty <= 0:
             _log_decision("gap_stress", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "gap_stress"
@@ -728,6 +1026,11 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         return state, decision.reason
     open_result = deps.open_spread(to_tradier_payload(order, expiry, order.qty))
     status = result_status(open_result)
+    # Task 2: gate the partial-fill branch on filled_quantity, NOT the status string -- on the Bot C
+    # non-ladder path a partial whose remainder got cancelled surfaces as status "canceled"/"timeout"
+    # (see wiring._to_execution_result), NOT "partially_filled". A legacy bare-string return has no
+    # filled_quantity, so open_filled_qty is 0 and only the status=="filled" full-fill path can fire.
+    open_filled_qty = getattr(open_result, "filled_quantity", 0) or 0
     if status == "filled":
         # §8: with actual_fill_accounting ON, the position is recorded off the ACTUAL fill
         # (price + quantity), never the requested/quoted values; opening fees are captured too.
@@ -744,24 +1047,40 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             commissions = getattr(open_result, "commissions", 0.0) or 0.0
             reg_fees = getattr(open_result, "regulatory_fees", 0.0) or 0.0
             opening_fees = commissions + reg_fees
-        # DECISION log BEFORE the new position is folded into state.open_positions, so the exposure
-        # telemetry reads as "book so far + this proposed trade" (consistent with every reject path).
-        _log_decision("filled", spot=spot, atr=atr, expiry=expiry, order=order)
-        state.open_positions.append(ManagedPosition(
-            "SPY", order.short_strike, order.long_strike, credit, qty, expiry,
-            entry_date=today, opening_fees=opening_fees))
-        state.last_entry_date = today
-        state.entries_today += 1             # count toward the per-day entry cap
-        # NOTE: credit_ratio_history is already appended for EVERY evaluated candidate (including
-        # rejects) in the credit-tiers block above (partner review v2 §3) -- no separate append here.
-        open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
-                    "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
-                    "qty": qty, "credit": credit, "status": status}
-        if gap_losses is not None:   # partner review v2 §10: log all three stress scenarios
-            open_rec["gap_stress_1_0"] = gap_losses[1.0]
-            open_rec["gap_stress_1_5"] = gap_losses[1.5]
-            open_rec["gap_stress_2_0"] = gap_losses[2.0]
-        deps.trade_log(open_rec)
+        # NOTE: credit_ratio_history is already (conditionally, per should_record_observation --
+        # item 3 fix) appended for evaluated candidates, including rejects, in the credit-tiers
+        # block above (partner review v2 §3) -- no separate append here.
+        _record_open(decision_reason="filled", order=order, expiry=expiry, status=status,
+                     qty=qty, credit=credit, opening_fees=opening_fees, gap_losses=gap_losses,
+                     spot=spot, atr=atr)
+    elif open_filled_qty > 0:
+        # Task 2 PARTIAL FILL (advisor-mandated): the broker filled SOME but not all of the requested
+        # contracts, and the submit layer has ALREADY cancelled/left the remainder (both the ladder
+        # and Bot C non-ladder paths cancel the unfilled balance themselves), so we do NOT cancel
+        # here. We MUST record the position at the ACTUALLY-filled contract count -- tracking more
+        # than the broker filled is the exact bug this fixes (untracked_at_broker at reconcile -> a
+        # HALT). qty is ALWAYS the filled quantity, even with actual_fill_accounting OFF (Bot C):
+        # this is the one value that must NOT stay at the requested amount. credit/opening_fees follow
+        # the Bot C convention (order.credit, no fees) when the flag is off, and use the actual fill
+        # price + captured fees only when the flag is on -- mirroring the full-fill branch's pricing,
+        # but never overriding qty back up to the requested amount.
+        qty = open_filled_qty
+        credit, opening_fees = order.credit, 0.0
+        if deps.features.actual_fill_accounting:
+            fill_price = getattr(open_result, "average_fill_price", None)
+            if fill_price is not None:
+                credit = fill_price
+            commissions = getattr(open_result, "commissions", 0.0) or 0.0
+            reg_fees = getattr(open_result, "regulatory_fees", 0.0) or 0.0
+            opening_fees = commissions + reg_fees
+        # Shared recorder (mirrors the full-fill path exactly, save qty/decision). The OPEN row's
+        # `status` cell is the self-describing literal "partial_fill" (NOT the raw broker
+        # "canceled"/"timeout"), so a partial open is visible in the 12-column live CSV without adding
+        # a column. NOTE: this changes ONLY the logged status; run_entry_cycle still RETURNS the raw
+        # broker `status` below, so nothing keying on the return value changes.
+        _record_open(decision_reason="partial_fill", order=order, expiry=expiry,
+                     status="partial_fill", qty=qty, credit=credit, opening_fees=opening_fees,
+                     gap_losses=gap_losses, spot=spot, atr=atr)
     else:
         # order submitted but did not fill (e.g. timeout/rejected at the broker) -- still a return
         # path that must be decision-logged (spec §1: EVERY decision, not just the happy path).

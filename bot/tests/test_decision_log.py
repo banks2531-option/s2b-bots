@@ -269,3 +269,47 @@ def test_make_trade_logger_default_still_has_original_field_set_only(tmp_path):
     header = open(str(p)).readline().strip().split(",")
     assert header == ["event", "date", "ticker", "short", "long", "expiry", "qty",
                       "credit", "action", "exit_value", "pnl", "status"]
+
+
+def test_risk_budget_bound_reject_writes_all_telemetry_to_csv(tmp_path):
+    """Task 7 review regression: drive run_entry_cycle into a REAL budget-bound reject (expiry_stop
+    binds) through the ACTUAL make_trade_logger CSV path (include_decision_columns=True), and assert
+    the decision string AND all six risk_budget_* telemetry fields survive to the written CSV. This
+    catches the extrasaction='ignore' drop bug -- the fields must be in wiring._DECISION_LOG_FIELDS.
+
+    (test_risk_budget_reject_writes_decision_record uses risk_equity=1.0, where size_qty floors to 0
+    BEFORE any budget is consulted -> limiting_budget is None -> bare 'risk_budget', so it never
+    exercised this per-budget-attribution path at all.)"""
+    from bot.app.wiring import make_trade_logger
+    p = tmp_path / "trades_alldays.csv"
+    trade_log = make_trade_logger(str(p), include_decision_columns=True)
+    f = S2bFeatures(decision_logging=True, aggregate_risk_budget=True)
+    # Book already heavy in the SAME expiry (2026-06-19) as the proposed trade, opened a PRIOR day
+    # (so it does NOT touch the same-day budget) at UNRELATED strikes (so no duplicate_strikes):
+    # remaining_stop_risk(2.0, mark=3.0, qty=9, slip=0.10) = (3*2.0-3.0+0.10)*100*9 = 3.10*100*9 =
+    # 2790 -> expiry_stop=2790 vs expiry budget 100000*0.03=3000 -> headroom 210 < 410 per-contract
+    # stop, so the proposed qty (size_qty -> 1) is capped to 0 by expiry_stop specifically. The
+    # total-stop (4000) / same-day (2000, zero exposure) / structural (15000) budgets don't bind.
+    book = [_pos(560.0, 550.0, 2.0, 9, expiry="2026-06-19", entry_date="2026-06-11")]
+    d = _deps(features=f, trade_log=trade_log, max_open=5)
+    state = BotState(open_positions=book)
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert info == "risk_budget"
+
+    rows = list(_csv.DictReader(open(str(p))))
+    decisions = [r for r in rows if r.get("event") == "DECISION"]
+    assert len(decisions) == 1
+    rec = decisions[0]
+    # (a) the enriched decision string names the specific binding budget
+    assert rec["decision"] == "risk_budget:expiry_stop"
+    # (b) all six risk_budget_* fields survive to the CSV with correct values (CSV -> strings)
+    for col, expected in (
+        ("risk_budget_limiting", "expiry_stop"),
+        ("risk_budget_exposure", "2790.0"),
+        ("risk_budget_limit", "3000.0"),
+        ("risk_budget_headroom", "210.0"),
+        ("risk_budget_proposed_qty", "1"),
+        ("risk_budget_permitted_qty", "0"),
+    ):
+        assert col in rec, f"{col} missing from CSV -- silently dropped by extrasaction=ignore"
+        assert rec[col] == expected, f"{col}: expected {expected!r}, got {rec[col]!r}"

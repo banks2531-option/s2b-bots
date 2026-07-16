@@ -6,6 +6,7 @@ from bot.app import feeds
 from bot.app.orchestrator import Deps, tick
 from bot.app.state_store import save_state
 from bot.strategy.s2b import _occ
+from bot.strategy.cost_gate import one_side_commission_per_contract
 from bot.features import S2bFeatures
 
 _LOG_FIELDS = ["event", "date", "ticker", "short", "long", "expiry", "qty",
@@ -19,7 +20,10 @@ _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_ex
                         "credit_ratio", "credit_pctl40", "credit_sample_count",
                         "credit_threshold", "credit_quality_mult",   # spec §3 credit-tier telemetry (Task 2.2)
                         "cost_gross_target", "cost_round_trip",
-                        "cost_target_ratio"]   # spec §5 cost-gate telemetry (Task 2.3)
+                        "cost_target_ratio",   # spec §5 cost-gate telemetry (Task 2.3)
+                        "risk_budget_limiting", "risk_budget_exposure", "risk_budget_limit",
+                        "risk_budget_headroom", "risk_budget_proposed_qty",
+                        "risk_budget_permitted_qty"]   # §9 aggregate-risk-budget attribution (Task 7)
                         # only added when decision_logging is on (spec §1, §12); this list must stay
                         # a SUPERSET of every key run_entry_cycle's _log_decision can merge onto a
                         # DECISION record (base rec + _decision_telemetry + credit_telemetry +
@@ -175,6 +179,68 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
     def broker_equity():
         return feeds.parse_equity(http("GET", f"/accounts/{account_id}/balances"))
 
+    def option_greeks_iv(symbols):
+        """Priority-0 fix item 5: ONE batched Tradier greeks fetch for the BS gap-stress iv_fn.
+        [OCC option symbol] -> {symbol: mid_iv}. A single /markets/quotes call (greeks=true) for the
+        whole gap-stress book. Best-effort: any symbol without a usable mid_iv (falls back to smv_vol)
+        is simply absent from the map, so the orchestrator's iv_fn falls back per leg. NEVER raises.
+        Only ever called on the gated Bot-B gap-stress paths, so Bot C issues no such request."""
+        out = {}
+        if not symbols:
+            return out
+        try:
+            resp = http("GET", "/markets/quotes",
+                        params={"symbols": ",".join(symbols), "greeks": "true"})
+            quotes = (resp.get("quotes") or {}).get("quote") or []
+            if isinstance(quotes, dict):
+                quotes = [quotes]
+            for q in quotes:
+                sym = q.get("symbol")
+                greeks = q.get("greeks") or {}
+                iv = greeks.get("mid_iv")
+                if iv is None:
+                    iv = greeks.get("smv_vol")
+                if sym is None or iv is None:
+                    continue
+                try:
+                    ivf = float(iv)
+                except (TypeError, ValueError):
+                    continue
+                if ivf > 0:
+                    out[sym] = ivf
+        except Exception:
+            pass
+        return out
+
+    def option_quotes(symbols):
+        """§14 markout batching (Priority-0 fix item 4): ONE batched Tradier quote fetch for a list
+        of OCC option symbols -> {symbol: mid}. mid = (bid+ask)/2 per leg. A single /markets/quotes
+        call for the whole due-markout book, so run_markout_cycle prices every pending leg off the
+        critical tick() path in one request instead of one per item. Best-effort: a symbol without a
+        usable bid/ask is simply absent from the map (the tracker treats it as a missing mark).
+        NEVER raises. Only ever called when markout_tracking is on, so Bot C issues no such request."""
+        out = {}
+        if not symbols:
+            return out
+        try:
+            resp = http("GET", "/markets/quotes", params={"symbols": ",".join(symbols)})
+            quotes = (resp.get("quotes") or {}).get("quote") or []
+            if isinstance(quotes, dict):
+                quotes = [quotes]
+            for q in quotes:
+                sym = q.get("symbol")
+                bid = q.get("bid")
+                ask = q.get("ask")
+                if sym is None or bid is None or ask is None:
+                    continue
+                try:
+                    out[sym] = (float(bid) + float(ask)) / 2.0
+                except (TypeError, ValueError):
+                    continue
+        except Exception:
+            pass
+        return out
+
     def _to_execution_result(state, order, payload):
         """Build an ExecutionResult (spec §8) from a terminal OrderState + the raw Tradier order.
         Falls back to the requested/submitted values whenever the broker doesn't report an actual
@@ -194,7 +260,8 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
             commissions = float(raw_commission or 0.0)
             regulatory_fees = float(raw_reg_fees or 0.0)
         else:                                             # sandbox reports none -> synthetic fallback
-            commissions = features.est_commission_per_leg_rt * 2 * filled_quantity   # 2 legs
+            # one side (2 legs); the paired open+close orders sum to round_trip_commission_per_contract
+            commissions = one_side_commission_per_contract(features) * filled_quantity
             regulatory_fees = 0.0
         oid = order.get("id") if isinstance(order, dict) else None
         return ExecutionResult(status=status, requested_quantity=requested_qty,
@@ -581,6 +648,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
         shadow_data=shadow_data,
         markout_log=markout_log,
+        option_quotes=option_quotes,
         base_risk_pct=base_risk_pct, risk_cfg=risk_cfg, s2b_cfg=s2b_cfg,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         shared_account=shared_account, trade_log=trade_log,
@@ -592,4 +660,5 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         risk_equity=lambda: exposure.risk_equity(features.allocated_equity, broker_equity()),
         account_spy_exposure=lambda: exposure.account_spy_exposure(feeds.reconstruct_spreads(broker_legs())),
         account_spy_spreads=lambda: feeds.reconstruct_spreads(broker_legs()),
+        option_greeks_iv=option_greeks_iv,
     )

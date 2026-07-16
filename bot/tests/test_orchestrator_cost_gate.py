@@ -32,7 +32,7 @@ def _deps(**over):
 
 def _rich_chain():
     # short 568 bid/ask 3.40/3.50; long 558 bid/ask 1.60/1.70. natural=1.70, mid=1.80, mid-slip=1.77
-    # -> exec_credit=1.77 -> gross_target=88.5; rt_cost=7.30; ratio=12.123 -> comfortably passes.
+    # -> exec_credit=1.77 -> gross_target=88.5; rt_cost=8.60; ratio=10.291 -> comfortably passes.
     return [
         OptionQuote(strike=568.0, delta=0.36, bid=3.40, ask=3.50),
         OptionQuote(strike=558.0, delta=0.18, bid=1.60, ask=1.70),
@@ -41,7 +41,7 @@ def _rich_chain():
 
 def _thin_chain():
     # short 568 bid/ask 0.50/0.55; long 558 bid/ask 0.10/0.15. natural=0.35, mid=0.40, mid-slip=0.37
-    # -> exec_credit=0.37 -> gross_target=18.5; rt_cost=7.30; ratio=2.534 -> fails the 4.0x gate.
+    # -> exec_credit=0.37 -> gross_target=18.5; rt_cost=8.60; ratio=2.151 -> fails the 4.0x gate.
     return [
         OptionQuote(strike=568.0, delta=0.36, bid=0.50, ask=0.55),
         OptionQuote(strike=558.0, delta=0.18, bid=0.10, ask=0.15),
@@ -49,10 +49,10 @@ def _thin_chain():
 
 
 def _borderline_chain():
-    # short 568 bid/ask 0.60/0.65; long 558 bid/ask 0.10/0.15. natural=0.45, mid=0.50, mid-slip=0.47
-    # -> exec_credit=0.47 -> gross_target=23.5; rt_cost=7.30; ratio=3.219 -> fails at 4.0x, passes at 3.0x.
+    # short 568 bid/ask 0.75/0.80; long 558 bid/ask 0.10/0.15. natural=0.60, mid=0.65, mid-slip=0.62
+    # -> exec_credit=0.62 -> gross_target=31.0; rt_cost=8.60; ratio=3.605 -> fails at 4.0x, passes at 3.0x.
     return [
-        OptionQuote(strike=568.0, delta=0.36, bid=0.60, ask=0.65),
+        OptionQuote(strike=568.0, delta=0.36, bid=0.75, ask=0.80),
         OptionQuote(strike=558.0, delta=0.18, bid=0.10, ask=0.15),
     ]
 
@@ -80,8 +80,8 @@ def test_cost_gate_rejects_thin_target_and_logs_components():
     rec = decisions[0]
     assert rec["decision"] == "cost_gate"
     assert rec["cost_gross_target"] == 18.5
-    assert rec["cost_round_trip"] == 7.30
-    assert rec["cost_target_ratio"] == 2.534
+    assert rec["cost_round_trip"] == 8.60
+    assert rec["cost_target_ratio"] == 2.151
     assert rec["expected_executable_credit"] == 0.37
 
 
@@ -98,8 +98,8 @@ def test_cost_gate_passes_rich_credit_and_fills():
     decisions = _decisions(logged)
     filled = [r for r in decisions if r["decision"] == "filled"][0]
     assert filled["cost_gross_target"] == 88.5
-    assert filled["cost_round_trip"] == 7.30
-    assert filled["cost_target_ratio"] == 12.123
+    assert filled["cost_round_trip"] == 8.60
+    assert filled["cost_target_ratio"] == 10.291
 
 
 # ── ratio configurable: same borderline candidate rejected at 4.0x, passes at 3.0x ───────────────

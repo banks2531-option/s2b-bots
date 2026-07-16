@@ -22,6 +22,11 @@ class SpreadOrder:
     short_ask: float = None
     long_bid: float = None
     long_ask: float = None
+    # Target expiration ("YYYY-MM-DD"), set by the orchestrator after build (Priority-0 fix item 5):
+    # lets the BS gap-stress reprice derive the proposed leg's DTE. Default None keeps every existing
+    # hand-built SpreadOrder back-compatible; unused by the broker payload (expiry is passed to
+    # to_tradier_payload separately).
+    expiry: str = None
 
 
 @dataclass

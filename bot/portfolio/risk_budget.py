@@ -1,5 +1,68 @@
 """Aggregate dollar-risk budget sizing + book limits (partner review v2 §9)."""
 import math
+from dataclasses import dataclass
+from typing import Optional
+
+# The four aggregate budgets, in the fixed order cap_to_budgets evaluates them. Centralized here so
+# the budget-name strings live in exactly ONE place -- cap_to_budgets, RiskBudgetResult, and any
+# caller reading exposure/limit for a binding budget all key off these constants, so a rename can't
+# silently drift between call sites (which previously risked producing None telemetry downstream).
+SAME_DAY_STOP = "same_day_stop"
+EXPIRY_STOP = "expiry_stop"
+TOTAL_STOP = "total_stop"
+TOTAL_STRUCTURAL = "total_structural"
+BUDGET_NAMES = (SAME_DAY_STOP, EXPIRY_STOP, TOTAL_STOP, TOTAL_STRUCTURAL)
+
+
+@dataclass
+class RiskBudgetResult:
+    """Result of cap_to_budgets (Priority-0 fix item 7): the permitted quantity PLUS which budget
+    (if any) bound it, and the raw exposure/limit numbers for every budget -- so a decision log can
+    say WHICH of the four budgets rejected a candidate, not just the bare fact that one did.
+
+    Kept int-compatible (__int__/__index__/__eq__/__hash__) so every existing call site that treats
+    cap_to_budgets' return value as a plain int (arithmetic, comparisons) keeps working unchanged."""
+    allowed_quantity: int
+    limiting_budget: Optional[str]   # one of "same_day_stop"/"expiry_stop"/"total_stop"/
+                                      # "total_structural", or None when unconstrained
+    same_day_stop: float
+    expiry_stop: float
+    total_stop: float
+    total_structural: float
+    same_day_limit: float
+    expiry_limit: float
+    total_stop_limit: float
+    structural_limit: float
+
+    def __int__(self):
+        return self.allowed_quantity
+
+    def __index__(self):
+        return self.allowed_quantity
+
+    def __eq__(self, o):
+        # NOTE: compares allowed_quantity ONLY (for int back-compat) -- two RiskBudgetResults with
+        # the same qty but DIFFERENT limiting_budget compare EQUAL. Footgun for future test authors:
+        # assert the limiting_budget field explicitly, never rely on == to distinguish them.
+        if isinstance(o, RiskBudgetResult):
+            return self.allowed_quantity == o.allowed_quantity
+        if isinstance(o, int):
+            return self.allowed_quantity == o
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.allowed_quantity)
+
+    def limiting_exposure_and_limit(self):
+        """(exposure, limit) dollar figures for THIS result's own limiting_budget, read straight off
+        the populated fields (no name-keyed dict lookup that could silently miss on a rename).
+        Returns (None, None) when unconstrained (limiting_budget is None)."""
+        return {
+            SAME_DAY_STOP: (self.same_day_stop, self.same_day_limit),
+            EXPIRY_STOP: (self.expiry_stop, self.expiry_limit),
+            TOTAL_STOP: (self.total_stop, self.total_stop_limit),
+            TOTAL_STRUCTURAL: (self.total_structural, self.structural_limit),
+        }.get(self.limiting_budget, (None, None))
 
 
 def structural_max_loss_per_contract(wing_width, credit):
@@ -58,9 +121,13 @@ def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_
     counts ONLY toward the TOTAL stop/structural budgets (this bot's own same-day/expiry budgets stay
     this-bot-only -- a foreign position isn't "this bot's" same-day or same-expiry risk).
 
-    Return the largest 0<=q<=qty that fits ALL budgets (0 if none fit)."""
+    Returns a RiskBudgetResult (Priority-0 fix item 7) whose allowed_quantity is the largest
+    0<=q<=qty that fits ALL budgets (0 if none fit), and whose limiting_budget names whichever of
+    "same_day_stop"/"expiry_stop"/"total_stop"/"total_structural" first drove q below the requested
+    qty (None when unconstrained). The result is int-compatible (__int__/__eq__/...), so every
+    existing caller that used the old bare-int return keeps working unchanged."""
     if qty <= 0:
-        return 0
+        return RiskBudgetResult(0, None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     if foreign_exposure is None:
         foreign_exposure = {"stop": 0.0, "structural": 0.0}
 
@@ -83,13 +150,28 @@ def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_
     per_contract_stop = planned_stop_loss_per_contract(credit, wing_width, f.expected_stop_slippage)
     per_contract_structural = structural_max_loss_per_contract(wing_width, credit)
 
+    same_day_limit = risk_equity * f.max_same_day_stop_risk_pct
+    expiry_limit = risk_equity * f.max_expiry_stop_risk_pct
+    total_stop_limit = risk_equity * f.max_total_stop_risk_pct
+    structural_limit = risk_equity * f.max_total_structural_risk_pct
+
+    # Evaluate the four budgets in a fixed order and track whichever one FIRST forces q strictly
+    # below the running value -- that's the "binding"/limiting budget for this candidate.
+    budget_caps = (
+        (SAME_DAY_STOP, _max_q_for_budget(qty, same_day_limit, same_day_stop, per_contract_stop)),
+        (EXPIRY_STOP, _max_q_for_budget(qty, expiry_limit, expiry_stop, per_contract_stop)),
+        (TOTAL_STOP, _max_q_for_budget(qty, total_stop_limit, total_stop, per_contract_stop)),
+        (TOTAL_STRUCTURAL, _max_q_for_budget(qty, structural_limit, total_structural,
+                                             per_contract_structural)),
+    )
     q = qty
-    q = min(q, _max_q_for_budget(qty, risk_equity * f.max_same_day_stop_risk_pct,
-                                  same_day_stop, per_contract_stop))
-    q = min(q, _max_q_for_budget(qty, risk_equity * f.max_expiry_stop_risk_pct,
-                                  expiry_stop, per_contract_stop))
-    q = min(q, _max_q_for_budget(qty, risk_equity * f.max_total_stop_risk_pct,
-                                  total_stop, per_contract_stop))
-    q = min(q, _max_q_for_budget(qty, risk_equity * f.max_total_structural_risk_pct,
-                                  total_structural, per_contract_structural))
-    return max(0, q)
+    limiting_budget = None
+    for name, cap_q in budget_caps:
+        if cap_q < q:
+            q = cap_q
+            limiting_budget = name
+    q = max(0, q)
+
+    return RiskBudgetResult(q, limiting_budget, same_day_stop, expiry_stop, total_stop,
+                            total_structural, same_day_limit, expiry_limit, total_stop_limit,
+                            structural_limit)

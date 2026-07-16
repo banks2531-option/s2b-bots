@@ -84,3 +84,53 @@ def test_foreign_spy_exposure_no_foreign_positions_is_zero():
 
 def test_foreign_spy_exposure_empty_broker_list_is_zero():
     assert foreign_spy_exposure([], own_positions=[]) == {"structural": 0.0, "stop": 0.0}
+
+
+# ── quantity-aware foreign matching (Priority-0 fix item 6): a broker spread matching an own
+# position's (short, long, expiry) key must still count the QUANTITY DIFFERENCE as foreign, not be
+# excluded wholesale ──
+
+def _pos(short_strike, long_strike, expiry, qty, credit=0.0):
+    return _FakeSpread(short_strike=short_strike, long_strike=long_strike, credit=credit,
+                        qty=qty, expiry=expiry)
+
+
+def test_foreign_exposure_counts_quantity_difference():
+    from bot.portfolio.exposure import foreign_spy_exposure
+    own = _pos(743, 733, "2026-07-24", qty=8, credit=1.39)
+    broker = _pos(743, 733, "2026-07-24", qty=10, credit=0.0)  # 2 extra foreign contracts
+    e = foreign_spy_exposure([broker], [own])
+    assert e["stop"] == 10.0 * 100 * 2       # 2000.0 (credit 0 -> width*100*fq)
+    assert e["structural"] == 10.0 * 100 * 2 # 2000.0
+
+
+def test_foreign_exposure_zero_when_broker_qty_le_own():
+    from bot.portfolio.exposure import foreign_spy_exposure
+    own = _pos(743, 733, "2026-07-24", qty=8, credit=1.39)
+    broker = _pos(743, 733, "2026-07-24", qty=8, credit=0.0)
+    e = foreign_spy_exposure([broker], [own])
+    assert e["stop"] == 0.0 and e["structural"] == 0.0
+
+
+def test_foreign_exposure_sums_multiple_own_lots_at_same_key_before_diff():
+    # Two own lots at the SAME (short,long,expiry) key -> own_qty accumulates to 8; broker holds 10
+    # -> only 2 foreign, not (10-5)=5. Verifies own-side accumulation before the qty diff.
+    from bot.portfolio.exposure import foreign_spy_exposure
+    own_a = _pos(743, 733, "2026-07-24", qty=5, credit=1.39)
+    own_b = _pos(743, 733, "2026-07-24", qty=3, credit=1.41)
+    broker = _pos(743, 733, "2026-07-24", qty=10, credit=0.0)
+    e = foreign_spy_exposure([broker], [own_a, own_b])
+    assert e["stop"] == 10.0 * 100 * 2       # 2000.0
+    assert e["structural"] == 10.0 * 100 * 2 # 2000.0
+
+
+def test_foreign_exposure_sums_duplicate_broker_rows_at_same_key_before_diff():
+    # Two broker rows at the SAME key -> broker_qty accumulates to 10 BEFORE subtracting own_qty(8),
+    # so foreign = 2. Without pre-aggregation each row would subtract own_qty and undercount to 0.
+    from bot.portfolio.exposure import foreign_spy_exposure
+    own = _pos(743, 733, "2026-07-24", qty=8, credit=1.39)
+    broker_a = _pos(743, 733, "2026-07-24", qty=6, credit=0.0)
+    broker_b = _pos(743, 733, "2026-07-24", qty=4, credit=0.0)
+    e = foreign_spy_exposure([broker_a, broker_b], [own])
+    assert e["stop"] == 10.0 * 100 * 2       # 2000.0
+    assert e["structural"] == 10.0 * 100 * 2 # 2000.0

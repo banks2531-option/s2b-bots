@@ -68,6 +68,29 @@ def test_build_deps_drives_a_clean_monday_entry_tick():
     assert len(state.open_positions) == 1 and state.open_positions[0].short_strike == 568.0
 
 
+def test_option_greeks_iv_batched_maps_mid_iv_with_smv_vol_fallback():
+    # Priority-0 fix item 5: the wired batched greeks fetch parses mid_iv (falling back to smv_vol)
+    # for a multi-symbol /markets/quotes call, in ONE request, dropping symbols without a usable IV.
+    calls = []
+    def http(method, path, params=None, data=None):
+        calls.append((path, params))
+        return {"quotes": {"quote": [
+            {"symbol": "SPY260619P00568000", "greeks": {"mid_iv": 0.21}},
+            {"symbol": "SPY260619P00558000", "greeks": {"smv_vol": 0.24}},   # mid_iv missing -> smv_vol
+            {"symbol": "SPY260619P00560000", "greeks": {"mid_iv": 0.0}},      # non-positive -> dropped
+            {"symbol": "SPY260619P00565000", "greeks": {}},                    # no IV -> dropped
+        ]}}
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01))
+    syms = ["SPY260619P00568000", "SPY260619P00558000", "SPY260619P00560000", "SPY260619P00565000"]
+    got = deps.option_greeks_iv(syms)
+    assert got == {"SPY260619P00568000": 0.21, "SPY260619P00558000": 0.24}
+    quote_calls = [c for c in calls if c[0] == "/markets/quotes"]
+    assert len(quote_calls) == 1                                   # single batched request
+    assert quote_calls[0][1]["symbols"] == ",".join(syms)          # all symbols in one call
+    assert quote_calls[0][1]["greeks"] == "true"
+
+
 def test_build_deps_broker_positions_reconstructs():
     positions_resp = {"positions": {"position": [
         {"symbol": "SPY260619P00568000", "quantity": -2},
@@ -141,6 +164,26 @@ def test_make_trade_logger_default_csv_has_no_cost_columns(tmp_path):
     assert "gross_pnl" not in header and "net_pnl" not in header
 
 
+def test_partial_open_row_status_survives_12col_csv(tmp_path):
+    # Fix A regression guard at the REAL CSV boundary: a partial OPEN row marks itself via the
+    # `status` cell = "partial_fill" (NOT an extra "partial" column). Written through the actual
+    # DictWriter(extrasaction="ignore"), the header stays exactly the 12 _LOG_FIELDS AND the row's
+    # status cell reads "partial_fill" -- i.e. the marker survives, unlike a dropped extra key.
+    from bot.app.wiring import _LOG_FIELDS
+    p = tmp_path / "trades_live.csv"
+    log = make_trade_logger(str(p))   # default -> flag-off (Bot C) 12-column shape
+    # an OPEN row exactly as _record_open emits it for a partial fill (self-describing status;
+    # a stray "partial" key here would be silently dropped by extrasaction="ignore").
+    log({"event": "OPEN", "date": "2026-06-15", "ticker": "SPY", "short": 568.0, "long": 558.0,
+         "expiry": "2026-06-19", "qty": 1, "credit": 1.7, "status": "partial_fill", "partial": True})
+    rows = list(_csv.DictReader(open(str(p))))
+    header = open(str(p)).readline().strip().split(",")
+    assert header == _LOG_FIELDS                       # exactly 12 columns, no "partial" column
+    assert len(_LOG_FIELDS) == 12
+    assert rows[0]["status"] == "partial_fill"         # the marker reached the CSV via the status cell
+    assert "partial" not in rows[0]                    # the extra key was dropped, as expected
+
+
 def test_make_trade_logger_include_cost_columns_true_adds_gross_and_net(tmp_path):
     p = tmp_path / "trades_alldays.csv"
     log = make_trade_logger(str(p), include_cost_columns=True)
@@ -180,7 +223,7 @@ def test_reported_zero_commission_and_fees_are_not_treated_as_unreported():
 
     deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
                       get_vix_regime=lambda: (0.5, 0.01),
-                      features=S2bFeatures(est_commission_per_leg_rt=0.70))
+                      features=S2bFeatures(commission_per_contract_per_leg_per_side=0.70))
     result = deps.open_spread({"price": 1.70, "quantity[0]": 2})
     assert result.commissions == 0.0        # NOT the synthetic 0.70*2*2 = 2.80
     assert result.regulatory_fees == 0.0
@@ -203,7 +246,7 @@ def test_reported_zero_commission_only_still_uses_reported_fees_field():
 
     deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
                       get_vix_regime=lambda: (0.5, 0.01),
-                      features=S2bFeatures(est_commission_per_leg_rt=0.70))
+                      features=S2bFeatures(commission_per_contract_per_leg_per_side=0.70))
     result = deps.open_spread({"price": 1.70, "quantity[0]": 2})
     assert result.commissions == 0.0     # reported field honored, no synthetic fallback triggered
     assert result.regulatory_fees == 0.0

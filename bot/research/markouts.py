@@ -24,11 +24,20 @@ into the management cycle at all, and a markout-tracking bug can never touch a r
 """
 from datetime import datetime
 
+from bot.strategy.s2b import _occ
+
 HORIZONS_MIN = (1, 5, 15, 30, 60)
 
 
 def _elapsed_minutes(entry_ts, now_ts):
     return (now_ts - entry_ts).total_seconds() / 60.0
+
+
+def _spread_key(item):
+    """Identity of a pending item's underlying spread (ticker, expiry, short, long) -- the cache
+    key that lets many pending items sharing one spread reuse a single batched mark."""
+    return (item.get("ticker") or "SPY", item.get("expiry"),
+            item.get("short_strike"), item.get("long_strike"))
 
 
 class MarkoutTracker:
@@ -128,6 +137,65 @@ class MarkoutTracker:
             if not item["horizons_written"] and all(item["horizons"][h] is not None for h in HORIZONS_MIN):
                 self._write(self._row(item, event="MARKOUT"))
                 item["horizons_written"] = True
+
+    def resolve_due_batched(self, now_ts, spy_now, batch_quote_fn, delta_iv_fn=None):
+        """Batched variant of resolve_due for the critical tick() path (Priority-0 fix item 4).
+
+        Instead of ONE broker quote call per pending item, collect the set of unique OCC option
+        leg symbols across every pending item whose horizon is DUE (elapsed >= the first horizon),
+        issue exactly ONE `batch_quote_fn(sorted(symbols))` call ({symbol: mid_price}), cache each
+        unique spread's debit-to-close mark (short_leg_mid - long_leg_mid -- same sign convention
+        as strategy.manage.spread_value_mid / wiring.mark_position), then run the EXISTING per-item
+        resolve_due logic reading each item's mark from that cache. No per-item quote calls.
+
+        Best-effort: a symbol missing from the batch -> that spread's mark is None (handled by
+        resolve_due's None-guards); never raises. Returns a coverage dict
+        {"quotes_requested": <#unique legs requested>, "quotes_missing": <#legs absent from batch>}
+        so a caller can see how many legs the batch failed to cover.
+
+        NOTE (differs from plain resolve_due): to avoid quoting a spread we can't yet act on, an item
+        younger than the first horizon (<1 min) is skipped entirely this cycle, so its MFE/MAE (and
+        any filled TP/stop crossing) is deferred until the 1-min horizon is due. resolve_due updates
+        every pending item every call; the deferral is immaterial at minute-scale horizons vs
+        second-scale ticks, and by the 1-min mark the item is quoted like any other."""
+        # 1. unique due spreads -> their two OCC leg symbols (deduped across all pending items)
+        due_legs = {}          # _spread_key -> (short_sym, long_sym)
+        symbols = set()
+        for item in self._pending:
+            if _elapsed_minutes(item["ts"], now_ts) < HORIZONS_MIN[0]:
+                continue        # not yet due for any horizon -> no quote needed this cycle
+            key = _spread_key(item)
+            if key in due_legs:
+                continue
+            try:
+                short_sym = _occ(item.get("ticker") or "SPY", item["expiry"], "P", item["short_strike"])
+                long_sym = _occ(item.get("ticker") or "SPY", item["expiry"], "P", item["long_strike"])
+            except Exception:
+                continue         # unbuildable symbol (missing expiry/strike) -> skip, mark stays None
+            due_legs[key] = (short_sym, long_sym)
+            symbols.add(short_sym)
+            symbols.add(long_sym)
+
+        # 2. ONE batched quote call for every unique leg symbol
+        quotes = {}
+        if symbols:
+            try:
+                quotes = batch_quote_fn(sorted(symbols)) or {}
+            except Exception:
+                quotes = {}
+        quotes_missing = sum(1 for s in symbols if quotes.get(s) is None)
+
+        # 3. per-unique-spread mark cache: debit-to-close = short_mid - long_mid
+        mark_cache = {}
+        for key, (short_sym, long_sym) in due_legs.items():
+            sm = quotes.get(short_sym)
+            lm = quotes.get(long_sym)
+            mark_cache[key] = (round(sm - lm, 2) if sm is not None and lm is not None else None)
+
+        # 4. reuse resolve_due (no per-item quote calls) reading marks from the cache
+        self.resolve_due(now_ts, spy_now, lambda item: mark_cache.get(_spread_key(item)),
+                         delta_iv_fn=delta_iv_fn)
+        return {"quotes_requested": len(symbols), "quotes_missing": quotes_missing}
 
     def finalize_eod(self, spy_close, spread_value_fn):
         """Write the authoritative EOD row for every still-pending signal (filled or rejected --

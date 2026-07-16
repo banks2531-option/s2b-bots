@@ -98,10 +98,12 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
     resolved_features = features if features is not None else S2bFeatures()
 
     # §14 (partner review v2): a wholly SEPARATE research-only markouts_<tag>.csv, gated on the
-    # SAME regime_shadow_monitor flag as the shadow monitor (Phase-4 research umbrella). The live
-    # bot (features=None -> flag off) keeps the lambda no-op -- the file is never even created.
+    # markout_tracking flag (Priority-0 fix item 4 gave markouts their OWN flag, split from the
+    # shadow monitor). The live bot AND the deployed all-days config (markout_tracking off) keep
+    # the lambda no-op -- the CSV is never even created. Wiring the real logger iff markout_tracking
+    # is on keeps it aligned with the orchestrator's run_markout_cycle / _record_markout gate.
     markout_log_path = f"markouts_{tag}.csv"
-    markout_log = (make_markout_logger(markout_log_path) if resolved_features.regime_shadow_monitor
+    markout_log = (make_markout_logger(markout_log_path) if resolved_features.markout_tracking
                   else (lambda record: None))
 
     from bot.regime.logger import make_regime_logger

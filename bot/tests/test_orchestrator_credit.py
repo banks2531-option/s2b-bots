@@ -226,3 +226,46 @@ def test_deps_no_longer_carries_legacy_credit_fields():
     assert "credit_floor_ratio" not in names
     assert "probe_size_multiplier" not in names
     assert "use_adaptive_credit" not in names
+
+
+# ── (j) Priority-0 fix item 3: dedup repeated near-identical polling-cycle observations of the
+# SAME candidate so a 240-cycle day doesn't flood the 60-signal history with duplicates ──────────
+
+def test_credit_ratio_history_dedups_repeated_identical_polling_cycles():
+    state = BotState()
+    # exec_credit=0.97 -> ratio=0.097 (< min_credit_ratio 0.10) -> always rejected, so open_positions
+    # / entries_today never change and every one of the 50 cycles reaches the credit-tiers block.
+    d = _deps(get_chain=lambda sym, exp: _custom_chain(3.00, 2.10),
+              features=S2bFeatures(credit_tiers=True))
+    for _ in range(50):
+        state, info = run_entry_cycle(state, d, MONDAY)
+        assert info == "credit_too_low"
+    # 50 identical polling cycles of the SAME candidate in the SAME 15-min window -> at most 1
+    # history entry (proves the 240-cycle flooding bug is fixed).
+    assert state.credit_ratio_history.get("4-5") == [0.097]
+
+    # a genuine ratio move >= 0.5pp (still same strikes/expiry/window) -> DOES get recorded.
+    # exec_credit=0.92 -> ratio=0.092; |0.092 - 0.097| = 0.005 >= 0.005 threshold.
+    d2 = _deps(get_chain=lambda sym, exp: _custom_chain(2.95, 2.10),
+               features=S2bFeatures(credit_tiers=True))
+    state, info = run_entry_cycle(state, d2, MONDAY)
+    assert info == "credit_too_low"
+    assert state.credit_ratio_history["4-5"] == [0.097, 0.092]
+
+    # repeating that SAME candidate again (same ratio, same window) does NOT record again.
+    state, info = run_entry_cycle(state, d2, MONDAY)
+    assert info == "credit_too_low"
+    assert state.credit_ratio_history["4-5"] == [0.097, 0.092]
+
+    # a new 15-minute research window (same candidate/ratio) DOES get recorded, even though nothing
+    # about the spread itself changed.
+    later = MONDAY.replace(minute=21)   # bucket15 moves from 2 (10:05) to 3 (10:21)
+    state, info = run_entry_cycle(state, d2, later)
+    assert info == "credit_too_low"
+    assert state.credit_ratio_history["4-5"] == [0.097, 0.092, 0.092]
+
+    # ...and repeating THAT identical candidate/window many more times still only records once.
+    for _ in range(50):
+        state, info = run_entry_cycle(state, d2, later)
+        assert info == "credit_too_low"
+    assert state.credit_ratio_history["4-5"] == [0.097, 0.092, 0.092]

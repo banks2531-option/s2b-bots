@@ -11,6 +11,11 @@ class S2bFeatures:
     aggregate_risk_budget: bool = False
     actual_fill_accounting: bool = False
     regime_shadow_monitor: bool = False
+    markout_tracking: bool = False   # §14 (Priority-0 fix item 4): research entry-markout collector.
+                                      # SEPARATE flag from regime_shadow_monitor so the §14 markout
+                                      # path (record + batched resolve) can be toggled independently
+                                      # of the shadow monitor. LOG ONLY; left OFF in the deployed
+                                      # all-days config and always OFF for Bot C (byte-identical).
     decision_logging: bool = False   # §1/§12: write a DECISION record (reason+flags+telemetry) per entry-cycle return
     # explicitly-off Phase-4 alpha (never enabled in this program)
     regime_entry_blocks: bool = False
@@ -33,7 +38,7 @@ class S2bFeatures:
     # §5 cost gate
     take_profit_percent: float = 0.50
     min_target_to_cost_ratio: float = 4.0
-    est_commission_per_leg_rt: float = 0.65
+    commission_per_contract_per_leg_per_side: float = 0.65
     # §6/§7 ladders
     entry_reprice_seconds: float = 5.0
     entry_reprice_increment: float = 0.01
@@ -48,3 +53,12 @@ class S2bFeatures:
     max_gap_stress_loss_pct: float = 0.06
     expected_stop_slippage: float = 0.10
     daily_pnl_halt_pct: float = 0.02
+    # §10 (Priority-0 fix item 5) Black-Scholes shock-grid gap-stress reprice. Replaces the old
+    # intrinsic-value-only close estimate (which ignored time value/IV expansion/skew/gamma and so
+    # UNDERSTATED the stressed loss). The stress worst-cell is taken over an IV-shock x skew grid.
+    risk_free_rate: float = 0.04
+    gap_iv_shocks: tuple = (0.03, 0.05, 0.10)   # absolute IV bumps applied to BOTH legs
+    gap_skew_bump: float = 0.03                  # extra IV bump on the SHORT leg (stressed put skew)
+    gap_stress_widen: float = 0.25               # bid/ask widening haircut on the stressed close
+    gap_stress_model: str = "bs"                 # "bs" -> Black-Scholes grid; anything else -> intrinsic
+    gap_fallback_iv: float = 0.20                # usable IV when no per-leg IV is available

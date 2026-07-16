@@ -223,7 +223,11 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
         # (0 < cfq < qty) is a genuine partial; cfq == 0 on a failed close is a real stuck close.
         full_close = (not r.failed) or (cfq >= r.position.qty)
         partial_close = (not full_close) and cfq > 0
-        book_qty = r.position.qty if full_close else cfq   # partials book on the FILLED contracts only
+        # ONLY a genuine partial logs cfq; full closes AND hard fails (nothing filled) log the full
+        # position qty. Keying off partial_close (not `full_close else cfq`) keeps a ZERO-fill stuck
+        # close's CLOSE-row qty byte-identical to pre-Task-2 (cfq==0 would otherwise regress it to 0);
+        # book_qty for a hard fail is used ONLY in the CLOSE rec qty field (the P&L block is skipped).
+        book_qty = cfq if partial_close else r.position.qty
         # Fix 1: prorate the position's opening_fees by the fraction of contracts closed on THIS fill,
         # so a partial close deducts only its share and the surviving remainder keeps the rest (see the
         # partial_close branch, which decrements the stored fees by exactly this amount). Across any

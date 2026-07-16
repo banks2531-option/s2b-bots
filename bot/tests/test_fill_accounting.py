@@ -659,14 +659,21 @@ def test_close_full_fill_books_full_qty_and_removes_bot_c():
 
 def test_close_full_failed_zero_fill_still_halts_bot_c():
     # byte-identical failed-close guard: a close that filled NOTHING is a stuck stop -> alert + halt.
+    recs = []
     pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=4, expiry="2026-06-19")
     state = BotState(open_positions=[pos])
     d = _deps(mark_position=lambda p: 3.5, dte_of=lambda p, today: 5,
-              close_spread=lambda p, a: _er(status="timeout", requested_qty=4, filled_qty=0))
+              close_spread=lambda p, a: _er(status="timeout", requested_qty=4, filled_qty=0),
+              trade_log=lambda r: recs.append(r))
     state, results = run_management_cycle(state, d, today="2026-06-19")
     assert results[0].failed is True
     assert state.open_positions == [pos]                      # nothing filled -> kept
     assert state.halted is True and "close" in state.halt_reason
+    # log-only byte-identical guard: a ZERO-fill stuck close logs the FULL position qty (4), NOT
+    # cfq (0) -- restores the pre-Task-2 CLOSE-row qty for Bot C.
+    close_rec = [r for r in recs if r["event"] == "CLOSE"][0]
+    assert close_rec["qty"] == 4
+    assert "pnl" not in close_rec                             # no P&L booked on a nothing-filled close
 
 
 def test_close_partial_opening_fees_prorate_and_telescope():

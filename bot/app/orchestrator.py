@@ -204,18 +204,37 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
         close_fn=deps.close_spread,
         cfg=deps.manage_cfg,
     )
+    # Task 2 (advisor-mandated PARTIAL-FILL accounting): a close may fill only SOME of a position's
+    # contracts. On the Bot C path such a partial surfaces as failed=True with a NON-"filled" status
+    # ("canceled"/"timeout"), yet close_result.filled_quantity > 0 -- so we CLASSIFY off
+    # filled_quantity, never the status string. The submit layer has ALREADY cancelled/left the
+    # unfilled remainder (both the ladder and non-ladder paths cancel it themselves), so we NEVER
+    # cancel here. A partial that filled SOME is PROGRESS, not a stuck stop: we book realized P&L on
+    # the filled contracts, reduce the position's qty by that amount, and KEEP the remainder under
+    # management -- it must NOT trip the "failed close" halt (only a close that filled NOTHING does).
+    closed_ok = set()          # positions whose close FULLY filled -> removed from the book
+    hard_failed = []           # closes that filled NOTHING (failed, cfq == 0) -> alert + halt (unchanged)
+    partial_alerts = []        # non-halting WARN for each partial-with-progress (never silent, never halts)
     for r in results:                                    # per-bot trade log (for A/B measurement)
+        cfq = getattr(r.close_result, "filled_quantity", 0) or 0
+        # A status-"filled" close is a FULL close (byte-identical to before). A failed close that
+        # nonetheless reports cfq >= the tracked qty is ALSO treated as full (defensive: a
+        # "shouldn't happen" broker state we never want to leave tracked). Anything strictly between
+        # (0 < cfq < qty) is a genuine partial; cfq == 0 on a failed close is a real stuck close.
+        full_close = (not r.failed) or (cfq >= r.position.qty)
+        partial_close = (not full_close) and cfq > 0
+        book_qty = r.position.qty if full_close else cfq   # partials book on the FILLED contracts only
         rec = {"event": "CLOSE", "date": today, "ticker": r.position.ticker,
                "short": r.position.short_strike, "long": r.position.long_strike,
-               "expiry": r.position.expiry, "qty": r.position.qty, "credit": r.position.credit,
+               "expiry": r.position.expiry, "qty": book_qty, "credit": r.position.credit,
                "action": r.action.value, "exit_value": r.value, "status": r.close_status}
-        if not r.failed and r.value is not None:
+        if (full_close or partial_close) and r.value is not None:
             if deps.features.actual_fill_accounting:
                 # §8: realized P&L must use the ACTUAL close fill, never the triggering mark;
                 # report BOTH gross and net (net subtracts opening + closing fees/commissions).
                 actual_close = getattr(r.close_result, "average_fill_price", None)
                 close_value = actual_close if actual_close is not None else r.value
-                gross_pnl = round((r.position.credit - close_value) * 100 * r.position.qty, 2)
+                gross_pnl = round((r.position.credit - close_value) * 100 * book_qty, 2)
                 close_commissions = getattr(r.close_result, "commissions", 0.0) or 0.0
                 close_reg_fees = getattr(r.close_result, "regulatory_fees", 0.0) or 0.0
                 net_pnl = round(gross_pnl - r.position.opening_fees
@@ -225,14 +244,29 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
                 rec["pnl"] = net_pnl                       # the bottom-line number, now cost-aware
             else:
                 # flag OFF -> byte-identical to before: (credit - triggering mark) * 100 * qty
-                rec["pnl"] = round((r.position.credit - r.value) * 100 * r.position.qty, 2)
+                rec["pnl"] = round((r.position.credit - r.value) * 100 * book_qty, 2)
             _accumulate_realized(state, today, rec["pnl"])   # partner review v2 §11 (always on)
         deps.trade_log(rec)
-    alerts = alerts_for_cycle(results, drift_report=None)
+        if full_close:
+            closed_ok.add(position_key(r.position))
+        elif partial_close:
+            # reduce the tracked qty to the still-working remainder and KEEP the position; the submit
+            # layer already cancelled the balance, so there is nothing to cancel here. Mutating qty is
+            # safe: position_key keys on (ticker,short,long,expiry), so the open_positions rebuild
+            # below keeps this same object at its reduced qty.
+            r.position.qty -= cfq
+            partial_alerts.append(Alert(Severity.WARN,
+                f"partial close ({r.action.value}) for {r.position.ticker} "
+                f"{r.position.short_strike}/{r.position.long_strike}: filled {cfq}, "
+                f"remainder {r.position.qty} still working"))
+        else:
+            hard_failed.append(r)     # filled nothing -> a genuine stuck close (alert + halt)
+    # Only a close that filled NOTHING is a "failed close" that can halt new entries. A partial that
+    # filled SOME is surfaced as a (non-halting) WARN so it is never silent but never trips the halt.
+    alerts = alerts_for_cycle(hard_failed, drift_report=None) + partial_alerts
     if alerts:
         deps.alert_sink(alerts)
-    # remove only positions whose close actually filled
-    closed_ok = {position_key(r.position) for r in results if not r.failed}
+    # remove only positions whose close FULLY filled; partials stay (at reduced qty), hard fails stay
     state.open_positions = [p for p in state.open_positions if position_key(p) not in closed_ok]
     if should_halt_new_entries(alerts):
         state.halted = True
@@ -950,6 +984,11 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         return state, decision.reason
     open_result = deps.open_spread(to_tradier_payload(order, expiry, order.qty))
     status = result_status(open_result)
+    # Task 2: gate the partial-fill branch on filled_quantity, NOT the status string -- on the Bot C
+    # non-ladder path a partial whose remainder got cancelled surfaces as status "canceled"/"timeout"
+    # (see wiring._to_execution_result), NOT "partially_filled". A legacy bare-string return has no
+    # filled_quantity, so open_filled_qty is 0 and only the status=="filled" full-fill path can fire.
+    open_filled_qty = getattr(open_result, "filled_quantity", 0) or 0
     if status == "filled":
         # §8: with actual_fill_accounting ON, the position is recorded off the ACTUAL fill
         # (price + quantity), never the requested/quoted values; opening fees are captured too.
@@ -977,6 +1016,41 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # NOTE: credit_ratio_history is already (conditionally, per should_record_observation --
         # item 3 fix) appended for evaluated candidates, including rejects, in the credit-tiers
         # block above (partner review v2 §3) -- no separate append here.
+        open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
+                    "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
+                    "qty": qty, "credit": credit, "status": status}
+        if gap_losses is not None:   # partner review v2 §10: log all three stress scenarios
+            open_rec["gap_stress_1_0"] = gap_losses[1.0]
+            open_rec["gap_stress_1_5"] = gap_losses[1.5]
+            open_rec["gap_stress_2_0"] = gap_losses[2.0]
+        deps.trade_log(open_rec)
+    elif open_filled_qty > 0:
+        # Task 2 PARTIAL FILL (advisor-mandated): the broker filled SOME but not all of the requested
+        # contracts, and the submit layer has ALREADY cancelled/left the remainder (both the ladder
+        # and Bot C non-ladder paths cancel the unfilled balance themselves), so we do NOT cancel
+        # here. We MUST record the position at the ACTUALLY-filled contract count -- tracking more
+        # than the broker filled is the exact bug this fixes (untracked_at_broker at reconcile -> a
+        # HALT). qty is ALWAYS the filled quantity, even with actual_fill_accounting OFF (Bot C):
+        # this is the one value that must NOT stay at the requested amount. credit/opening_fees follow
+        # the Bot C convention (order.credit, no fees) when the flag is off, and use the actual fill
+        # price + captured fees only when the flag is on -- mirroring the full-fill branch's pricing,
+        # but never overriding qty back up to the requested amount.
+        qty = open_filled_qty
+        credit, opening_fees = order.credit, 0.0
+        if deps.features.actual_fill_accounting:
+            fill_price = getattr(open_result, "average_fill_price", None)
+            if fill_price is not None:
+                credit = fill_price
+            commissions = getattr(open_result, "commissions", 0.0) or 0.0
+            reg_fees = getattr(open_result, "regulatory_fees", 0.0) or 0.0
+            opening_fees = commissions + reg_fees
+        # DECISION log BEFORE folding the new position into the book (mirrors the full-fill path).
+        _log_decision("partial_fill", spot=spot, atr=atr, expiry=expiry, order=order)
+        state.open_positions.append(ManagedPosition(
+            "SPY", order.short_strike, order.long_strike, credit, qty, expiry,
+            entry_date=today, opening_fees=opening_fees))
+        state.last_entry_date = today
+        state.entries_today += 1             # a partial still consumed the day's entry
         open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
                     "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
                     "qty": qty, "credit": credit, "status": status}

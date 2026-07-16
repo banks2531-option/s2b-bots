@@ -513,3 +513,145 @@ def test_build_deps_close_spread_filled_status_is_unwrapped_correctly():
     assert results[0].close_status == "filled"   # NOT the stringified ExecutionResult object
     assert results[0].failed is False
     assert state.open_positions == []            # closed and removed, no false "failed close" halt
+
+
+# ── Task 2 (advisor-mandated PARTIAL-FILL accounting) ────────────────────────────────────────────
+# A partial fill does NOT reliably surface as status=="partially_filled": on the Bot C non-ladder
+# path a partial that got its remainder cancelled comes back as status "canceled"/"timeout" but with
+# filled_quantity > 0. So the gate keys on filled_quantity, NOT the status string. The submit layer
+# has ALREADY cancelled the unfilled remainder (both ladder and non-ladder paths), so the
+# orchestrator NEVER cancels here -- Task 2 is purely about ACCOUNTING for the filled portion.
+
+# --- 2a: entry partial fill ----------------------------------------------------------------------
+
+def test_entry_partial_records_filled_qty_flags_off_bot_c():
+    # Bot C (all flags off): the broker fills only 1 of the 2 the strategy sized, then cancels the
+    # rest -> surfaces as status "canceled" with filled_quantity 1. We MUST record the position at
+    # the ACTUALLY-filled contract count (1), not the requested/status -- tracking more than the
+    # broker filled is the exact bug this fixes (untracked_at_broker -> HALT).
+    state = BotState()
+    d = _deps(open_spread=lambda payload: _er(status="canceled", requested_qty=5, filled_qty=1,
+                                              avg_fill=None))
+    assert d.features.actual_fill_accounting is False
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert info == "canceled"                     # returned status is still the raw broker status
+    assert len(state.open_positions) == 1
+    pos = state.open_positions[0]
+    assert pos.qty == 1                           # the ACTUALLY-filled contracts (order sized 2)
+    assert pos.credit == 1.70                     # Bot C pricing convention preserved (order.credit)
+    assert pos.opening_fees == 0.0                # fees never touched when the flag is off
+    assert state.entries_today == 1               # a partial still consumed the day's entry
+
+
+def test_entry_partial_with_actual_fill_accounting_on():
+    state = BotState()
+    d = _deps(features=S2bFeatures(actual_fill_accounting=True),
+              open_spread=lambda payload: _er(status="partially_filled", requested_qty=5,
+                                              filled_qty=1, avg_fill=1.55, commissions=2.60))
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert len(state.open_positions) == 1
+    pos = state.open_positions[0]
+    assert pos.qty == 1                            # actual filled_quantity
+    assert pos.credit == 1.55                      # actual fill price (flag on)
+    assert pos.opening_fees == 2.60                # commissions carried through
+
+
+def test_entry_zero_fill_records_nothing_unchanged():
+    # byte-identical to today's else path: nothing recorded, no entry consumed.
+    state = BotState()
+    d = _deps(open_spread=lambda payload: _er(status="timeout", filled_qty=0))
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert info == "timeout"
+    assert len(state.open_positions) == 0
+    assert state.entries_today == 0
+
+
+def test_entry_full_fill_records_requested_qty_bot_c():
+    # full fill, flag OFF: qty is the REQUESTED order.qty (2), NOT the result's filled_quantity (1)
+    # -- the full-fill path is byte-identical to before Task 2.
+    state = BotState()
+    d = _deps(open_spread=lambda payload: _er(status="filled", filled_qty=1))
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert info == "filled"
+    pos = state.open_positions[0]
+    assert pos.qty == 2
+    assert pos.credit == 1.70
+    assert pos.opening_fees == 0.0
+
+
+# --- 2b: close partial fill ----------------------------------------------------------------------
+
+def test_close_partial_books_pnl_on_filled_qty_and_keeps_remainder():
+    # position qty 8; a STOP triggers (mark 3.5 >= credit*(1+stop_mult)=3.0); the broker fills only
+    # 3 of the 8 and cancels the rest -> surfaces as failed=True/status "canceled" with
+    # filled_quantity 3. We book P&L on the 3 filled, reduce the position to 5, and KEEP it.
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=8, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(features=S2bFeatures(actual_fill_accounting=True),
+              mark_position=lambda p: 3.5, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: _er(status="canceled", requested_qty=8, filled_qty=3,
+                                            avg_fill=0.40),
+              trade_log=lambda r: recs.append(r))
+    state, results = run_management_cycle(state, d, today="2026-06-19")
+    closes = [r for r in recs if r["event"] == "CLOSE"]
+    assert len(closes) == 1
+    rec = closes[0]
+    assert rec["qty"] == 3                          # booked on the FILLED contracts, not the full 8
+    # gross uses the ACTUAL close fill (0.40) on 3 contracts: (1.00 - 0.40) * 100 * 3 = 180.0
+    assert rec["gross_pnl"] == 180.0
+    assert rec["net_pnl"] == 180.0
+    assert rec["pnl"] == 180.0
+    assert len(state.open_positions) == 1           # the position SURVIVES ...
+    assert state.open_positions[0].qty == 5         # ... at the still-working remainder
+    assert state.halted is False                    # a partial that filled SOME is progress, not a halt
+
+
+def test_close_partial_flag_off_uses_mark_and_keeps_remainder_no_halt():
+    # Bot C guard: flag OFF -> P&L uses the triggering MARK (not the fill) on the FILLED qty, the
+    # remainder survives at reduced qty, and a partial never trips the "failed close" halt.
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=8, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 3.5, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: _er(status="canceled", requested_qty=8, filled_qty=3,
+                                            avg_fill=0.40),
+              trade_log=lambda r: recs.append(r))
+    assert d.features.actual_fill_accounting is False
+    state, results = run_management_cycle(state, d, today="2026-06-19")
+    rec = [r for r in recs if r["event"] == "CLOSE"][0]
+    assert rec["qty"] == 3
+    assert rec["pnl"] == round((1.00 - 3.5) * 100 * 3, 2)     # == -750.0, uses the mark on 3 contracts
+    assert "gross_pnl" not in rec and "net_pnl" not in rec
+    assert state.open_positions[0].qty == 5
+    assert state.halted is False
+
+
+def test_close_full_fill_books_full_qty_and_removes_bot_c():
+    # byte-identical full-close guard (flag OFF): P&L on the FULL qty via the mark, position removed.
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=4, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 3.5, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: _er(status="filled", requested_qty=4, filled_qty=4,
+                                            avg_fill=0.40),
+              trade_log=lambda r: recs.append(r))
+    assert d.features.actual_fill_accounting is False
+    state, results = run_management_cycle(state, d, today="2026-06-19")
+    rec = [r for r in recs if r["event"] == "CLOSE"][0]
+    assert rec["qty"] == 4                                     # full qty
+    assert rec["pnl"] == round((1.00 - 3.5) * 100 * 4, 2)      # mark-based, full qty == -1000.0
+    assert state.open_positions == []                          # fully closed -> removed
+    assert state.halted is False
+
+
+def test_close_full_failed_zero_fill_still_halts_bot_c():
+    # byte-identical failed-close guard: a close that filled NOTHING is a stuck stop -> alert + halt.
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=4, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 3.5, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: _er(status="timeout", requested_qty=4, filled_qty=0))
+    state, results = run_management_cycle(state, d, today="2026-06-19")
+    assert results[0].failed is True
+    assert state.open_positions == [pos]                      # nothing filled -> kept
+    assert state.halted is True and "close" in state.halt_reason

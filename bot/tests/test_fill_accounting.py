@@ -529,9 +529,11 @@ def test_entry_partial_records_filled_qty_flags_off_bot_c():
     # rest -> surfaces as status "canceled" with filled_quantity 1. We MUST record the position at
     # the ACTUALLY-filled contract count (1), not the requested/status -- tracking more than the
     # broker filled is the exact bug this fixes (untracked_at_broker -> HALT).
+    recs = []
     state = BotState()
     d = _deps(open_spread=lambda payload: _er(status="canceled", requested_qty=5, filled_qty=1,
-                                              avg_fill=None))
+                                              avg_fill=None),
+              trade_log=lambda r: recs.append(r))
     assert d.features.actual_fill_accounting is False
     state, info = run_entry_cycle(state, d, MONDAY)
     assert info == "canceled"                     # returned status is still the raw broker status
@@ -541,25 +543,32 @@ def test_entry_partial_records_filled_qty_flags_off_bot_c():
     assert pos.credit == 1.70                     # Bot C pricing convention preserved (order.credit)
     assert pos.opening_fees == 0.0                # fees never touched when the flag is off
     assert state.entries_today == 1               # a partial still consumed the day's entry
+    # Fix A: the OPEN row's status cell reads "partial_fill" (self-describing) even on Bot C, and
+    # carries no extra key -> visible in the 12-column live CSV without a schema change.
+    open_rec = [r for r in recs if r["event"] == "OPEN"][0]
+    assert open_rec["status"] == "partial_fill" and "partial" not in open_rec
 
 
 def test_entry_partial_with_actual_fill_accounting_on():
     recs = []
     state = BotState()
     d = _deps(features=S2bFeatures(actual_fill_accounting=True),
-              open_spread=lambda payload: _er(status="partially_filled", requested_qty=5,
+              open_spread=lambda payload: _er(status="canceled", requested_qty=5,
                                               filled_qty=1, avg_fill=1.55, commissions=2.60),
               trade_log=lambda r: recs.append(r))
     state, info = run_entry_cycle(state, d, MONDAY)
+    # the RETURN value is still the raw broker status (nothing downstream that keys on it changes) ...
+    assert info == "canceled"
     assert len(state.open_positions) == 1
     pos = state.open_positions[0]
     assert pos.qty == 1                            # actual filled_quantity
     assert pos.credit == 1.55                      # actual fill price (flag on)
     assert pos.opening_fees == 2.60                # commissions carried through
-    # Fix 3: the partial OPEN row is flagged partial=True (the raw broker status stays truthful --
-    # e.g. "partially_filled"/"canceled" -- so this disambiguates a real open from a bare cancel).
+    # Fix A: ... but the OPEN row's `status` cell reads the self-describing "partial_fill" (NOT the
+    # raw "canceled") and carries NO extra "partial" key -- so it stays inside the 12-column CSV.
     open_rec = [r for r in recs if r["event"] == "OPEN"][0]
-    assert open_rec["partial"] is True
+    assert open_rec["status"] == "partial_fill"
+    assert "partial" not in open_rec
     assert open_rec["qty"] == 1
 
 
@@ -586,8 +595,9 @@ def test_entry_full_fill_records_requested_qty_bot_c():
     assert pos.qty == 2
     assert pos.credit == 1.70
     assert pos.opening_fees == 0.0
-    # Fix 3 byte-identical guard: the full-fill OPEN row must NOT carry the partial flag.
+    # Fix A byte-identical guard: the full-fill OPEN row keeps status "filled" and no extra keys.
     open_rec = [r for r in recs if r["event"] == "OPEN"][0]
+    assert open_rec["status"] == "filled"
     assert "partial" not in open_rec
 
 

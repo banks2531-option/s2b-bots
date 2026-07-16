@@ -164,6 +164,26 @@ def test_make_trade_logger_default_csv_has_no_cost_columns(tmp_path):
     assert "gross_pnl" not in header and "net_pnl" not in header
 
 
+def test_partial_open_row_status_survives_12col_csv(tmp_path):
+    # Fix A regression guard at the REAL CSV boundary: a partial OPEN row marks itself via the
+    # `status` cell = "partial_fill" (NOT an extra "partial" column). Written through the actual
+    # DictWriter(extrasaction="ignore"), the header stays exactly the 12 _LOG_FIELDS AND the row's
+    # status cell reads "partial_fill" -- i.e. the marker survives, unlike a dropped extra key.
+    from bot.app.wiring import _LOG_FIELDS
+    p = tmp_path / "trades_live.csv"
+    log = make_trade_logger(str(p))   # default -> flag-off (Bot C) 12-column shape
+    # an OPEN row exactly as _record_open emits it for a partial fill (self-describing status;
+    # a stray "partial" key here would be silently dropped by extrasaction="ignore").
+    log({"event": "OPEN", "date": "2026-06-15", "ticker": "SPY", "short": 568.0, "long": 558.0,
+         "expiry": "2026-06-19", "qty": 1, "credit": 1.7, "status": "partial_fill", "partial": True})
+    rows = list(_csv.DictReader(open(str(p))))
+    header = open(str(p)).readline().strip().split(",")
+    assert header == _LOG_FIELDS                       # exactly 12 columns, no "partial" column
+    assert len(_LOG_FIELDS) == 12
+    assert rows[0]["status"] == "partial_fill"         # the marker reached the CSV via the status cell
+    assert "partial" not in rows[0]                    # the extra key was dropped, as expected
+
+
 def test_make_trade_logger_include_cost_columns_true_adds_gross_and_net(tmp_path):
     p = tmp_path / "trades_alldays.csv"
     log = make_trade_logger(str(p), include_cost_columns=True)

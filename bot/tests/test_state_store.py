@@ -100,6 +100,20 @@ def test_old_state_file_missing_markout_fields_defaults(tmp_path):
     assert loaded.markout_pending == []
     assert loaded.markout_seq == 0
     assert loaded.markout_obs_last == {}
+    assert loaded.credit_obs_last == {}          # Fix C: absent in an old file -> {} default, no KeyError
+
+
+def test_roundtrips_credit_obs_last(tmp_path):
+    # Fix C: the item-3 credit-tier dedup anchor (last RECORDED observation per DTE bucket) must
+    # survive a restart, or the first post-restart poll would re-record a duplicate observation and
+    # skew the adaptive credit threshold. Mirrors the markout_obs_last coverage above.
+    p = str(tmp_path / "state.json")
+    obs = {"bucket_1": {"date": "2026-06-15", "expiry": "2026-06-19", "short": 568.0,
+                        "long": 558.0, "ratio": 0.17, "bucket15": 2}}
+    s = BotState(credit_obs_last=obs)
+    save_state(s, p)
+    loaded = load_state(p)
+    assert loaded.credit_obs_last == obs
 
 
 def test_old_state_file_missing_new_fields_defaults(tmp_path):

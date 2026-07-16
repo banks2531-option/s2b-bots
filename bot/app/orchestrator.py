@@ -723,14 +723,18 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             pass
 
     def _record_open(*, decision_reason, order, expiry, status, qty, credit, opening_fees,
-                     gap_losses, spot, atr, partial=False):
+                     gap_losses, spot, atr):
         """Fold a newly-opened position into the book and emit its OPEN row -- SHARED by the full-fill
         and partial-fill branches so a future OPEN-row/telemetry field can never silently drift onto
         only one path (this is the real-money order path). Each caller computes its own qty/credit/
-        opening_fees/decision reason (the only real deltas), then hands them here. The DECISION log
-        runs BEFORE the append, so the exposure telemetry reads as "book so far + this proposed trade"
-        (consistent with every reject path). `partial` adds the Fix-3 disambiguation flag to the OPEN
-        row (the raw broker `status` stays truthful and unchanged either way)."""
+        opening_fees/decision reason AND the OPEN-row `status` cell (the only real deltas), then hands
+        them here. The DECISION log runs BEFORE the append, so the exposure telemetry reads as "book
+        so far + this proposed trade" (consistent with every reject path).
+
+        A partial open is disambiguated purely via the `status` field the caller passes ("partial_fill"
+        instead of the raw broker "canceled"/"timeout") -- NOT a separate "partial" column: the live
+        trade CSV is pinned to exactly 12 fields (_LOG_FIELDS) and DictWriter(extrasaction="ignore")
+        would silently drop any extra key, so a boolean flag would never reach trades_live.csv."""
         _log_decision(decision_reason, spot=spot, atr=atr, expiry=expiry, order=order)
         state.open_positions.append(ManagedPosition(
             "SPY", order.short_strike, order.long_strike, credit, qty, expiry,
@@ -740,8 +744,6 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
                     "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
                     "qty": qty, "credit": credit, "status": status}
-        if partial:                          # Fix 3: mark a real (partial) open so the row doesn't
-            open_rec["partial"] = True       # read as a bare cancel; broker `status` stays truthful
         if gap_losses is not None:   # partner review v2 §10: log all three stress scenarios
             open_rec["gap_stress_1_0"] = gap_losses[1.0]
             open_rec["gap_stress_1_5"] = gap_losses[1.5]
@@ -1071,10 +1073,14 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             commissions = getattr(open_result, "commissions", 0.0) or 0.0
             reg_fees = getattr(open_result, "regulatory_fees", 0.0) or 0.0
             opening_fees = commissions + reg_fees
-        # Shared recorder (mirrors the full-fill path exactly, save qty/decision/partial flag).
-        _record_open(decision_reason="partial_fill", order=order, expiry=expiry, status=status,
-                     qty=qty, credit=credit, opening_fees=opening_fees, gap_losses=gap_losses,
-                     spot=spot, atr=atr, partial=True)
+        # Shared recorder (mirrors the full-fill path exactly, save qty/decision). The OPEN row's
+        # `status` cell is the self-describing literal "partial_fill" (NOT the raw broker
+        # "canceled"/"timeout"), so a partial open is visible in the 12-column live CSV without adding
+        # a column. NOTE: this changes ONLY the logged status; run_entry_cycle still RETURNS the raw
+        # broker `status` below, so nothing keying on the return value changes.
+        _record_open(decision_reason="partial_fill", order=order, expiry=expiry,
+                     status="partial_fill", qty=qty, credit=credit, opening_fees=opening_fees,
+                     gap_losses=gap_losses, spot=spot, atr=atr)
     else:
         # order submitted but did not fill (e.g. timeout/rejected at the broker) -- still a return
         # path that must be decision-logged (spec §1: EVERY decision, not just the happy path).

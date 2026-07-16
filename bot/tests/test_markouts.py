@@ -565,3 +565,40 @@ def test_build_and_run_gates_markout_log_on_markout_tracking_flag():
     # markout CSV logger is now wired iff markout_tracking is on (its OWN flag, split from the
     # shadow monitor -- Priority-0 fix item 4).
     assert "markout_tracking" in src and "markout" in src.lower()
+
+
+def test_alldays_bot_b_gets_real_markout_sink_live_bot_c_gets_noop(tmp_path):
+    """Fix B: the Task 4 flag split silently turned OFF markout collection the deployed Bot B was
+    doing pre-branch (via regime_shadow_monitor). ALLDAYS_FEATURES now sets markout_tracking=True, so
+    Bot B gets a REAL markout CSV sink; Bot C (live, features=None -> default) keeps the no-op (no
+    sink, no CSV, zero new API calls). Exercises the ACTUAL make_markout_logger + run_s2b's gate."""
+    import os
+    from bot.app.run_s2b_alldays import ALLDAYS_FEATURES
+    from bot.app.wiring import build_deps, make_markout_logger
+    from bot.features import S2bFeatures
+
+    http = lambda method, p, params=None, data=None: {"balances": {"total_equity": 20_000.0}}
+
+    def resolve_markout_sink(features, path):   # mirrors run_s2b.build_and_run's gating exactly
+        resolved = features if features is not None else S2bFeatures()
+        return (make_markout_logger(path) if resolved.markout_tracking else (lambda record: None))
+
+    # Bot B (all-days): flag ON -> a real logger threads onto deps.markout_log -> writing creates CSV.
+    assert ALLDAYS_FEATURES.markout_tracking is True
+    b_path = str(tmp_path / "markouts_alldays.csv")
+    bot_b = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                       get_vix_regime=lambda: (0.5, 0.01), features=ALLDAYS_FEATURES,
+                       markout_log=resolve_markout_sink(ALLDAYS_FEATURES, b_path))
+    assert bot_b.features.markout_tracking is True
+    bot_b.markout_log({"event": "SIGNAL", "signal_id": "x", "ticker": "SPY"})
+    assert os.path.exists(b_path)          # a REAL sink wrote the research CSV
+
+    # Bot C (live): features=None -> default -> flag OFF -> no-op sink -> never writes a file.
+    assert S2bFeatures().markout_tracking is False
+    c_path = str(tmp_path / "markouts_live.csv")
+    bot_c = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                       get_vix_regime=lambda: (0.5, 0.01),
+                       markout_log=resolve_markout_sink(None, c_path))
+    assert bot_c.features.markout_tracking is False
+    bot_c.markout_log({"event": "SIGNAL"})   # no-op: must not raise, must not create a file
+    assert not os.path.exists(c_path)

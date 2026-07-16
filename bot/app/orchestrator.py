@@ -224,6 +224,13 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
         full_close = (not r.failed) or (cfq >= r.position.qty)
         partial_close = (not full_close) and cfq > 0
         book_qty = r.position.qty if full_close else cfq   # partials book on the FILLED contracts only
+        # Fix 1: prorate the position's opening_fees by the fraction of contracts closed on THIS fill,
+        # so a partial close deducts only its share and the surviving remainder keeps the rest (see the
+        # partial_close branch, which decrements the stored fees by exactly this amount). Across any
+        # number of partials plus the final full close this telescopes back to the ORIGINAL fee, with
+        # no double-count. r.position.qty here is the PRE-reduction qty (the correct denominator); for
+        # a full close book_qty == qty so opening_fees_booked == opening_fees -> byte-identical to today.
+        opening_fees_booked = round(r.position.opening_fees * book_qty / r.position.qty, 2)
         rec = {"event": "CLOSE", "date": today, "ticker": r.position.ticker,
                "short": r.position.short_strike, "long": r.position.long_strike,
                "expiry": r.position.expiry, "qty": book_qty, "credit": r.position.credit,
@@ -237,7 +244,7 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
                 gross_pnl = round((r.position.credit - close_value) * 100 * book_qty, 2)
                 close_commissions = getattr(r.close_result, "commissions", 0.0) or 0.0
                 close_reg_fees = getattr(r.close_result, "regulatory_fees", 0.0) or 0.0
-                net_pnl = round(gross_pnl - r.position.opening_fees
+                net_pnl = round(gross_pnl - opening_fees_booked
                                 - close_commissions - close_reg_fees, 2)
                 rec["gross_pnl"] = gross_pnl
                 rec["net_pnl"] = net_pnl
@@ -253,8 +260,11 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
             # reduce the tracked qty to the still-working remainder and KEEP the position; the submit
             # layer already cancelled the balance, so there is nothing to cancel here. Mutating qty is
             # safe: position_key keys on (ticker,short,long,expiry), so the open_positions rebuild
-            # below keeps this same object at its reduced qty.
+            # below keeps this same object at its reduced qty. Fix 1: decrement the stored opening_fees
+            # by exactly the prorated share booked above, so the remainder carries only its unbooked
+            # portion and the fee is never double-counted when that remainder later closes.
             r.position.qty -= cfq
+            r.position.opening_fees = round(r.position.opening_fees - opening_fees_booked, 2)
             partial_alerts.append(Alert(Severity.WARN,
                 f"partial close ({r.action.value}) for {r.position.ticker} "
                 f"{r.position.short_strike}/{r.position.long_strike}: filled {cfq}, "
@@ -708,6 +718,32 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         except Exception:
             pass
 
+    def _record_open(*, decision_reason, order, expiry, status, qty, credit, opening_fees,
+                     gap_losses, spot, atr, partial=False):
+        """Fold a newly-opened position into the book and emit its OPEN row -- SHARED by the full-fill
+        and partial-fill branches so a future OPEN-row/telemetry field can never silently drift onto
+        only one path (this is the real-money order path). Each caller computes its own qty/credit/
+        opening_fees/decision reason (the only real deltas), then hands them here. The DECISION log
+        runs BEFORE the append, so the exposure telemetry reads as "book so far + this proposed trade"
+        (consistent with every reject path). `partial` adds the Fix-3 disambiguation flag to the OPEN
+        row (the raw broker `status` stays truthful and unchanged either way)."""
+        _log_decision(decision_reason, spot=spot, atr=atr, expiry=expiry, order=order)
+        state.open_positions.append(ManagedPosition(
+            "SPY", order.short_strike, order.long_strike, credit, qty, expiry,
+            entry_date=today, opening_fees=opening_fees))
+        state.last_entry_date = today
+        state.entries_today += 1             # count toward the per-day entry cap
+        open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
+                    "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
+                    "qty": qty, "credit": credit, "status": status}
+        if partial:                          # Fix 3: mark a real (partial) open so the row doesn't
+            open_rec["partial"] = True       # read as a bare cancel; broker `status` stays truthful
+        if gap_losses is not None:   # partner review v2 §10: log all three stress scenarios
+            open_rec["gap_stress_1_0"] = gap_losses[1.0]
+            open_rec["gap_stress_1_5"] = gap_losses[1.5]
+            open_rec["gap_stress_2_0"] = gap_losses[2.0]
+        deps.trade_log(open_rec)
+
     # `now` MUST be in US/Eastern (the live wiring is responsible for that). Enter only 10:00-15:59 ET.
     # Gates: not halted; allowed entry weekday (A/B variable); within RTH; under the concurrent-
     # position cap; and under the per-day entry cap. Each gate is checked individually (rather than
@@ -1005,25 +1041,12 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             commissions = getattr(open_result, "commissions", 0.0) or 0.0
             reg_fees = getattr(open_result, "regulatory_fees", 0.0) or 0.0
             opening_fees = commissions + reg_fees
-        # DECISION log BEFORE the new position is folded into state.open_positions, so the exposure
-        # telemetry reads as "book so far + this proposed trade" (consistent with every reject path).
-        _log_decision("filled", spot=spot, atr=atr, expiry=expiry, order=order)
-        state.open_positions.append(ManagedPosition(
-            "SPY", order.short_strike, order.long_strike, credit, qty, expiry,
-            entry_date=today, opening_fees=opening_fees))
-        state.last_entry_date = today
-        state.entries_today += 1             # count toward the per-day entry cap
         # NOTE: credit_ratio_history is already (conditionally, per should_record_observation --
         # item 3 fix) appended for evaluated candidates, including rejects, in the credit-tiers
         # block above (partner review v2 §3) -- no separate append here.
-        open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
-                    "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
-                    "qty": qty, "credit": credit, "status": status}
-        if gap_losses is not None:   # partner review v2 §10: log all three stress scenarios
-            open_rec["gap_stress_1_0"] = gap_losses[1.0]
-            open_rec["gap_stress_1_5"] = gap_losses[1.5]
-            open_rec["gap_stress_2_0"] = gap_losses[2.0]
-        deps.trade_log(open_rec)
+        _record_open(decision_reason="filled", order=order, expiry=expiry, status=status,
+                     qty=qty, credit=credit, opening_fees=opening_fees, gap_losses=gap_losses,
+                     spot=spot, atr=atr)
     elif open_filled_qty > 0:
         # Task 2 PARTIAL FILL (advisor-mandated): the broker filled SOME but not all of the requested
         # contracts, and the submit layer has ALREADY cancelled/left the remainder (both the ladder
@@ -1044,21 +1067,10 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             commissions = getattr(open_result, "commissions", 0.0) or 0.0
             reg_fees = getattr(open_result, "regulatory_fees", 0.0) or 0.0
             opening_fees = commissions + reg_fees
-        # DECISION log BEFORE folding the new position into the book (mirrors the full-fill path).
-        _log_decision("partial_fill", spot=spot, atr=atr, expiry=expiry, order=order)
-        state.open_positions.append(ManagedPosition(
-            "SPY", order.short_strike, order.long_strike, credit, qty, expiry,
-            entry_date=today, opening_fees=opening_fees))
-        state.last_entry_date = today
-        state.entries_today += 1             # a partial still consumed the day's entry
-        open_rec = {"event": "OPEN", "date": today, "ticker": "SPY",
-                    "short": order.short_strike, "long": order.long_strike, "expiry": expiry,
-                    "qty": qty, "credit": credit, "status": status}
-        if gap_losses is not None:   # partner review v2 §10: log all three stress scenarios
-            open_rec["gap_stress_1_0"] = gap_losses[1.0]
-            open_rec["gap_stress_1_5"] = gap_losses[1.5]
-            open_rec["gap_stress_2_0"] = gap_losses[2.0]
-        deps.trade_log(open_rec)
+        # Shared recorder (mirrors the full-fill path exactly, save qty/decision/partial flag).
+        _record_open(decision_reason="partial_fill", order=order, expiry=expiry, status=status,
+                     qty=qty, credit=credit, opening_fees=opening_fees, gap_losses=gap_losses,
+                     spot=spot, atr=atr, partial=True)
     else:
         # order submitted but did not fill (e.g. timeout/rejected at the broker) -- still a return
         # path that must be decision-logged (spec §1: EVERY decision, not just the happy path).

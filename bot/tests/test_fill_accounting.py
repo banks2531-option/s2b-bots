@@ -544,16 +544,23 @@ def test_entry_partial_records_filled_qty_flags_off_bot_c():
 
 
 def test_entry_partial_with_actual_fill_accounting_on():
+    recs = []
     state = BotState()
     d = _deps(features=S2bFeatures(actual_fill_accounting=True),
               open_spread=lambda payload: _er(status="partially_filled", requested_qty=5,
-                                              filled_qty=1, avg_fill=1.55, commissions=2.60))
+                                              filled_qty=1, avg_fill=1.55, commissions=2.60),
+              trade_log=lambda r: recs.append(r))
     state, info = run_entry_cycle(state, d, MONDAY)
     assert len(state.open_positions) == 1
     pos = state.open_positions[0]
     assert pos.qty == 1                            # actual filled_quantity
     assert pos.credit == 1.55                      # actual fill price (flag on)
     assert pos.opening_fees == 2.60                # commissions carried through
+    # Fix 3: the partial OPEN row is flagged partial=True (the raw broker status stays truthful --
+    # e.g. "partially_filled"/"canceled" -- so this disambiguates a real open from a bare cancel).
+    open_rec = [r for r in recs if r["event"] == "OPEN"][0]
+    assert open_rec["partial"] is True
+    assert open_rec["qty"] == 1
 
 
 def test_entry_zero_fill_records_nothing_unchanged():
@@ -569,14 +576,19 @@ def test_entry_zero_fill_records_nothing_unchanged():
 def test_entry_full_fill_records_requested_qty_bot_c():
     # full fill, flag OFF: qty is the REQUESTED order.qty (2), NOT the result's filled_quantity (1)
     # -- the full-fill path is byte-identical to before Task 2.
+    recs = []
     state = BotState()
-    d = _deps(open_spread=lambda payload: _er(status="filled", filled_qty=1))
+    d = _deps(open_spread=lambda payload: _er(status="filled", filled_qty=1),
+              trade_log=lambda r: recs.append(r))
     state, info = run_entry_cycle(state, d, MONDAY)
     assert info == "filled"
     pos = state.open_positions[0]
     assert pos.qty == 2
     assert pos.credit == 1.70
     assert pos.opening_fees == 0.0
+    # Fix 3 byte-identical guard: the full-fill OPEN row must NOT carry the partial flag.
+    open_rec = [r for r in recs if r["event"] == "OPEN"][0]
+    assert "partial" not in open_rec
 
 
 # --- 2b: close partial fill ----------------------------------------------------------------------
@@ -655,3 +667,28 @@ def test_close_full_failed_zero_fill_still_halts_bot_c():
     assert results[0].failed is True
     assert state.open_positions == [pos]                      # nothing filled -> kept
     assert state.halted is True and "close" in state.halt_reason
+
+
+def test_close_partial_opening_fees_prorate_and_telescope():
+    # Fix 1: net P&L on a partial close must deduct only the PRORATED share of opening_fees, and the
+    # remainder must keep the rest -- so across any number of partials plus the final full close the
+    # total opening_fees deducted equals the ORIGINAL exactly (no double-count, no under-count).
+    recs = []
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=10, expiry="2026-06-19",
+                          opening_fees=3.00)
+    state = BotState(open_positions=[pos])
+    fills = iter([3, 3, 4])   # two genuine partials, then the final remainder (a full close of 4/4)
+    d = _deps(features=S2bFeatures(actual_fill_accounting=True),
+              mark_position=lambda p: 3.5, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: _er(status="canceled", requested_qty=p.qty,
+                                            filled_qty=next(fills), avg_fill=0.40),
+              trade_log=lambda r: recs.append(r))
+    for _ in range(3):        # three sequential management cycles, one tranche each
+        state, _ = run_management_cycle(state, d, today="2026-06-19")
+    closes = [r for r in recs if r["event"] == "CLOSE"]
+    assert len(closes) == 3
+    # close commissions/reg fees are 0 here, so (gross - net) on each close == the opening_fees booked
+    fee_deductions = [round(r["gross_pnl"] - r["net_pnl"], 2) for r in closes]
+    assert sum(fee_deductions) == 3.00           # telescopes to the ORIGINAL opening_fees, exactly
+    assert all(fd > 0 for fd in fee_deductions)  # each close booked a positive prorated share
+    assert state.open_positions == []            # final tranche fully closed -> removed

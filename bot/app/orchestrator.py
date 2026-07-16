@@ -213,14 +213,17 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
     # the filled contracts, reduce the position's qty by that amount, and KEEP the remainder under
     # management -- it must NOT trip the "failed close" halt (only a close that filled NOTHING does).
     closed_ok = set()          # positions whose close FULLY filled -> removed from the book
-    hard_failed = []           # closes that filled NOTHING (failed, cfq == 0) -> alert + halt (unchanged)
-    partial_alerts = []        # non-halting WARN for each partial-with-progress (never silent, never halts)
+    hard_failed = []           # cfq == 0 STOP/TIME_EXIT/ERROR closes (genuine stuck closes) -> alert + halt
+    nonhalting_alerts = []     # non-halting WARNs (never silent, never halt): a partial-with-progress,
+                               # and a cfq == 0 TAKE_PROFIT (winning position, WARN + retry, not a halt)
     for r in results:                                    # per-bot trade log (for A/B measurement)
         cfq = getattr(r.close_result, "filled_quantity", 0) or 0
         # A status-"filled" close is a FULL close (byte-identical to before). A failed close that
         # nonetheless reports cfq >= the tracked qty is ALSO treated as full (defensive: a
         # "shouldn't happen" broker state we never want to leave tracked). Anything strictly between
-        # (0 < cfq < qty) is a genuine partial; cfq == 0 on a failed close is a real stuck close.
+        # (0 < cfq < qty) is a genuine partial. A cfq == 0 failed close then splits three ways below:
+        # a failed TAKE_PROFIT warns + retries (no halt), while STOP/TIME_EXIT/ERROR are the real
+        # stuck closes that halt.
         full_close = (not r.failed) or (cfq >= r.position.qty)
         partial_close = (not full_close) and cfq > 0
         # ONLY a genuine partial logs cfq; full closes AND hard fails (nothing filled) log the full
@@ -269,7 +272,7 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
             # portion and the fee is never double-counted when that remainder later closes.
             r.position.qty -= cfq
             r.position.opening_fees = round(r.position.opening_fees - opening_fees_booked, 2)
-            partial_alerts.append(Alert(Severity.WARN,
+            nonhalting_alerts.append(Alert(Severity.WARN,
                 f"partial close ({r.action.value}) for {r.position.ticker} "
                 f"{r.position.short_strike}/{r.position.long_strike}: filled {cfq}, "
                 f"remainder {r.position.qty} still working"))
@@ -279,14 +282,14 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
             # was the root cause of Bot C's recurring $1-wing halt. WARN and let the next
             # management cycle retry the close (re-priced at fresh natural). Only STOP/TIME_EXIT/
             # ERROR (real must-exit risk) still halt (fall through to hard_failed below).
-            partial_alerts.append(Alert(Severity.WARN,
+            nonhalting_alerts.append(Alert(Severity.WARN,
                 f"take-profit close did not fill ({r.close_status}) for {r.position.ticker} "
                 f"{r.position.short_strike}/{r.position.long_strike}: qty {r.position.qty} kept, will retry"))
         else:
             hard_failed.append(r)     # STOP / TIME_EXIT / ERROR that filled nothing -> alert + halt
     # Only a close that filled NOTHING is a "failed close" that can halt new entries. A partial that
     # filled SOME is surfaced as a (non-halting) WARN so it is never silent but never trips the halt.
-    alerts = alerts_for_cycle(hard_failed, drift_report=None) + partial_alerts
+    alerts = alerts_for_cycle(hard_failed, drift_report=None) + nonhalting_alerts
     if alerts:
         deps.alert_sink(alerts)
     # remove only positions whose close FULLY filled; partials stay (at reduced qty), hard fails stay

@@ -709,3 +709,74 @@ def test_close_partial_opening_fees_prorate_and_telescope():
     assert sum(fee_deductions) == 3.00           # telescopes to the ORIGINAL opening_fees, exactly
     assert all(fd > 0 for fd in fee_deductions)  # each close booked a positive prorated share
     assert state.open_positions == []            # final tranche fully closed -> removed
+
+
+# ── Failed take-profit: WARN + retry, never halt (STOP/TIME_EXIT/ERROR still halt) ───────────────
+# A failed TAKE_PROFIT is a winning position we merely didn't capture this tick -- NOT a risk event.
+# It must NOT set the sticky "failed close" halt (the root cause of Bot C's recurring $1-wing halt).
+
+def test_failed_take_profit_warns_and_does_not_halt():
+    # winning position: mark 0.40 <= credit*(1-tp_pct)=0.50 -> TAKE_PROFIT; close fills NOTHING.
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=4, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 0.40, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: _er(status="canceled", requested_qty=4, filled_qty=0))
+    state, results = run_management_cycle(state, d, today="2026-06-19")
+    assert results[0].action == ExitAction.TAKE_PROFIT and results[0].failed is True
+    assert state.halted is False                      # a failed take-profit must NOT halt
+    assert state.open_positions == [pos]              # position kept for retry next tick
+
+def test_failed_take_profit_is_retried_next_cycle():
+    # the same TAKE_PROFIT is re-attempted on the next management cycle (close_fn called again).
+    calls = {"n": 0}
+    def close_fn(p, a):
+        calls["n"] += 1
+        return _er(status="canceled", requested_qty=4, filled_qty=0)
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=4, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 0.40, dte_of=lambda p, today: 5, close_spread=close_fn)
+    state, _ = run_management_cycle(state, d, today="2026-06-19")
+    state, _ = run_management_cycle(state, d, today="2026-06-19")
+    assert calls["n"] == 2                             # re-attempted, not abandoned
+    assert state.halted is False
+
+def test_failed_stop_still_halts_bot_c():
+    # losing position: mark 3.5 >= credit*(1+stop_mult)=3.00 -> STOP; close fills nothing -> HALT.
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=4, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 3.5, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: _er(status="timeout", requested_qty=4, filled_qty=0))
+    state, results = run_management_cycle(state, d, today="2026-06-19")
+    assert results[0].action == ExitAction.STOP
+    assert state.halted is True and "close" in state.halt_reason
+
+def test_failed_time_exit_still_halts():
+    # dte 0 (<= time_exit_dte 1) with a non-stop, non-tp mark -> TIME_EXIT; close fails -> HALT.
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=4, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 1.00, dte_of=lambda p, today: 0,
+              close_spread=lambda p, a: _er(status="canceled", requested_qty=4, filled_qty=0))
+    state, results = run_management_cycle(state, d, today="2026-06-19")
+    assert results[0].action == ExitAction.TIME_EXIT
+    assert state.halted is True
+
+def test_failed_close_that_raised_still_halts():
+    # close_fn raises -> monitor_positions records ExitAction.ERROR, failed=True -> HALT (conservative).
+    def boom(p, a):
+        raise RuntimeError("broker 500")
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=4, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 0.40, dte_of=lambda p, today: 5, close_spread=boom)
+    state, results = run_management_cycle(state, d, today="2026-06-19")
+    assert results[0].action == ExitAction.ERROR
+    assert state.halted is True
+
+def test_successful_take_profit_still_removes_position_no_halt():
+    # byte-identical happy path: TAKE_PROFIT fills fully -> position removed, no halt.
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=1.00, qty=4, expiry="2026-06-19")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 0.40, dte_of=lambda p, today: 5,
+              close_spread=lambda p, a: _er(status="filled", requested_qty=4, filled_qty=4))
+    state, results = run_management_cycle(state, d, today="2026-06-19")
+    assert state.open_positions == []
+    assert state.halted is False

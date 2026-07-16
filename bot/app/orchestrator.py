@@ -273,8 +273,17 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
                 f"partial close ({r.action.value}) for {r.position.ticker} "
                 f"{r.position.short_strike}/{r.position.long_strike}: filled {cfq}, "
                 f"remainder {r.position.qty} still working"))
+        elif r.action == ExitAction.TAKE_PROFIT:
+            # A failed TAKE-PROFIT is NOT a risk event (the position is winning; we just didn't
+            # capture profit this tick). It must NOT set the sticky "failed close" halt -- that
+            # was the root cause of Bot C's recurring $1-wing halt. WARN and let the next
+            # management cycle retry the close (re-priced at fresh natural). Only STOP/TIME_EXIT/
+            # ERROR (real must-exit risk) still halt (fall through to hard_failed below).
+            partial_alerts.append(Alert(Severity.WARN,
+                f"take-profit close did not fill ({r.close_status}) for {r.position.ticker} "
+                f"{r.position.short_strike}/{r.position.long_strike}: qty {r.position.qty} kept, will retry"))
         else:
-            hard_failed.append(r)     # filled nothing -> a genuine stuck close (alert + halt)
+            hard_failed.append(r)     # STOP / TIME_EXIT / ERROR that filled nothing -> alert + halt
     # Only a close that filled NOTHING is a "failed close" that can halt new entries. A partial that
     # filled SOME is surfaced as a (non-halting) WARN so it is never silent but never trips the halt.
     alerts = alerts_for_cycle(hard_failed, drift_report=None) + partial_alerts

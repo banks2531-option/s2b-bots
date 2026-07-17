@@ -387,17 +387,20 @@ def test_build_deps_default_markout_log_is_noop():
 
 
 def test_run_s2b_live_enables_gates_but_holds_the_unvalidated_ladders():
-    # LIVE feature set (enabled 2026-07-16): the protective gates + accounting + logging are ON,
-    # but the two order-submission ladders stay OFF (unvalidated on a real broker). This is the
-    # real-money safety invariant -- if someone flips a ladder on here, this test must fail.
+    # LIVE feature set: the entry-QUALITY screens + accounting + logging are ON, but the two
+    # order-submission ladders stay OFF (unvalidated on a real broker). This is the real-money
+    # safety invariant -- if someone flips a ladder on here, this test must fail.
     from bot.app.run_s2b_live import LIVE_FEATURES
     assert LIVE_FEATURES.transaction_cost_gate is True
     assert LIVE_FEATURES.credit_tiers is True
-    assert LIVE_FEATURES.aggregate_risk_budget is True
     assert LIVE_FEATURES.actual_fill_accounting is True
     assert LIVE_FEATURES.regime_shadow_monitor is True
     assert LIVE_FEATURES.markout_tracking is True
     assert LIVE_FEATURES.decision_logging is True
+    # aggregate_risk_budget DISABLED 2026-07-16 for the forced $5-wing/$600 override: on a ~$600
+    # account its small-% caps would size every $5-wing trade to 0 (see run_s2b_live note). Turning
+    # it back on requires re-calibrating the caps to the account.
+    assert LIVE_FEATURES.aggregate_risk_budget is False
     # the two unvalidated order-submission ladders MUST stay off on real money
     assert LIVE_FEATURES.entry_price_ladder is False
     assert LIVE_FEATURES.tp_price_ladder is False
@@ -406,6 +409,13 @@ def test_run_s2b_live_enables_gates_but_holds_the_unvalidated_ladders():
     assert LIVE_FEATURES.automatic_hedging is False
     assert LIVE_FEATURES.bearish_module is False
     assert LIVE_FEATURES.early_loss_exit is False
+
+
+def test_run_s2b_live_forced_5wing_override_config():
+    # Lock the forced $5-wing / small-account override so it can't silently drift.
+    from bot.app import run_s2b_live
+    assert run_s2b_live.WING_WIDTH == 5          # widened from $1 so the cost gate can be cleared
+    assert run_s2b_live.BASE_RISK_PCT == 0.80    # RiskGate cap permits the $5-wing (~72% of $600) at ~$540+
 
 
 # ── Priority-0 fix item 4: separate flag, batched quotes, signal dedup, Bot-C guard ──────────────

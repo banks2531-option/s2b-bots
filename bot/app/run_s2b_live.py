@@ -26,19 +26,36 @@ from bot.app.run_s2b import parse_args, build_and_run
 from bot.strategy.s2b import S2bConfig
 from bot.features import S2bFeatures
 
-WING_WIDTH = 1          # $ wide; fits a ~$400 account at lowest feasible risk (max loss ~$80 vs ~$863)
-BASE_RISK_PCT = 0.25    # one $1-wide spread is ~20% of $400; cap must permit the indivisible minimum
+# WING WIDENED $1 -> $5 on 2026-07-16 (account funding to $600-800). RATIONALE: a $1 wing collects
+# ~$0.17 credit, whose 50% take-profit target (~$8.50) does NOT clear ~4x the round-trip cost (~$34.40),
+# so transaction_cost_gate rejects nearly every $1-wing trade (negative post-cost edge). A $5 wing
+# collects ~$0.65-0.85, clearing the cost gate. TRADE-OFF ACCEPTED BY OPERATOR: a $5 wing's max loss
+# (~$425/contract) is ~71% of a $600 account, far above the ~25% the risk framework targets -- so this
+# is a HIGH-VARIANCE, one-bad-gap-hurts config. The strategy's sane-risk home is a ~$2,000 account; this
+# is a deliberate override to run it on $600-800.
+WING_WIDTH = 5
+# base_risk_pct raised 0.25 -> 0.80. It feeds RiskGate.max_risk_pct (wiring.py), the per-trade cap:
+# a $5-wing's max loss (~$431/contract) is ~72% of a $600 account, so the cap must be >= ~0.72 or the
+# RiskGate rejects it. 0.80 gives a small buffer (trades down to ~$539 equity, so a minor drawdown at
+# $600 doesn't halt it) WITHOUT raising the actual per-trade risk (still ~72%, fixed by the wing; sizing
+# is always 1 contract). SELF-GATES until funded: at the current ~$362 the $5-wing is 119% of equity, so
+# the RiskGate rejects every entry -- the bot places NO trades until the account is funded to ~$540+.
+BASE_RISK_PCT = 0.80
 
-# LIVE feature set (partner review v2), enabled 2026-07-16. The protective ENTRY GATES + accounting
-# + logging are ON so the live bot applies the same screening as Bot B (notably transaction_cost_gate,
-# which rejects the thin $1-wing trades whose take-profit target doesn't clear ~4x round-trip cost).
-# The two ORDER-SUBMISSION LADDERS (entry_price_ladder, tp_price_ladder) are deliberately HELD OFF:
-# they are unvalidated against a real broker (documented should_abort TODO gaps), so entries/closes
-# keep the current single marketable-limit submission path. The four Phase-4 alpha flags stay OFF.
+# LIVE feature set (partner review v2). Enabled 2026-07-16; aggregate_risk_budget DISABLED 2026-07-16
+# as part of the forced $5-wing/$600 override. The protective ENTRY-QUALITY screens (transaction_cost_gate
+# + credit_tiers) stay ON -- they're the whole point of widening the wing (avoid thin-credit blowups).
+# accounting + logging stay ON. The two ORDER-SUBMISSION LADDERS (entry_price_ladder, tp_price_ladder)
+# stay OFF -- unvalidated on a real broker. Phase-4 alpha flags stay OFF.
+# WHY aggregate_risk_budget IS OFF: its caps are small % of equity (total-stop 4%, gap-stress 6%); on a
+# $600 account those are ~$24/$36, but one $5-wing contract carries ~$150 stop / ~$400 gap risk, so the
+# budget would size EVERY trade to 0 (correctly -- it's a small-account safety). Forcing the trade means
+# disabling it and reverting to simple base_risk_pct sizing. PROTECTION LOST: gap-stress test, continuous
+# daily-risk gate, and daily-loss halt. STILL ACTIVE: cost gate, credit tiers, base RiskGate caps, stops.
 LIVE_FEATURES = S2bFeatures(
     credit_tiers=True,
     transaction_cost_gate=True,
-    aggregate_risk_budget=True,
+    aggregate_risk_budget=False,   # DISABLED for the forced $5-wing/$600 override (see note above)
     actual_fill_accounting=True,
     regime_shadow_monitor=True,
     markout_tracking=True,

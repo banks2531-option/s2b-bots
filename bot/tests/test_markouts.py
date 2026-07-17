@@ -399,7 +399,17 @@ def test_run_s2b_live_enables_gates_but_holds_the_unvalidated_ladders():
     # aggregate_risk_budget DISABLED 2026-07-16 for the forced $5-wing/$600 override: on a ~$600
     # account its small-% caps would size every $5-wing trade to 0 (see run_s2b_live note). Turning
     # it back on requires re-calibrating the caps to the account.
-    assert LIVE_FEATURES.aggregate_risk_budget is False
+    # aggregate_risk_budget RE-ENABLED 2026-07-17 with small-account-calibrated caps (concentration
+    # cap + daily-loss halt). Caps are much larger % than the big-account defaults because a single
+    # $5-wing is ~half this account; they permit ~1 $5-wing and block stacking.
+    assert LIVE_FEATURES.aggregate_risk_budget is True
+    assert LIVE_FEATURES.max_gap_stress_loss_pct == 0.50
+    assert LIVE_FEATURES.daily_pnl_halt_pct == 0.25
+    assert LIVE_FEATURES.max_total_stop_risk_pct == 0.30
+    assert LIVE_FEATURES.max_entry_stop_risk_pct == 0.25
+    # structural caps MUST be raised too or size_qty returns 0 (the $5-wing's ~$410 max loss is ~49%)
+    assert LIVE_FEATURES.max_trade_structural_risk_pct == 0.50
+    assert LIVE_FEATURES.max_total_structural_risk_pct == 0.50
     # actual_fill_accounting DISABLED 2026-07-17: broken against the LIVE broker (negative credit
     # sign + leg-count exec_quantity) -> corrupted a position's credit/qty. Off = record requested.
     assert LIVE_FEATURES.actual_fill_accounting is False

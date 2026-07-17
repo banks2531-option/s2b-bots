@@ -42,32 +42,42 @@ WING_WIDTH = 5
 # the RiskGate rejects every entry -- the bot places NO trades until the account is funded to ~$540+.
 BASE_RISK_PCT = 0.80
 
-# LIVE feature set (partner review v2). Enabled 2026-07-16; aggregate_risk_budget DISABLED 2026-07-16
-# as part of the forced $5-wing/$600 override. The protective ENTRY-QUALITY screens (transaction_cost_gate
-# + credit_tiers) stay ON -- they're the whole point of widening the wing (avoid thin-credit blowups).
-# accounting + logging stay ON. The two ORDER-SUBMISSION LADDERS (entry_price_ladder, tp_price_ladder)
-# stay OFF -- unvalidated on a real broker. Phase-4 alpha flags stay OFF.
-# WHY aggregate_risk_budget IS OFF: its caps are small % of equity (total-stop 4%, gap-stress 6%); on a
-# $600 account those are ~$24/$36, but one $5-wing contract carries ~$150 stop / ~$400 gap risk, so the
-# budget would size EVERY trade to 0 (correctly -- it's a small-account safety). Forcing the trade means
-# disabling it and reverting to simple base_risk_pct sizing. PROTECTION LOST: gap-stress test, continuous
-# daily-risk gate, and daily-loss halt. STILL ACTIVE: cost gate, credit tiers, base RiskGate caps, stops.
+# LIVE feature set (partner review v2). Enabled 2026-07-16. aggregate_risk_budget was DISABLED
+# 2026-07-16 (its big-account default caps sized every $5-wing trade to 0), then RE-ENABLED 2026-07-17
+# with caps RE-CALIBRATED to the small (~$842) account (below). What it restores: a book-CONCENTRATION
+# cap (hold at most ~1 $5-wing at a time -- blocks stacking a 2nd ~49%-of-account bet) and a DAILY-LOSS
+# HALT (~one bad trade). What it does NOT do (analysis 2026-07-17): "sit out volatile days" for a single
+# $5-wing -- the -1.5 ATR gap-stress on a narrow $5 wing saturates at ~max loss (~$410) in ALL conditions
+# (short is ~1 ATR OTM), so a single new $5-wing always looks like ~49% loss regardless of VIX. The caps
+# are therefore SET so 1 $5-wing passes from flat and a 2nd is blocked -- concentration + drawdown control,
+# not a volatility filter. Caps are % of risk_equity = min(allocated_equity 72000, broker_equity ~$842).
+# The ENTRY-QUALITY screens (transaction_cost_gate + credit_tiers), accounting/logging stay ON; the two
+# ORDER-SUBMISSION LADDERS stay OFF (unvalidated on a real broker); Phase-4 alpha flags stay OFF.
+# actual_fill_accounting stays OFF: broken vs the LIVE broker (negative credit sign + leg-count qty);
+# re-enabling needs _to_execution_result fixed (negate credit sign, read leg-level exec_quantity) + live
+# re-validation.
 LIVE_FEATURES = S2bFeatures(
     credit_tiers=True,
     transaction_cost_gate=True,
-    aggregate_risk_budget=False,   # DISABLED for the forced $5-wing/$600 override (see note above)
-    # actual_fill_accounting DISABLED 2026-07-17: it is broken against the LIVE Tradier broker (two
-    # real-money quirks the sandbox doesn't have). (1) A credit spread's order-level avg_fill_price is
-    # reported NEGATIVE (e.g. -0.92 = $0.92 received), so recording credit=avg_fill_price flipped the
-    # sign -> negative credit -> phantom STOP + failed-close halt + corrupted P&L. (2) The order-level
-    # exec_quantity counts LEGS (2) not CONTRACTS (1), doubling the recorded qty. With the flag OFF the
-    # bot records the REQUESTED credit/qty (correct). Re-enabling requires fixing _to_execution_result
-    # to negate the credit sign and read leg-level (not order-level) exec_quantity, then re-validating
-    # on the real broker.
-    actual_fill_accounting=False,
+    actual_fill_accounting=False,   # broken vs LIVE broker (sign + leg-count); see note above
     regime_shadow_monitor=True,
     markout_tracking=True,
     decision_logging=True,
+    # aggregate_risk_budget RE-ENABLED 2026-07-17 with small-account-calibrated caps (defaults in
+    # parentheses). These are much larger % than the big-account defaults because a single $5-wing is
+    # inherently ~half this account; they permit exactly ~1 $5-wing and block stacking + halt after a
+    # bad day.
+    aggregate_risk_budget=True,
+    max_gap_stress_loss_pct=0.50,       # (0.06) ~$421: permits 1 $5-wing (~$410 stress) from flat, blocks a 2nd
+    daily_pnl_halt_pct=0.25,            # (0.02) ~$210: halt new entries after ~one bad trade
+    max_total_stop_risk_pct=0.30,       # (0.04) ~$253: total book stop risk ~1 position
+    max_entry_stop_risk_pct=0.25,       # (0.0075) ~$210: sizes the ~$190-stop $5-wing to 1 contract
+    max_same_day_stop_risk_pct=0.25,    # (0.02) ~1 entry/day
+    max_expiry_stop_risk_pct=0.30,      # (0.03) ~1 position per expiry
+    # STRUCTURAL caps (max-loss based, used by size_qty + cap_to_budgets). MUST be >= the $5-wing's
+    # ~49%-of-account max loss or size_qty returns 0 -> no trade. Set to permit 1 $5-wing, block a 2nd.
+    max_trade_structural_risk_pct=0.50, # (0.05) ~$421 >= one $5-wing structural (~$410) -> sizes 1
+    max_total_structural_risk_pct=0.50, # (0.15) ~$421: total book structural ~1 $5-wing, blocks a 2nd
     # entry_price_ladder / tp_price_ladder: HELD OFF -- unvalidated on a real broker (real-money guard).
 )
 

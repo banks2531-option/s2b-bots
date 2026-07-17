@@ -400,10 +400,12 @@ def test_state_store_old_file_without_opening_fees_defaults_zero(tmp_path):
 
 # ── live bot (Bot C) must never enable the flag ──────────────────────────────────────────────────
 
-def test_run_s2b_live_enables_actual_fill_accounting():
-    # actual_fill_accounting enabled on the live bot 2026-07-16 (LIVE_FEATURES); default stays off.
+def test_run_s2b_live_disables_actual_fill_accounting_live_broker_bug():
+    # actual_fill_accounting DISABLED on the live bot 2026-07-17: it is broken against the real
+    # Tradier broker (order-level avg_fill_price is negative for a credit -> sign flip; order-level
+    # exec_quantity counts legs not contracts -> qty doubled). Off = record the requested credit/qty.
     from bot.app.run_s2b_live import LIVE_FEATURES
-    assert LIVE_FEATURES.actual_fill_accounting is True
+    assert LIVE_FEATURES.actual_fill_accounting is False
     assert S2bFeatures().actual_fill_accounting is False
 
 

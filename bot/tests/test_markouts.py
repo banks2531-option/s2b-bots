@@ -393,7 +393,6 @@ def test_run_s2b_live_enables_gates_but_holds_the_unvalidated_ladders():
     from bot.app.run_s2b_live import LIVE_FEATURES
     assert LIVE_FEATURES.transaction_cost_gate is True
     assert LIVE_FEATURES.credit_tiers is True
-    assert LIVE_FEATURES.actual_fill_accounting is True
     assert LIVE_FEATURES.regime_shadow_monitor is True
     assert LIVE_FEATURES.markout_tracking is True
     assert LIVE_FEATURES.decision_logging is True
@@ -401,6 +400,9 @@ def test_run_s2b_live_enables_gates_but_holds_the_unvalidated_ladders():
     # account its small-% caps would size every $5-wing trade to 0 (see run_s2b_live note). Turning
     # it back on requires re-calibrating the caps to the account.
     assert LIVE_FEATURES.aggregate_risk_budget is False
+    # actual_fill_accounting DISABLED 2026-07-17: broken against the LIVE broker (negative credit
+    # sign + leg-count exec_quantity) -> corrupted a position's credit/qty. Off = record requested.
+    assert LIVE_FEATURES.actual_fill_accounting is False
     # the two unvalidated order-submission ladders MUST stay off on real money
     assert LIVE_FEATURES.entry_price_ladder is False
     assert LIVE_FEATURES.tp_price_ladder is False

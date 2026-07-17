@@ -56,7 +56,15 @@ LIVE_FEATURES = S2bFeatures(
     credit_tiers=True,
     transaction_cost_gate=True,
     aggregate_risk_budget=False,   # DISABLED for the forced $5-wing/$600 override (see note above)
-    actual_fill_accounting=True,
+    # actual_fill_accounting DISABLED 2026-07-17: it is broken against the LIVE Tradier broker (two
+    # real-money quirks the sandbox doesn't have). (1) A credit spread's order-level avg_fill_price is
+    # reported NEGATIVE (e.g. -0.92 = $0.92 received), so recording credit=avg_fill_price flipped the
+    # sign -> negative credit -> phantom STOP + failed-close halt + corrupted P&L. (2) The order-level
+    # exec_quantity counts LEGS (2) not CONTRACTS (1), doubling the recorded qty. With the flag OFF the
+    # bot records the REQUESTED credit/qty (correct). Re-enabling requires fixing _to_execution_result
+    # to negate the credit sign and read leg-level (not order-level) exec_quantity, then re-validating
+    # on the real broker.
+    actual_fill_accounting=False,
     regime_shadow_monitor=True,
     markout_tracking=True,
     decision_logging=True,

@@ -204,6 +204,28 @@ def test_build_and_run_gates_include_cost_columns_on_actual_fill_accounting_flag
     assert "include_cost_columns=resolved_features.actual_fill_accounting" in src
 
 
+def test_decision_row_with_new_risk_sizing_fields_survives_logger(tmp_path):
+    # spec §11: a DECISION record carrying the new risk-sizing telemetry (limiting_gate, final_qty,
+    # decision_outcome, requested_qty, quality_adjusted_qty, risk_* exposure fields) must NOT be
+    # dropped by the DictWriter's extrasaction="ignore" -- every emitted key must be in the header.
+    p = tmp_path / "trades_alldays.csv"
+    log = make_trade_logger(str(p), include_decision_columns=True)
+    log({"event": "DECISION", "decision": "blocked", "limiting_gate": "gap_1_5atr",
+         "requested_qty": 2, "quality_adjusted_qty": 1, "final_qty": 0,
+         "risk_current_exposure": 4210.0, "risk_limit": 4320.0,
+         "risk_remaining_capacity": 110.0, "risk_incremental_per_contract": 285.0,
+         "decision_outcome": "blocked_zero_capacity"})
+    header = open(str(p)).readline().strip().split(",")
+    for col in ("limiting_gate", "requested_qty", "quality_adjusted_qty", "final_qty",
+                "risk_current_exposure", "risk_limit", "risk_remaining_capacity",
+                "risk_incremental_per_contract", "decision_outcome"):
+        assert col in header
+    rows = list(_csv.DictReader(open(str(p))))
+    assert rows[0]["limiting_gate"] == "gap_1_5atr"
+    assert rows[0]["final_qty"] == "0"
+    assert rows[0]["decision_outcome"] == "blocked_zero_capacity"
+
+
 # ── Fix 3: a genuinely-reported 0.0 commission/fee must NOT trigger the synthetic fallback ───────
 
 def test_reported_zero_commission_and_fees_are_not_treated_as_unreported():

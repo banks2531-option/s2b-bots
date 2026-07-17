@@ -216,6 +216,76 @@ def test_apply_quality_multiplier_full_size_and_maximum_and_zero_base():
     assert apply_quality_multiplier(0, 0.40) == 0                   # zero base -> zero
 
 
+# ── size_to_risk_limits: assemble caps, reduce (not reject), name the binding gate (spec §10) ────
+
+def test_probe_minimum_does_not_override_zero_risk_capacity():
+    from bot.portfolio.risk_budget import size_to_risk_limits, QuantityCap, apply_quality_multiplier
+    requested = apply_quality_multiplier(2, 0.40)   # == 1
+    cap = QuantityCap("gap_1_5atr", 0, 4300, 4320, 20, 250)
+    result = size_to_risk_limits(requested_qty=requested, caps=[cap])
+    assert result.final_qty == 0 and not result.allowed
+
+
+def test_oversized_order_is_reduced_not_rejected():
+    from bot.portfolio.risk_budget import size_to_risk_limits, QuantityCap
+    caps = [QuantityCap("expiry_stop", 1, 1800, 2160, 360, 250),
+            QuantityCap("total_stop", 4, 1000, 2880, 1880, 250)]
+    result = size_to_risk_limits(requested_qty=3, caps=caps)
+    assert result.allowed and result.final_qty == 1 and result.limiting_gate == "expiry_stop"
+
+
+def test_size_to_risk_limits_requested_qty_zero_is_blocked():
+    from bot.portfolio.risk_budget import size_to_risk_limits, QuantityCap
+    cap = QuantityCap("total_stop", 4, 1000, 2880, 1880, 250)
+    result = size_to_risk_limits(requested_qty=0, caps=[cap])
+    assert not result.allowed
+    assert result.final_qty == 0
+    assert result.limiting_gate == "requested_qty"
+    assert result.limiting_quantity == 0
+    assert result.reason == "quality-adjusted quantity is zero"
+
+
+def test_size_to_risk_limits_empty_caps_is_unconstrained():
+    from bot.portfolio.risk_budget import size_to_risk_limits
+    result = size_to_risk_limits(requested_qty=3, caps=[])
+    assert result.allowed
+    assert result.final_qty == 3
+    assert result.limiting_gate is None
+    assert result.limiting_quantity is None
+    assert result.reason == "ok"
+
+
+def test_size_to_risk_limits_reason_when_binding_cap_permits_zero():
+    from bot.portfolio.risk_budget import size_to_risk_limits, QuantityCap
+    cap = QuantityCap("gap_2atr", 0, 5000, 5000, 0, 300)
+    result = size_to_risk_limits(requested_qty=2, caps=[cap])
+    assert not result.allowed
+    assert result.final_qty == 0
+    assert result.limiting_gate == "gap_2atr"
+    assert result.reason == "gap_2atr permits zero contracts"
+
+
+# ── DecisionOutcome vocabulary + classify_outcome (spec §11) ─────────────────────────────────────
+
+def test_decision_outcome_constants_exact_values():
+    from bot.portfolio.risk_budget import DecisionOutcome
+    assert DecisionOutcome.ALLOWED_FULL == "allowed_full"
+    assert DecisionOutcome.ALLOWED_REDUCED == "allowed_reduced"
+    assert DecisionOutcome.BLOCKED_ZERO_CAPACITY == "blocked_zero_capacity"
+    assert DecisionOutcome.BLOCKED_CREDIT_QUALITY == "blocked_credit_quality"
+    assert DecisionOutcome.BLOCKED_TRANSACTION_COST == "blocked_transaction_cost"
+    assert DecisionOutcome.BLOCKED_QUOTE_QUALITY == "blocked_quote_quality"
+    assert DecisionOutcome.BLOCKED_DUPLICATE == "blocked_duplicate"
+    assert DecisionOutcome.BLOCKED_REGIME == "blocked_regime"
+
+
+def test_classify_outcome_full_reduced_zero():
+    from bot.portfolio.risk_budget import classify_outcome, DecisionOutcome
+    assert classify_outcome(requested_qty=3, final_qty=3) == DecisionOutcome.ALLOWED_FULL
+    assert classify_outcome(requested_qty=3, final_qty=1) == DecisionOutcome.ALLOWED_REDUCED
+    assert classify_outcome(requested_qty=3, final_qty=0) == DecisionOutcome.BLOCKED_ZERO_CAPACITY
+
+
 # ── cap_to_budgets: reduce qty to fit book limits, 0 when a budget is exhausted ─
 
 def _pos(credit, qty, expiry, entry_date):

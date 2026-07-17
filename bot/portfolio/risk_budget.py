@@ -1,6 +1,7 @@
 """Aggregate dollar-risk budget sizing + book limits (partner review v2 §9)."""
 import math
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 
 # The four aggregate budgets, in the fixed order cap_to_budgets evaluates them. Centralized here so
@@ -286,3 +287,89 @@ def budget_quantity_caps(credit, wing_width, expiry, today, open_positions, mark
                                  risk_equity * f.max_total_structural_risk_pct,
                                  per_contract_structural),
     ]
+
+
+@dataclass
+class RiskSizingResult:
+    """Outcome of assembling every risk QuantityCap (budgets + gap-stress scenarios) against a
+    requested qty (spec §10). Rather than a bare reject, it REDUCES the request to fit the strictest
+    cap and names the binding gate + its own maximum -- so a decision log can say exactly which rule
+    limited the trade and by how much. allowed is True iff at least one contract survives."""
+    requested_qty: int
+    final_qty: int
+    allowed: bool
+    limiting_gate: Optional[str]
+    limiting_quantity: Optional[int]
+    caps: list
+    reason: str
+
+
+def size_to_risk_limits(requested_qty, caps):
+    """Reduce requested_qty to fit ALL caps and name the strictest (spec §10).
+
+    requested_qty <= 0 -> blocked with limiting_gate="requested_qty" (the quality-adjusted qty was
+    already zero upstream). Otherwise final_qty = min(requested_qty, strictest cap's maximum_qty);
+    the strictest cap (min by maximum_qty) is the limiting gate. allowed iff final_qty > 0."""
+    if requested_qty <= 0:
+        return RiskSizingResult(
+            requested_qty=requested_qty,
+            final_qty=0,
+            allowed=False,
+            limiting_gate="requested_qty",
+            limiting_quantity=0,
+            caps=caps,
+            reason="quality-adjusted quantity is zero",
+        )
+
+    # No caps -> unconstrained (never call min() on an empty list). final_qty stays the request.
+    if not caps:
+        return RiskSizingResult(
+            requested_qty=requested_qty,
+            final_qty=requested_qty,
+            allowed=requested_qty > 0,
+            limiting_gate=None,
+            limiting_quantity=None,
+            caps=caps,
+            reason="ok",
+        )
+
+    limiting_cap = min(caps, key=lambda cap: cap.maximum_qty)
+    final_qty = min(requested_qty, limiting_cap.maximum_qty)
+    allowed = final_qty > 0
+    return RiskSizingResult(
+        requested_qty=requested_qty,
+        final_qty=final_qty,
+        allowed=allowed,
+        limiting_gate=limiting_cap.name,
+        limiting_quantity=limiting_cap.maximum_qty,
+        caps=caps,
+        reason="ok" if allowed else f"{limiting_cap.name} permits zero contracts",
+    )
+
+
+class DecisionOutcome(str, Enum):
+    """The distinct entry-decision outcomes (spec §11), logged so a report can distinguish "reduced
+    but taken" from the several block reasons instead of a single opaque "blocked". The credit /
+    transaction-cost / quote-quality / duplicate / regime blocks are decided by their own upstream
+    gates and passed in by the caller; classify_outcome below only covers the risk-sizing trio."""
+    ALLOWED_FULL = "allowed_full"
+    ALLOWED_REDUCED = "allowed_reduced"
+    BLOCKED_ZERO_CAPACITY = "blocked_zero_capacity"
+    BLOCKED_CREDIT_QUALITY = "blocked_credit_quality"
+    BLOCKED_TRANSACTION_COST = "blocked_transaction_cost"
+    BLOCKED_QUOTE_QUALITY = "blocked_quote_quality"
+    BLOCKED_DUPLICATE = "blocked_duplicate"
+    BLOCKED_REGIME = "blocked_regime"
+
+
+def classify_outcome(requested_qty, final_qty, quality_maximum_qty=None):
+    """Map a risk-sizing (requested, final) pair to a DecisionOutcome (spec §11):
+    allowed_full (final == requested), allowed_reduced (0 < final < requested), or
+    blocked_zero_capacity (final == 0). The credit/cost/quote/duplicate/regime blocks are decided by
+    their own upstream gates -- this helper covers ONLY the risk-sizing outcomes. quality_maximum_qty
+    is accepted for caller symmetry but does not change this classification."""
+    if final_qty <= 0:
+        return DecisionOutcome.BLOCKED_ZERO_CAPACITY
+    if final_qty >= requested_qty:
+        return DecisionOutcome.ALLOWED_FULL
+    return DecisionOutcome.ALLOWED_REDUCED

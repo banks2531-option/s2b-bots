@@ -23,7 +23,13 @@ _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_ex
                         "cost_target_ratio",   # spec §5 cost-gate telemetry (Task 2.3)
                         "risk_budget_limiting", "risk_budget_exposure", "risk_budget_limit",
                         "risk_budget_headroom", "risk_budget_proposed_qty",
-                        "risk_budget_permitted_qty"]   # §9 aggregate-risk-budget attribution (Task 7)
+                        "risk_budget_permitted_qty",   # §9 aggregate-risk-budget attribution (Task 7)
+                        "limiting_gate", "requested_qty", "quality_adjusted_qty", "final_qty",
+                        "risk_current_exposure", "risk_limit", "risk_remaining_capacity",
+                        "risk_incremental_per_contract",
+                        "decision_outcome"]   # spec §10/§11 risk-sizing + decision-outcome telemetry
+                                              # (Task 4 declares; Task 5 emits). The risk_budget_*
+                                              # fields above stay for back-compat.
                         # only added when decision_logging is on (spec §1, §12); this list must stay
                         # a SUPERSET of every key run_entry_cycle's _log_decision can merge onto a
                         # DECISION record (base rec + _decision_telemetry + credit_telemetry +

@@ -75,10 +75,15 @@ def test_size_qty_applies_quality_multiplier():
     assert scaled == 2   # floor(5 * 0.5) = 2
 
 
-def test_size_qty_probe_rounds_to_zero_rejects():
+def test_size_qty_probe_keeps_one_candidate_not_zero():
+    # SPEC §2 CORRECTION: this test previously asserted the OLD buggy behavior -- that base qty 1
+    # times a 0.4 probe multiplier floored to 0 at the size_qty level, silently turning the probe
+    # TIER into a rejection TIER. Per spec §2 the probe must yield a >=1 CANDIDATE instead. That
+    # candidate is NOT forced past risk caps: it still flows into cap_to_budgets downstream, which
+    # can cap it to 0. size_qty only produces the candidate.
     f = S2bFeatures()
-    # base qty is 1 (see test_size_qty_entry_constraint_binds); a 0.4 probe multiplier floors to 0
-    assert size_qty(100_000.0, 2.0, 10.0, f, quality_multiplier=0.4) == 0
+    # base qty is 1 (see test_size_qty_entry_constraint_binds); the 0.4 probe now yields 1, not 0
+    assert size_qty(100_000.0, 2.0, 10.0, f, quality_multiplier=0.4) == 1
 
 
 def test_size_qty_zero_or_negative_constraints_reject():
@@ -97,6 +102,20 @@ def test_size_qty_uses_features_max_trade_structural_risk_pct_not_hardcoded():
 
 def test_size_qty_default_max_trade_structural_risk_pct_is_unchanged():
     assert S2bFeatures().max_trade_structural_risk_pct == 0.05
+
+
+# ── apply_quality_multiplier: probe never rounds a valid base qty to 0 (spec §2) ────────────────
+
+def test_probe_size_never_rounds_valid_base_qty_to_zero():
+    from bot.portfolio.risk_budget import apply_quality_multiplier
+    assert apply_quality_multiplier(base_qty=2, multiplier=0.40) == 1
+
+
+def test_apply_quality_multiplier_full_size_and_maximum_and_zero_base():
+    from bot.portfolio.risk_budget import apply_quality_multiplier
+    assert apply_quality_multiplier(4, 1.0) == 4                    # full tier unchanged
+    assert apply_quality_multiplier(2, 0.40, maximum_qty=1) == 1    # maximum_qty caps candidate
+    assert apply_quality_multiplier(0, 0.40) == 0                   # zero base -> zero
 
 
 # ── cap_to_budgets: reduce qty to fit book limits, 0 when a budget is exhausted ─

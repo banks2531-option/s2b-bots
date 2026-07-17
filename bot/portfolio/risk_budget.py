@@ -82,16 +82,41 @@ def remaining_stop_risk(entry_credit, current_spread_debit, qty, expected_stop_s
     return max(0.0, (stop_debit - current_spread_debit + expected_stop_slippage) * 100.0 * qty)
 
 
+def apply_quality_multiplier(base_qty, multiplier, maximum_qty=None):
+    """Apply a credit-quality tier multiplier to a base qty (spec §2).
+
+    Guarantees a CANDIDATE contract for a probe: a probe multiplier (<1.0) applied to a valid base
+    qty (>=1) no longer floors to 0 -- e.g. floor(2*0.40)=0 previously turned the probe TIER into a
+    rejection TIER. This only produces a *candidate*; that candidate must STILL pass every hard risk
+    cap downstream (cap_to_budgets), which can still cap it to 0. It never forces 1 past a risk limit.
+
+    With multiplier=1.0 (full tier) this is exactly floor(base_qty*1.0)=base_qty, so the full-size
+    path is byte-identical to the old raw floor. Only the probe path (multiplier<1.0) changes."""
+    if base_qty <= 0 or multiplier <= 0:
+        return 0
+    if multiplier < 1.0:
+        adjusted_qty = max(1, math.floor(base_qty * multiplier))
+    else:
+        adjusted_qty = math.floor(base_qty * multiplier)
+    if maximum_qty is not None:
+        adjusted_qty = min(adjusted_qty, maximum_qty)
+    return adjusted_qty
+
+
 def size_qty(risk_equity, credit, wing_width, f, quality_multiplier=1.0):
     """Base qty from entry-stop-risk and structural constraints, times quality multiplier.
-    Probe rounding to 0 => reject (return 0). NO forced one-contract minimum. §9. f = S2bFeatures."""
+    The quality multiplier flows through apply_quality_multiplier (spec §2): a probe multiplier no
+    longer rounds a valid base qty to 0 -- it yields a >=1 CANDIDATE which still flows into
+    cap_to_budgets (the hard risk caps) at the call site and can be capped to 0 there. NO forced
+    one-contract minimum AFTER risk checks. §9. f = S2bFeatures."""
     psl = planned_stop_loss_per_contract(credit, wing_width, f.expected_stop_slippage)
     struct = structural_max_loss_per_contract(wing_width, credit)
     if psl <= 0 or struct <= 0:
         return 0
     qty_entry = math.floor(risk_equity * f.max_entry_stop_risk_pct / psl)
     qty_structural = math.floor(risk_equity * f.max_trade_structural_risk_pct / struct)
-    return math.floor(min(qty_entry, qty_structural) * quality_multiplier)
+    base_qty = min(qty_entry, qty_structural)
+    return apply_quality_multiplier(base_qty, quality_multiplier)
 
 
 def _max_q_for_budget(qty, budget, book_amount, per_contract_amount):

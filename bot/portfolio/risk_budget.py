@@ -65,6 +65,43 @@ class RiskBudgetResult:
         }.get(self.limiting_budget, (None, None))
 
 
+@dataclass
+class QuantityCap:
+    """A single risk gate expressed as "the largest number of contracts that safely fit" (spec §3).
+
+    Every risk category (each aggregate budget, each gap-stress scenario) yields one of these instead
+    of a bare True/False, so the orchestrator can REDUCE an oversized order to the caps' minimum
+    rather than rejecting it outright, and a decision log can name the exact binding gate plus its
+    exposure/limit/remaining/incremental figures."""
+    name: str
+    maximum_qty: int
+    current_exposure: float
+    limit: float
+    remaining_capacity: float
+    incremental_risk_per_contract: float
+
+
+def quantity_cap_from_budget(name, current_exposure, limit, incremental_risk_per_contract):
+    """Largest qty that keeps current_exposure + qty*incremental within limit (spec §4).
+
+    remaining = max(0, limit - current_exposure); qty = floor(remaining / incremental) when the
+    incremental risk is positive, else 0 (a non-positive incremental permits zero -- never an
+    unlimited/divide-by-zero result). maximum_qty is clamped to >= 0."""
+    remaining = max(0.0, limit - current_exposure)
+    if incremental_risk_per_contract <= 0:
+        qty = 0
+    else:
+        qty = int(remaining // incremental_risk_per_contract)
+    return QuantityCap(
+        name=name,
+        maximum_qty=max(0, qty),
+        current_exposure=current_exposure,
+        limit=limit,
+        remaining_capacity=remaining,
+        incremental_risk_per_contract=incremental_risk_per_contract,
+    )
+
+
 def structural_max_loss_per_contract(wing_width, credit):
     return (wing_width - credit) * 100.0
 
@@ -129,6 +166,39 @@ def _max_q_for_budget(qty, budget, book_amount, per_contract_amount):
     return min(qty, math.floor(remaining / per_contract_amount))
 
 
+def _book_exposures(wing_width, expiry, today, open_positions, mark_fn, f, foreign_exposure=None):
+    """Sum the open book's four aggregate dollar-risk exposures. Shared by cap_to_budgets AND
+    budget_quantity_caps so the two can NEVER diverge on how book exposure is computed (DRY).
+
+    Returns (same_day_stop, expiry_stop, total_stop, total_structural). For each position p:
+    stop risk = remaining_stop_risk(p.credit, mark_fn(p), p.qty, f.expected_stop_slippage);
+    structural = structural_max_loss_per_contract(wing_width, p.credit) * p.qty (uses the PROPOSED
+    trade's wing_width for every book position, matching the original cap_to_budgets behavior).
+    'same-day' = p.entry_date == today; 'expiry' = p.expiry == expiry.
+
+    foreign_exposure (partner review v2 §2): optional {"stop":..., "structural":...} SPY-spread
+    dollar-risk at the broker this bot did NOT open. None -> zero (byte-identical to omitting it).
+    It counts ONLY toward the TOTAL stop/structural exposures (not this bot's same-day/expiry)."""
+    if foreign_exposure is None:
+        foreign_exposure = {"stop": 0.0, "structural": 0.0}
+    same_day_stop = 0.0
+    expiry_stop = 0.0
+    total_stop = 0.0
+    total_structural = 0.0
+    for p in open_positions:
+        stop_risk = remaining_stop_risk(p.credit, mark_fn(p), p.qty, f.expected_stop_slippage)
+        structural_risk = structural_max_loss_per_contract(wing_width, p.credit) * p.qty
+        total_stop += stop_risk
+        total_structural += structural_risk
+        if p.entry_date == today:
+            same_day_stop += stop_risk
+        if p.expiry == expiry:
+            expiry_stop += stop_risk
+    total_stop += foreign_exposure.get("stop", 0.0) or 0.0
+    total_structural += foreign_exposure.get("structural", 0.0) or 0.0
+    return same_day_stop, expiry_stop, total_stop, total_structural
+
+
 def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_fn, risk_equity, f,
                    foreign_exposure=None):
     """Reduce qty (down to 0) until adding this trade keeps every budget satisfied:
@@ -153,24 +223,9 @@ def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_
     existing caller that used the old bare-int return keeps working unchanged."""
     if qty <= 0:
         return RiskBudgetResult(0, None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    if foreign_exposure is None:
-        foreign_exposure = {"stop": 0.0, "structural": 0.0}
 
-    same_day_stop = 0.0
-    expiry_stop = 0.0
-    total_stop = 0.0
-    total_structural = 0.0
-    for p in open_positions:
-        stop_risk = remaining_stop_risk(p.credit, mark_fn(p), p.qty, f.expected_stop_slippage)
-        structural_risk = structural_max_loss_per_contract(wing_width, p.credit) * p.qty
-        total_stop += stop_risk
-        total_structural += structural_risk
-        if p.entry_date == today:
-            same_day_stop += stop_risk
-        if p.expiry == expiry:
-            expiry_stop += stop_risk
-    total_stop += foreign_exposure.get("stop", 0.0) or 0.0
-    total_structural += foreign_exposure.get("structural", 0.0) or 0.0
+    same_day_stop, expiry_stop, total_stop, total_structural = _book_exposures(
+        wing_width, expiry, today, open_positions, mark_fn, f, foreign_exposure)
 
     per_contract_stop = planned_stop_loss_per_contract(credit, wing_width, f.expected_stop_slippage)
     per_contract_structural = structural_max_loss_per_contract(wing_width, credit)
@@ -200,3 +255,34 @@ def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_
     return RiskBudgetResult(q, limiting_budget, same_day_stop, expiry_stop, total_stop,
                             total_structural, same_day_limit, expiry_limit, total_stop_limit,
                             structural_limit)
+
+
+def budget_quantity_caps(credit, wing_width, expiry, today, open_positions, mark_fn, risk_equity, f,
+                         foreign_exposure=None):
+    """The four aggregate budgets, each as a QuantityCap (spec §3/§4) -- "how many contracts fit"
+    rather than the single reduced qty cap_to_budgets returns. Book exposure is computed by the SAME
+    _book_exposures helper cap_to_budgets uses (so they cannot diverge). Per-contract incremental
+    risk = planned_stop_loss_per_contract for the three stop budgets and
+    structural_max_loss_per_contract for the structural budget; limits = risk_equity * the matching
+    f.max_*_pct. Foreign exposure counts only toward the total stop/structural caps.
+
+    Order: same_day_stop, expiry_stop, total_stop, total_structural. This does NOT wire into the
+    orchestrator and does NOT replace cap_to_budgets (a later task assembles caps via
+    size_to_risk_limits)."""
+    same_day_stop, expiry_stop, total_stop, total_structural = _book_exposures(
+        wing_width, expiry, today, open_positions, mark_fn, f, foreign_exposure)
+
+    per_contract_stop = planned_stop_loss_per_contract(credit, wing_width, f.expected_stop_slippage)
+    per_contract_structural = structural_max_loss_per_contract(wing_width, credit)
+
+    return [
+        quantity_cap_from_budget(SAME_DAY_STOP, same_day_stop,
+                                 risk_equity * f.max_same_day_stop_risk_pct, per_contract_stop),
+        quantity_cap_from_budget(EXPIRY_STOP, expiry_stop,
+                                 risk_equity * f.max_expiry_stop_risk_pct, per_contract_stop),
+        quantity_cap_from_budget(TOTAL_STOP, total_stop,
+                                 risk_equity * f.max_total_stop_risk_pct, per_contract_stop),
+        quantity_cap_from_budget(TOTAL_STRUCTURAL, total_structural,
+                                 risk_equity * f.max_total_structural_risk_pct,
+                                 per_contract_structural),
+    ]

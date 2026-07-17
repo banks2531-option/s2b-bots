@@ -104,6 +104,104 @@ def test_size_qty_default_max_trade_structural_risk_pct_is_unchanged():
     assert S2bFeatures().max_trade_structural_risk_pct == 0.05
 
 
+# ── QuantityCap + quantity_cap_from_budget (spec §3/§4): every gate becomes a "how many fit" cap ──
+
+def test_quantity_cap_from_budget_basic_remaining_and_qty():
+    from bot.portfolio.risk_budget import quantity_cap_from_budget, QuantityCap
+    cap = quantity_cap_from_budget("same_day_stop", current_exposure=1000.0, limit=3000.0,
+                                   incremental_risk_per_contract=250.0)
+    assert isinstance(cap, QuantityCap)
+    assert cap.name == "same_day_stop"
+    assert cap.remaining_capacity == 2000.0        # 3000 - 1000
+    assert cap.maximum_qty == 8                     # floor(2000 / 250)
+    assert cap.current_exposure == 1000.0
+    assert cap.limit == 3000.0
+    assert cap.incremental_risk_per_contract == 250.0
+
+
+def test_quantity_cap_from_budget_zero_incremental_gives_zero_qty():
+    # spec §4: incremental_risk_per_contract <= 0 -> qty = 0 (never divide-by-zero, never "unlimited")
+    from bot.portfolio.risk_budget import quantity_cap_from_budget
+    cap = quantity_cap_from_budget("total_structural", current_exposure=0.0, limit=5000.0,
+                                   incremental_risk_per_contract=0.0)
+    assert cap.maximum_qty == 0
+    assert cap.remaining_capacity == 5000.0
+
+
+def test_quantity_cap_from_budget_limit_at_or_below_exposure_gives_zero():
+    from bot.portfolio.risk_budget import quantity_cap_from_budget
+    cap = quantity_cap_from_budget("expiry_stop", current_exposure=3000.0, limit=3000.0,
+                                   incremental_risk_per_contract=250.0)
+    assert cap.remaining_capacity == 0.0
+    assert cap.maximum_qty == 0
+    over = quantity_cap_from_budget("expiry_stop", current_exposure=3200.0, limit=3000.0,
+                                    incremental_risk_per_contract=250.0)
+    assert over.remaining_capacity == 0.0           # clamped, never negative
+    assert over.maximum_qty == 0
+
+
+# ── budget_quantity_caps: the four budgets, each as a QuantityCap (spec §3/§4) ────────────────────
+
+def test_budget_quantity_caps_returns_four_named_caps_empty_book():
+    from bot.portfolio.risk_budget import budget_quantity_caps
+    f = S2bFeatures()
+    caps = budget_quantity_caps(credit=2.0, wing_width=10.0, expiry="2026-07-18",
+                                today="2026-07-14", open_positions=[], mark_fn=lambda p: p.credit,
+                                risk_equity=100_000.0, f=f)
+    names = [c.name for c in caps]
+    assert names == ["same_day_stop", "expiry_stop", "total_stop", "total_structural"]
+    # empty book -> each cap = floor(limit / per_contract). credit=2.0, wing=10:
+    #   planned_stop_loss=410, structural=800
+    #   same_day  = floor(100000*0.02/410)  = 4
+    #   expiry    = floor(100000*0.03/410)  = 7
+    #   total     = floor(100000*0.04/410)  = 9
+    #   structural= floor(100000*0.15/800)  = 18
+    by = {c.name: c for c in caps}
+    assert by["same_day_stop"].maximum_qty == 4
+    assert by["expiry_stop"].maximum_qty == 7
+    assert by["total_stop"].maximum_qty == 9
+    assert by["total_structural"].maximum_qty == 18
+    assert by["total_structural"].incremental_risk_per_contract == 800.0
+    assert by["same_day_stop"].incremental_risk_per_contract == pytest.approx(410.0)
+
+
+def test_budget_quantity_caps_min_agrees_with_cap_to_budgets():
+    # Cross-check: the min of the four QuantityCaps (capped at requested qty) equals the quantity
+    # cap_to_budgets would permit for the same inputs -- the two must never diverge.
+    from bot.portfolio.risk_budget import budget_quantity_caps
+    f = S2bFeatures()
+    risk_equity = 100_000.0
+    today = "2026-07-14"
+    expiry = "2026-07-18"
+    open_positions = [_pos(2.0, 5, expiry, "2026-07-10")]
+    mark_fn = lambda p: p.credit
+    caps = budget_quantity_caps(credit=2.0, wing_width=10.0, expiry=expiry, today=today,
+                                open_positions=open_positions, mark_fn=mark_fn,
+                                risk_equity=risk_equity, f=f)
+    requested = 5
+    min_cap = min(c.maximum_qty for c in caps)
+    permitted = min(requested, min_cap)
+    r = cap_to_budgets(requested, 2.0, 10.0, expiry, today, open_positions, mark_fn, risk_equity, f)
+    assert permitted == int(r) == 2                 # matches the nearly-full-expiry-budget case
+
+
+def test_budget_quantity_caps_foreign_exposure_counts_only_total_budgets():
+    # A large foreign structural exposure must shrink the total_structural cap but NOT the
+    # same-day / expiry caps (which stay this-bot-only). Mirrors cap_to_budgets' foreign handling.
+    from bot.portfolio.risk_budget import budget_quantity_caps
+    f = S2bFeatures()
+    caps = budget_quantity_caps(credit=2.0, wing_width=10.0, expiry="2026-07-18",
+                                today="2026-07-14", open_positions=[], mark_fn=lambda p: p.credit,
+                                risk_equity=100_000.0, f=f,
+                                foreign_exposure={"stop": 0.0, "structural": 14200.0})
+    by = {c.name: c for c in caps}
+    # structural budget 15000, foreign 14200 -> remaining 800 -> floor(800/800) = 1
+    assert by["total_structural"].maximum_qty == 1
+    # same-day/expiry untouched by foreign structural
+    assert by["same_day_stop"].maximum_qty == 4
+    assert by["expiry_stop"].maximum_qty == 7
+
+
 # ── apply_quality_multiplier: probe never rounds a valid base qty to 0 (spec §2) ────────────────
 
 def test_probe_size_never_rounds_valid_base_qty_to_zero():

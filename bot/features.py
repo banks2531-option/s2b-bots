@@ -50,7 +50,12 @@ class S2bFeatures:
     max_total_stop_risk_pct: float = 0.04
     max_total_structural_risk_pct: float = 0.15
     max_trade_structural_risk_pct: float = 0.05   # per-trade structural cap used by size_qty (§9)
-    max_gap_stress_loss_pct: float = 0.06
+    max_gap_stress_loss_pct: float = 0.06        # 1.5-ATR gap-stress budget (spec §8, unchanged)
+    # Per-scenario gap-stress budgets for the incremental gap quantity model (spec §8/§9): the
+    # 1.0-ATR move is a shallower shock -> a LOOSER limit; the 2.0-ATR move is the deepest -> a
+    # TIGHTER limit. The 1.5-ATR scenario keeps using max_gap_stress_loss_pct above.
+    gap_1atr_limit_pct: float = 0.10
+    gap_2atr_limit_pct: float = 0.04
     expected_stop_slippage: float = 0.10
     daily_pnl_halt_pct: float = 0.02
     # §10 (Priority-0 fix item 5) Black-Scholes shock-grid gap-stress reprice. Replaces the old

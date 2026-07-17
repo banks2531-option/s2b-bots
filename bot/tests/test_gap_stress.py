@@ -53,6 +53,118 @@ def _pos(short, long_, credit, qty):
     return ManagedPosition("SPY", short, long_, credit, qty, "2026-07-18", entry_date="2026-07-10")
 
 
+# ── gap_quantity_cap: incremental candidate-loss quantity model (spec §8) ──────────────────────
+
+def test_gap_gate_uses_incremental_candidate_loss():
+    from bot.portfolio.gap_stress import gap_quantity_cap
+    cap = gap_quantity_cap("gap_1_5atr", current_book_loss=3000, one_contract_book_loss=3250,
+                           loss_limit=3600)
+    assert cap.incremental_risk_per_contract == 250
+    assert cap.maximum_qty == 2
+
+
+def test_gap_quantity_cap_zero_incremental_gives_zero_qty():
+    from bot.portfolio.gap_stress import gap_quantity_cap
+    # candidate adds no stressed loss (e.g. deep OTM after shock) -> incremental 0 -> qty 0 per spec
+    cap = gap_quantity_cap("gap_1atr", current_book_loss=1000, one_contract_book_loss=1000,
+                           loss_limit=5000)
+    assert cap.incremental_risk_per_contract == 0.0
+    assert cap.maximum_qty == 0
+    assert cap.remaining_capacity == 4000
+
+
+def test_gap_quantity_cap_book_already_over_limit_gives_zero():
+    from bot.portfolio.gap_stress import gap_quantity_cap
+    cap = gap_quantity_cap("gap_2atr", current_book_loss=4000, one_contract_book_loss=4300,
+                           loss_limit=3600)
+    assert cap.remaining_capacity == 0.0        # clamped, never negative
+    assert cap.maximum_qty == 0
+
+
+# ── StressScenario matrix + STRESSED_CLOSE_SLIPPAGE (spec §9) ──────────────────────────────────
+
+def test_stress_scenarios_matrix_matches_spec():
+    from bot.portfolio.gap_stress import STRESS_SCENARIOS, STRESSED_CLOSE_SLIPPAGE
+    assert STRESSED_CLOSE_SLIPPAGE == 0.10
+    triples = [(s.name, s.atr_move, s.iv_point_change) for s in STRESS_SCENARIOS]
+    assert triples == [
+        ("down_1atr", -1.0, 3.0),
+        ("down_1_5atr", -1.5, 5.0),
+        ("down_2atr", -2.0, 10.0),
+    ]
+
+
+def test_stressed_spread_loss_bs_default_unchanged_no_scenario_params():
+    # Back-compat guard: without iv_point_change / stressed_close_slippage the BS reprice is
+    # byte-identical to before (same pinned worst-cell $ as test_bs_grid_reports_larger_loss...).
+    from bot.portfolio.gap_stress import stressed_spread_loss_bs
+    f = S2bFeatures()
+    kw = dict(short_strike=743, long_strike=733, credit=1.39, qty=8, spot=754.88, atr=8.58)
+    bs = stressed_spread_loss_bs(**kw, drop_atr=1.5, dte=9, short_iv=0.18, long_iv=0.20, f=f)
+    assert bs == pytest.approx(3901.65, abs=0.01)
+
+
+def test_stressed_spread_loss_bs_scenario_iv_and_slippage_raise_loss():
+    # Driving the IV bump from a scenario point-change AND adding close slippage produces a loss
+    # >= the plain default (more IV / added slippage can only worsen a bull-put stressed close).
+    from bot.portfolio.gap_stress import stressed_spread_loss_bs, STRESSED_CLOSE_SLIPPAGE
+    f = S2bFeatures()
+    kw = dict(short_strike=743, long_strike=733, credit=1.39, qty=8, spot=754.88, atr=8.58,
+              drop_atr=1.5, dte=9, short_iv=0.18, long_iv=0.20, f=f)
+    base = stressed_spread_loss_bs(**kw)
+    scenario = stressed_spread_loss_bs(**kw, iv_point_change=10.0,
+                                       stressed_close_slippage=STRESSED_CLOSE_SLIPPAGE)
+    assert scenario > base
+
+
+# ── gap_quantity_caps: three scenarios, strictest binds (spec §8/§9) ───────────────────────────
+
+def test_gap_quantity_caps_three_scenarios_bigger_candidate_smaller_cap():
+    from bot.portfolio.gap_stress import gap_quantity_caps
+    f = S2bFeatures()
+    iv_fn = lambda p: (0.18, 0.20)
+    # candidate near spot (568 short) vs one further OTM (560 short) -> nearer stresses harder.
+    near = _pos(568.0, 558.0, 2.0, 1)
+    far = _pos(560.0, 550.0, 2.0, 1)
+    caps_near = gap_quantity_caps([], near, 575.0, 6.0, f, risk_equity=100_000.0,
+                                  iv_fn=iv_fn, today="2026-07-09")
+    caps_far = gap_quantity_caps([], far, 575.0, 6.0, f, risk_equity=100_000.0,
+                                 iv_fn=iv_fn, today="2026-07-09")
+    assert [c.name for c in caps_near] == ["gap_1atr", "gap_1_5atr", "gap_2atr"]
+    # bigger per-contract stress (nearer candidate) -> smaller permitted qty at the 1.5-ATR scenario
+    near_by = {c.name: c for c in caps_near}
+    far_by = {c.name: c for c in caps_far}
+    assert near_by["gap_1_5atr"].incremental_risk_per_contract > \
+        far_by["gap_1_5atr"].incremental_risk_per_contract
+    assert near_by["gap_1_5atr"].maximum_qty <= far_by["gap_1_5atr"].maximum_qty
+
+
+def test_gap_quantity_caps_strictest_scenario_is_binding():
+    from bot.portfolio.gap_stress import gap_quantity_caps
+    f = S2bFeatures()
+    iv_fn = lambda p: (0.18, 0.20)
+    candidate = _pos(568.0, 558.0, 2.0, 1)
+    caps = gap_quantity_caps([], candidate, 575.0, 6.0, f, risk_equity=100_000.0,
+                             iv_fn=iv_fn, today="2026-07-09")
+    by = {c.name: c for c in caps}
+    # 2.0-ATR has the deepest stress AND the tightest limit pct -> it permits the fewest contracts.
+    binding = min(caps, key=lambda c: c.maximum_qty)
+    assert binding.name == "gap_2atr"
+    assert by["gap_2atr"].maximum_qty <= by["gap_1_5atr"].maximum_qty <= by["gap_1atr"].maximum_qty
+
+
+def test_gap_quantity_caps_no_iv_fn_uses_fallback_and_is_finite():
+    import math
+    from bot.portfolio.gap_stress import gap_quantity_caps
+    f = S2bFeatures()
+    candidate = _pos(568.0, 558.0, 2.0, 1)
+    caps = gap_quantity_caps([], candidate, 575.0, 6.0, f, risk_equity=100_000.0,
+                             iv_fn=None, today="2026-07-09")
+    assert len(caps) == 3
+    for c in caps:
+        assert math.isfinite(c.incremental_risk_per_contract)
+
+
 def test_gap_stress_losses_sums_across_positions_all_three_drops():
     positions = [_pos(568.0, 558.0, 2.0, 1), _pos(568.0, 558.0, 0.5, 2)]
     spot, atr, wing = 575.0, 6.0, 10.0

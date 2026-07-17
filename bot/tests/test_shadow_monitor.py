@@ -314,11 +314,11 @@ def test_alldays_features_have_regime_shadow_monitor_on():
     assert ALLDAYS_FEATURES.regime_shadow_monitor is True
 
 
-def test_run_s2b_live_defaults_leave_regime_shadow_monitor_off():
-    import inspect
-    from bot.app import run_s2b_live
-    src = inspect.getsource(run_s2b_live)
-    assert "features=" not in src
+def test_run_s2b_live_enables_regime_shadow_monitor():
+    # regime_shadow_monitor enabled on the live bot 2026-07-16 (LIVE_FEATURES); default stays off.
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    assert LIVE_FEATURES.regime_shadow_monitor is True
+    assert S2bFeatures().regime_shadow_monitor is False
 
 
 # ── trade-log field set: shadow columns only added when include_shadow_columns=True ─────────────

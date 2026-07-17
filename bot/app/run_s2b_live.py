@@ -24,9 +24,27 @@ Requires (C8: config from environment only):
 """
 from bot.app.run_s2b import parse_args, build_and_run
 from bot.strategy.s2b import S2bConfig
+from bot.features import S2bFeatures
 
 WING_WIDTH = 1          # $ wide; fits a ~$400 account at lowest feasible risk (max loss ~$80 vs ~$863)
 BASE_RISK_PCT = 0.25    # one $1-wide spread is ~20% of $400; cap must permit the indivisible minimum
+
+# LIVE feature set (partner review v2), enabled 2026-07-16. The protective ENTRY GATES + accounting
+# + logging are ON so the live bot applies the same screening as Bot B (notably transaction_cost_gate,
+# which rejects the thin $1-wing trades whose take-profit target doesn't clear ~4x round-trip cost).
+# The two ORDER-SUBMISSION LADDERS (entry_price_ladder, tp_price_ladder) are deliberately HELD OFF:
+# they are unvalidated against a real broker (documented should_abort TODO gaps), so entries/closes
+# keep the current single marketable-limit submission path. The four Phase-4 alpha flags stay OFF.
+LIVE_FEATURES = S2bFeatures(
+    credit_tiers=True,
+    transaction_cost_gate=True,
+    aggregate_risk_budget=True,
+    actual_fill_accounting=True,
+    regime_shadow_monitor=True,
+    markout_tracking=True,
+    decision_logging=True,
+    # entry_price_ladder / tp_price_ladder: HELD OFF -- unvalidated on a real broker (real-money guard).
+)
 
 
 def main(argv=None):
@@ -35,7 +53,8 @@ def main(argv=None):
     return build_and_run(args.ticks, args.poll_seconds,
                          entry_days=frozenset({0, 1, 2, 3, 4}), max_open=3, label="LIVE",
                          shared_account=args.shared_account, max_entries_per_day=3,
-                         s2b_cfg=S2bConfig(wing_width=WING_WIDTH), base_risk_pct=BASE_RISK_PCT)
+                         s2b_cfg=S2bConfig(wing_width=WING_WIDTH), base_risk_pct=BASE_RISK_PCT,
+                         features=LIVE_FEATURES)
 
 
 if __name__ == "__main__":

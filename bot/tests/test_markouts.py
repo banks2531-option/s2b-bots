@@ -386,11 +386,26 @@ def test_build_deps_default_markout_log_is_noop():
     deps.markout_log({"anything": "goes"})   # must not raise
 
 
-def test_run_s2b_live_defaults_leave_regime_shadow_monitor_off_for_markouts_too():
-    import inspect
-    from bot.app import run_s2b_live
-    src = inspect.getsource(run_s2b_live)
-    assert "features=" not in src
+def test_run_s2b_live_enables_gates_but_holds_the_unvalidated_ladders():
+    # LIVE feature set (enabled 2026-07-16): the protective gates + accounting + logging are ON,
+    # but the two order-submission ladders stay OFF (unvalidated on a real broker). This is the
+    # real-money safety invariant -- if someone flips a ladder on here, this test must fail.
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    assert LIVE_FEATURES.transaction_cost_gate is True
+    assert LIVE_FEATURES.credit_tiers is True
+    assert LIVE_FEATURES.aggregate_risk_budget is True
+    assert LIVE_FEATURES.actual_fill_accounting is True
+    assert LIVE_FEATURES.regime_shadow_monitor is True
+    assert LIVE_FEATURES.markout_tracking is True
+    assert LIVE_FEATURES.decision_logging is True
+    # the two unvalidated order-submission ladders MUST stay off on real money
+    assert LIVE_FEATURES.entry_price_ladder is False
+    assert LIVE_FEATURES.tp_price_ladder is False
+    # Phase-4 alpha flags stay off (shadow-only)
+    assert LIVE_FEATURES.regime_entry_blocks is False
+    assert LIVE_FEATURES.automatic_hedging is False
+    assert LIVE_FEATURES.bearish_module is False
+    assert LIVE_FEATURES.early_loss_exit is False
 
 
 # ── Priority-0 fix item 4: separate flag, batched quotes, signal dedup, Bot-C guard ──────────────

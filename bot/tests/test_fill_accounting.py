@@ -400,12 +400,10 @@ def test_state_store_old_file_without_opening_fees_defaults_zero(tmp_path):
 
 # ── live bot (Bot C) must never enable the flag ──────────────────────────────────────────────────
 
-def test_run_s2b_live_defaults_leave_actual_fill_accounting_off():
-    # run_s2b_live.py does not pass `features=` to build_and_run/build_deps -> S2bFeatures() default
-    import inspect
-    from bot.app import run_s2b_live
-    src = inspect.getsource(run_s2b_live)
-    assert "features=" not in src   # live bot never threads a features override
+def test_run_s2b_live_enables_actual_fill_accounting():
+    # actual_fill_accounting enabled on the live bot 2026-07-16 (LIVE_FEATURES); default stays off.
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    assert LIVE_FEATURES.actual_fill_accounting is True
     assert S2bFeatures().actual_fill_accounting is False
 
 

@@ -184,12 +184,11 @@ def test_alldays_features_have_decision_logging_on():
     assert ALLDAYS_FEATURES.decision_logging is True
 
 
-def test_run_s2b_live_defaults_leave_decision_logging_off():
-    # run_s2b_live.py never threads a features= override -> S2bFeatures() default -> off
-    import inspect
-    from bot.app import run_s2b_live
-    src = inspect.getsource(run_s2b_live)
-    assert "features=" not in src
+def test_run_s2b_live_enables_decision_logging():
+    # decision_logging enabled on the live bot 2026-07-16 (LIVE_FEATURES); default stays off.
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    assert LIVE_FEATURES.decision_logging is True
+    assert S2bFeatures().decision_logging is False
 
 
 # ── trade-log field set: decision columns only added when include_decision_columns=True ─────────

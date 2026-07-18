@@ -4,7 +4,7 @@ A bot polling every 60s re-evaluates the same spread dozens of times a day. Coun
 distinct "opportunity" turns every opportunity statistic into a polling-frequency indicator. §12
 splits the counting in two:
 
-    raw_polling_evaluations  -- every evaluated candidate (diagnostics only)
+    raw_candidate_evaluations  -- every evaluated candidate (diagnostics only)
     unique_candidate_opportunities -- materially distinct candidates
 
 A candidate is NEW when its strike pair changes, its expiration changes, a new 15-minute bucket
@@ -146,7 +146,7 @@ def test_repeated_polls_of_the_same_spread_count_once_as_an_opportunity():
     d = _od_deps(features=S2bFeatures(), max_open=9, max_entries_per_day=9)
     for minute in (1, 8, 14):
         state, _ = run_entry_cycle(state, d, datetime(2026, 6, 15, 10, minute))
-    assert state.raw_polling_evaluations == 3
+    assert state.raw_candidate_evaluations == 3
     assert state.unique_candidate_opportunities == 1
 
 
@@ -155,7 +155,7 @@ def test_next_15_minute_bucket_counts_a_fresh_opportunity():
     d = _od_deps(features=S2bFeatures(), max_open=9, max_entries_per_day=9)
     for minute in (1, 16):
         state, _ = run_entry_cycle(state, d, datetime(2026, 6, 15, 10, minute))
-    assert state.raw_polling_evaluations == 2
+    assert state.raw_candidate_evaluations == 2
     assert state.unique_candidate_opportunities == 2
 
 
@@ -173,10 +173,10 @@ def test_counters_survive_a_state_store_round_trip_without_recounting(tmp_path):
     save_state(state, p)
     reloaded = load_state(p)
     assert reloaded.seen_candidate_keys == state.seen_candidate_keys      # tuples, not lists
-    assert reloaded.raw_polling_evaluations == 1
+    assert reloaded.raw_candidate_evaluations == 1
     assert reloaded.unique_candidate_opportunities == 1
 
     # same spread, same bucket, AFTER a restart -> still not a new opportunity
     reloaded, _ = run_entry_cycle(reloaded, d, datetime(2026, 6, 15, 10, 8))
-    assert reloaded.raw_polling_evaluations == 2
+    assert reloaded.raw_candidate_evaluations == 2
     assert reloaded.unique_candidate_opportunities == 1

@@ -21,7 +21,8 @@ def save_state(state: BotState, path: str) -> None:
         # §12 dedup state. The keys are TUPLES (and contain a nested tuple bucket), which JSON has no
         # representation for -- store as [key_as_list, ratio] pairs and rebuild the tuples on load.
         "seen_candidate_keys": [[list(k), v] for k, v in state.seen_candidate_keys.items()],
-        "raw_polling_evaluations": state.raw_polling_evaluations,
+        "entry_cycles_started": state.entry_cycles_started,
+        "raw_candidate_evaluations": state.raw_candidate_evaluations,
         "unique_candidate_opportunities": state.unique_candidate_opportunities,
         "realized_today": state.realized_today,
         "risk_day": state.risk_day,
@@ -51,7 +52,8 @@ def load_state(path: str) -> BotState:
         seen[(date, expiry, short, long_, tuple(bucket))] = v
     return BotState(open_positions=positions,
                     seen_candidate_keys=seen,
-                    raw_polling_evaluations=d.get("raw_polling_evaluations", 0),
+                    entry_cycles_started=d.get("entry_cycles_started", 0),
+                    raw_candidate_evaluations=d.get("raw_candidate_evaluations", 0),
                     unique_candidate_opportunities=d.get("unique_candidate_opportunities", 0),
                     halted=d.get("halted", False),
                     halt_reason=d.get("halt_reason", ""),

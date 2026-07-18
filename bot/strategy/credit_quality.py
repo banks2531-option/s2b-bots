@@ -1,5 +1,6 @@
 """Credit-quality tiering (partner review v2 §3): size by credit-as-%-of-wing, adaptive per DTE
 bucket, with a ceiling-clamped adaptive full-size threshold gated on a minimum signal count."""
+from dataclasses import dataclass
 
 
 # ── Post-v2 refinement §1: credit-quality classification lanes ───────────────────────────────────
@@ -147,6 +148,43 @@ def record_candidate(*, key: tuple, ratio: float, seen: dict, trading_date: str 
     new = is_new_candidate(key=key, ratio=ratio, seen=seen)
     seen[key] = ratio
     return new
+
+
+@dataclass(frozen=True)
+class CreditObservation:
+    """Post-v2 refinement §13, adopted per the advisor's Decision 1 (Option B): the structured audit
+    record of an adaptive-credit-history observation.
+
+    Option B deliberately stops short of full spec fidelity. This record is EMITTED TO THE LOG only
+    -- `credit_ratio_history` keeps storing bare floats and `BotState` never carries the record --
+    because the rolling threshold consumes ratios alone, so adopting the record as the persisted
+    structure would mean migrating live state on a real-money bot to buy auditability and nothing
+    else. Frozen: an audit record that a later stage can mutate is not an audit record."""
+    timestamp: object            # datetime; kept untyped to avoid importing datetime into this pure module
+    expiry: str
+    dte_bucket: str
+    short_strike: float
+    long_strike: float
+    expected_executable_credit: float
+    credit_ratio: float
+    candidate_key: tuple
+
+    def log_fields(self) -> dict:
+        """Flat, CSV-safe projection for the decision/research log. The candidate key is joined into
+        a single string because a tuple would render as a Python repr in CSV and be painful to query;
+        the bucket renders as "<hour>-<quarter>"."""
+        d, e, short, long_, bucket = self.candidate_key
+        return {
+            "event": "CREDIT_OBS",
+            "date": d,
+            "expiry": self.expiry,
+            "short": self.short_strike,
+            "long": self.long_strike,
+            "credit_ratio": self.credit_ratio,
+            "obs_dte_bucket": self.dte_bucket,
+            "obs_expected_executable_credit": self.expected_executable_credit,
+            "obs_candidate_key": f"{d}|{e}|{short}|{long_}|{bucket[0]}-{bucket[1]}",
+        }
 
 
 def bucket15_of(timestamp) -> int:

@@ -14,6 +14,7 @@ from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPositio
 from bot.strategy.credit_quality import (dte_bucket, full_size_threshold, _percentile,
                                           should_record_observation, classify_credit_quality,
                                           candidate_key, record_candidate, bucket15_of,
+                                          CreditObservation,
                                           low_credit_safety_pass)
 from bot.strategy.cost_gate import cost_gate_eval
 from bot.portfolio.risk_budget import (size_qty, remaining_stop_risk,
@@ -59,6 +60,12 @@ class BotState:
                                                             # should_record_observation to dedup repeated
                                                             # near-identical candidates within a polling day
                                                             # (partner review v2 item 3 fix)
+    entry_cycles_started: int = 0                         # advisor Decision 2: EVERY scheduled entry cycle,
+                                                            # counted at the very top -- including cycles that
+                                                            # exit at max_open/max_entries before a candidate
+                                                            # is ever constructed. The gap between this and
+                                                            # raw_candidate_evaluations is exactly "how much of
+                                                            # the session was spent blocked by position limits".
     seen_candidate_keys: dict = field(default_factory=dict)  # post-v2 refinement §12: candidate_key ->
                                                             # last-seen credit ratio (the anchor). A dict
                                                             # rather than the spec's bare set because the
@@ -67,8 +74,9 @@ class BotState:
                                                             # trading date on each record_candidate call;
                                                             # round-trips via state_store (tuple keys are
                                                             # encoded as lists for JSON).
-    raw_polling_evaluations: int = 0                      # §12/§17: EVERY candidate evaluation (diagnostics
-                                                            # only -- "do not use raw polling evaluations in
+    raw_candidate_evaluations: int = 0                    # §12/§17: incremented once a valid candidate spread
+                                                            # has actually been CONSTRUCTED (diagnostics only --
+                                                            # "do not use raw polling evaluations in
                                                             # profitability reports")
     unique_candidate_opportunities: int = 0               # §12/§17: materially distinct opportunities
     realized_today: float = 0.0                           # sum of realized P&L from closes on `risk_day` (partner review v2 §11)
@@ -644,6 +652,9 @@ def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None,
 
 def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
+    state.entry_cycles_started += 1      # advisor Decision 2, stage 1/3: count the CYCLE itself, before any
+                                          # gate can return -- so a session spent entirely at the position
+                                          # limit is distinguishable from one that evaluated and rejected.
     if state.last_entry_date != today:
         state.entries_today = 0          # new calendar day -> reset the daily entry counter
 
@@ -866,10 +877,12 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     # distinct ones -- new strike pair / expiry / 15-min bucket, or a >= 0.005 credit-ratio move).
     # Unconditional (not behind credit_tiers): this is pure REPORTING state, it gates nothing, and
     # opportunity counts are exactly as meaningful on a bot with tiering off. `now` is ET.
-    state.raw_polling_evaluations += 1
+    # Stages 2/3 and 3/3 of the advisor's Decision 2 counter split (stage 1/3 is at the top of this
+    # function). We are past the point where a valid candidate spread has been CONSTRUCTED.
+    state.raw_candidate_evaluations += 1
     _cand_credit = exec_credit if exec_credit is not None else order.credit
-    if record_candidate(key=candidate_key(today, expiry, order.short_strike, order.long_strike, now),
-                        ratio=round(_cand_credit / deps.s2b_cfg.wing_width, 4),
+    _cand_key = candidate_key(today, expiry, order.short_strike, order.long_strike, now)
+    if record_candidate(key=_cand_key, ratio=round(_cand_credit / deps.s2b_cfg.wing_width, 4),
                         seen=state.seen_candidate_keys, trading_date=today):
         state.unique_candidate_opportunities += 1
     # Adaptive credit-quality tiering (partner review v2 §3), OPT-IN via deps.features.credit_tiers
@@ -920,9 +933,19 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                       short=order.short_strike, long=order.long_strike,
                                       ratio=ratio_r, bucket15=bucket15):
             hist = state.credit_ratio_history.setdefault(bucket, [])
-            hist.append(ratio_r)
-            state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
+            hist.append(ratio_r)                              # STILL a bare float (advisor Decision 1,
+            state.credit_ratio_history[bucket] = hist[-60:]   # Option B: no persisted-state migration)
             state.credit_obs_last[bucket] = obs
+            # Advisor Decision 1 (Option B): emit the structured audit record to the LOG only. Gated
+            # by the same dedup rule as the append, so the audit trail mirrors the rolling history
+            # one-for-one instead of becoming a per-poll firehose.
+            if deps.trade_log is not None:
+                deps.trade_log(CreditObservation(
+                    timestamp=now, expiry=expiry, dte_bucket=bucket,
+                    short_strike=order.short_strike, long_strike=order.long_strike,
+                    expected_executable_credit=round(credit_for_tier, 4), credit_ratio=ratio_r,
+                    candidate_key=_cand_key,
+                ).log_fields())
         # Post-v2 refinement §1: classify_credit_quality REPLACES the old credit_tier multiplier --
         # four lanes (reject / low_credit_safety / probe / full), returning the size multiplier AND a
         # maximum_quantity (the low-credit lane caps at 1). This is the credit classifier on the

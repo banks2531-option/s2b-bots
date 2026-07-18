@@ -18,6 +18,11 @@ def save_state(state: BotState, path: str) -> None:
         "prev_flow_bias": state.prev_flow_bias,
         "credit_ratio_history": state.credit_ratio_history,
         "credit_obs_last": state.credit_obs_last,
+        # §12 dedup state. The keys are TUPLES (and contain a nested tuple bucket), which JSON has no
+        # representation for -- store as [key_as_list, ratio] pairs and rebuild the tuples on load.
+        "seen_candidate_keys": [[list(k), v] for k, v in state.seen_candidate_keys.items()],
+        "raw_polling_evaluations": state.raw_polling_evaluations,
+        "unique_candidate_opportunities": state.unique_candidate_opportunities,
         "realized_today": state.realized_today,
         "risk_day": state.risk_day,
         "markout_pending": state.markout_pending,
@@ -37,7 +42,17 @@ def load_state(path: str) -> BotState:
     with open(path) as f:
         d = json.load(f)
     positions = [ManagedPosition(**p) for p in d.get("open_positions", [])]
+    # Rebuild the §12 tuple keys, including the nested (hour, minute//15) bucket that JSON flattened
+    # to a list -- candidate_key() produces a tuple bucket, so a list here would never compare equal
+    # and every restart would silently re-count the whole day as new opportunities.
+    seen = {}
+    for k, v in d.get("seen_candidate_keys", []):
+        date, expiry, short, long_, bucket = k
+        seen[(date, expiry, short, long_, tuple(bucket))] = v
     return BotState(open_positions=positions,
+                    seen_candidate_keys=seen,
+                    raw_polling_evaluations=d.get("raw_polling_evaluations", 0),
+                    unique_candidate_opportunities=d.get("unique_candidate_opportunities", 0),
                     halted=d.get("halted", False),
                     halt_reason=d.get("halt_reason", ""),
                     last_entry_date=d.get("last_entry_date", ""),

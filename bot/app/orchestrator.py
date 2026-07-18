@@ -13,6 +13,7 @@ from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPositio
                                   dte_from_expiry)
 from bot.strategy.credit_quality import (dte_bucket, full_size_threshold, _percentile,
                                           should_record_observation, classify_credit_quality,
+                                          candidate_key, record_candidate,
                                           low_credit_safety_pass)
 from bot.strategy.cost_gate import cost_gate_eval
 from bot.portfolio.risk_budget import (size_qty, remaining_stop_risk,
@@ -58,6 +59,18 @@ class BotState:
                                                             # should_record_observation to dedup repeated
                                                             # near-identical candidates within a polling day
                                                             # (partner review v2 item 3 fix)
+    seen_candidate_keys: dict = field(default_factory=dict)  # post-v2 refinement §12: candidate_key ->
+                                                            # last-seen credit ratio (the anchor). A dict
+                                                            # rather than the spec's bare set because the
+                                                            # ">= 0.005 ratio move re-counts" rule needs the
+                                                            # prior ratio per key. Pruned to the current
+                                                            # trading date on each record_candidate call;
+                                                            # round-trips via state_store (tuple keys are
+                                                            # encoded as lists for JSON).
+    raw_polling_evaluations: int = 0                      # §12/§17: EVERY candidate evaluation (diagnostics
+                                                            # only -- "do not use raw polling evaluations in
+                                                            # profitability reports")
+    unique_candidate_opportunities: int = 0               # §12/§17: materially distinct opportunities
     realized_today: float = 0.0                           # sum of realized P&L from closes on `risk_day` (partner review v2 §11)
     risk_day: str = ""                                    # the calendar date `realized_today` applies to
     markout_pending: list = field(default_factory=list)   # persisted MarkoutTracker pending state
@@ -844,6 +857,19 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             # TODO(partner review v2 §4): MAX_QUOTE_AGE_SECONDS staleness enforcement is deferred --
             # OptionQuote/parse_chain doesn't carry a quote timestamp yet. Wire this once quote
             # timestamps are plumbed through parse_chain (a later task).
+    # Post-v2 refinement §12: count this evaluation BEFORE any sizing/credit gate can reject it, so
+    # the opportunity statistics cover every candidate the bot actually looked at (§17 reports
+    # rejections BY gate, which only reconciles if the denominator counts pre-rejection). Two
+    # counters: raw_polling_evaluations (every look) and unique_candidate_opportunities (materially
+    # distinct ones -- new strike pair / expiry / 15-min bucket, or a >= 0.005 credit-ratio move).
+    # Unconditional (not behind credit_tiers): this is pure REPORTING state, it gates nothing, and
+    # opportunity counts are exactly as meaningful on a bot with tiering off. `now` is ET.
+    state.raw_polling_evaluations += 1
+    _cand_credit = exec_credit if exec_credit is not None else order.credit
+    if record_candidate(key=candidate_key(today, expiry, order.short_strike, order.long_strike, now),
+                        ratio=round(_cand_credit / deps.s2b_cfg.wing_width, 4),
+                        seen=state.seen_candidate_keys, trading_date=today):
+        state.unique_candidate_opportunities += 1
     # Adaptive credit-quality tiering (partner review v2 §3), OPT-IN via deps.features.credit_tiers
     # (False = feature OFF -> this entire block is a no-op, so default behavior is byte-identical to
     # before). Sizes off exec_credit (the conservative expected-executable credit computed by the §4

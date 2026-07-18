@@ -13,7 +13,7 @@ from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPositio
                                   dte_from_expiry)
 from bot.strategy.credit_quality import (dte_bucket, full_size_threshold, _percentile,
                                           should_record_observation, classify_credit_quality,
-                                          candidate_key, record_candidate,
+                                          candidate_key, record_candidate, bucket15_of,
                                           low_credit_safety_pass)
 from bot.strategy.cost_gate import cost_gate_eval
 from bot.portfolio.risk_budget import (size_qty, remaining_stop_risk,
@@ -697,8 +697,10 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         follow-up (filled=True carries tp_value/stop_value and drives time-to-TP/time-to-stop) -- the
         reject->fill transition is exactly the filled-vs-rejected comparison §14 exists to measure."""
         try:
-            minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET
-            bucket15 = minutes_since_open // 15
+            # Post-v2 refinement §13 alignment: same clock-quarter-hour window as the §12 candidate
+            # dedup and the credit-history dedup. This block's whole premise is "reusing the item-3
+            # dedup notion", so it must not keep a third, different definition of a 15-minute window.
+            bucket15 = bucket15_of(now)          # `now` is ET
             filled = (reason == "filled")
             key = {"date": today, "expiry": expiry, "short": order.short_strike,
                    "long": order.long_strike, "bucket15": bucket15, "filled": filled}
@@ -905,8 +907,12 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # NOTE: `prior`/`thr` above are computed from the copy captured BEFORE this append -- that
         # ordering is unchanged, so there is still no look-ahead regardless of whether this candidate
         # gets recorded.
-        minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET (see run_entry_cycle docstring)
-        bucket15 = minutes_since_open // 15
+        # Post-v2 refinement §13: the research window is now the SAME one §12's candidate_key uses
+        # (clock quarter-hours, hour-qualified) instead of the old minutes-since-open count, so the
+        # two dedup rules can't drift apart. NOTE: the first tick after deploy sees a bucket15 that
+        # doesn't match the persisted pre-deploy value and records one extra observation -- a
+        # one-off, harmless against the 60-entry window. `now` is ET (see run_entry_cycle docstring).
+        bucket15 = bucket15_of(now)
         ratio_r = round(ratio, 4)   # single rounded value shared by the dedup key, the append, and the anchor
         obs = {"date": today, "expiry": expiry, "short": order.short_strike, "long": order.long_strike,
                "ratio": ratio_r, "bucket15": bucket15}

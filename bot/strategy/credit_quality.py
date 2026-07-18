@@ -149,15 +149,31 @@ def record_candidate(*, key: tuple, ratio: float, seen: dict, trading_date: str 
     return new
 
 
+def bucket15_of(timestamp) -> int:
+    """The 15-minute research window as a single JSON-safe int, identifying exactly the same window
+    as candidate_key's (hour, minute // 15) tuple (post-v2 refinement §13 alignment).
+
+    An int rather than the tuple because this value lives in the JSON-persisted `credit_obs_last` --
+    a tuple would reload as a list and never compare equal again (the same trap handled explicitly
+    for seen_candidate_keys in state_store)."""
+    return timestamp.hour * 4 + timestamp.minute // 15
+
+
 def should_record_observation(last, *, date, expiry, short, long, ratio, bucket15):
     """Record a new adaptive-credit-history observation only when this candidate is materially
     different from the last recorded one for its DTE bucket: new day/expiry/strike, a new 15-minute
     research window, or a credit-ratio move >= 0.5 percentage point. Dedups repeated near-identical
-    observations of the same spread across a polling day (partner review v2 item 3)."""
+    observations of the same spread across a polling day (partner review v2 item 3).
+
+    Post-v2 refinement §13 states this as "new_candidate_key or |ratio move| >= 0.005" -- the first
+    four components below ARE §12's candidate_key minus the bucket, and `bucket15` (via bucket15_of)
+    is now that key's window, so the two dedup rules agree by construction. The ratio comparison
+    delegates to is_new_candidate so there is ONE threshold implementation, including its rounding
+    (a raw float >= was asymmetric: it recorded a +0.005 move but not an identical -0.005 one)."""
     if last is None:
         return True
     if (date, expiry, short, long) != (last["date"], last["expiry"], last["short"], last["long"]):
         return True
     if bucket15 != last["bucket15"]:
         return True
-    return abs(ratio - last["ratio"]) >= 0.005   # 0.5 percentage point
+    return is_new_candidate(key=(), ratio=ratio, seen={(): last["ratio"]})

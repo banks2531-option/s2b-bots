@@ -244,34 +244,52 @@ MONDAY = datetime(2026, 6, 15, 10, 5)   # Monday 10:05, expiry 2026-06-19
 
 
 def test_orchestrator_gap_stress_reduces_qty_when_budget_tight():
-    # credit=0.20, size_qty budgets to 5 (structural-bound; see risk_budget tests' math with a
-    # smaller credit). A very tight gap-stress budget (0.005 * 100_000 = 500) forces a reduction:
-    # per-contract 1.5-ATR loss = (2.0-0.2)*100 = 180 -> qty=2 fits (360 <= 500), qty=3 does not (540 > 500).
+    """Post-v2 refinement §8/§9: gap stress is now an incremental QuantityCap in the min()-of-caps
+    pipeline, NOT the old shrink-loop -- and ENFORCEMENT is always Black-Scholes (spec §9: "do not
+    use intrinsic value alone"), so `gap_stress_model` no longer steers what is enforced (it still
+    steers the OPEN-row gap_stress_* telemetry below). Both live bots run "bs", so this is a
+    no-op for them; see the module docstring note on the flag's reduced scope.
+
+    credit=0.20 on 568/558, spot 575, atr 6.0, empty book. A budget of 0.02*100_000 = 2000 admits
+    exactly 3 contracts: the BS 1.5-ATR incremental is 602.30/contract (vs the intrinsic model's
+    180 -- BS prices the time value, +5 IV points and the stressed close slippage that intrinsic
+    ignores), so floor(2000/602.30) = 3. The flanking scenarios stay loose: gap_1atr incremental
+    492.29 vs 0.10*100_000 = 10000, gap_2atr 701.08 vs 0.04*100_000 = 4000 -> caps 20 and 5."""
     log = []
     state = BotState()
-    # This asserts the exact intrinsic-value shrink numbers below, so it OPTS OUT of the BS reprice
-    # (item 5: gap_stress_model != "bs" -> intrinsic path) to keep the deterministic hand-computed
-    # per-contract math. The BS path is exercised by the dedicated BS orchestrator tests further down.
-    f = S2bFeatures(aggregate_risk_budget=True, max_gap_stress_loss_pct=0.005, gap_stress_model="intrinsic")
+    f = S2bFeatures(aggregate_risk_budget=True, max_gap_stress_loss_pct=0.02,
+                    decision_logging=True)
     d = _deps(features=f, trade_log=lambda rec: log.append(rec))
     state, info = run_entry_cycle(state, d, MONDAY)
     assert info == "filled"
     assert len(state.open_positions) == 1
-    assert state.open_positions[0].qty == 2
-    rec = log[-1]
-    assert rec["event"] == "OPEN"
-    assert rec["gap_stress_1_0"] == pytest.approx(-40.0)
-    assert rec["gap_stress_1_5"] == pytest.approx(360.0)
-    assert rec["gap_stress_2_0"] == pytest.approx(960.0)
+    assert state.open_positions[0].qty == 3
+    dec = next(r for r in log if r.get("event") == "DECISION" and r["decision"] == "filled")
+    assert dec["decision_outcome"] == "allowed_reduced"
+    assert dec["limiting_gate"] == "gap_1_5atr"          # the gap scenario is the binding cap
+    assert dec["final_qty"] == 3
+    assert dec["risk_incremental_per_contract"] == pytest.approx(602.30, abs=0.01)
+    assert dec["risk_limit"] == 2000.0
 
 
 def test_orchestrator_gap_stress_rejects_when_even_one_contract_fails():
+    """A gap budget too tight for even ONE contract still rejects. Post-v2 refinement: gap stress is
+    just another cap, so the returned info string is the unified bare "risk_budget" (no production
+    code keys on the old "gap_stress" string); the SPECIFIC scenario that bound is preserved -- with
+    better attribution than before -- in the logged reason and the `limiting_gate` telemetry."""
+    log = []
     state = BotState()
-    f = S2bFeatures(aggregate_risk_budget=True, max_gap_stress_loss_pct=0.001)
-    d = _deps(features=f)
+    f = S2bFeatures(aggregate_risk_budget=True, max_gap_stress_loss_pct=0.001,
+                    decision_logging=True)
+    d = _deps(features=f, trade_log=lambda rec: log.append(rec))
     state, info = run_entry_cycle(state, d, MONDAY)
-    assert info == "gap_stress"
+    assert info == "risk_budget"
     assert state.open_positions == []
+    dec = next(r for r in log if r.get("event") == "DECISION")
+    assert dec["decision"] == "risk_budget:gap_1_5atr"
+    assert dec["decision_outcome"] == "blocked_zero_capacity"
+    assert dec["limiting_gate"] == "gap_1_5atr"
+    assert dec["final_qty"] == 0
 
 
 def test_orchestrator_foreign_position_raises_gap_stress_total():

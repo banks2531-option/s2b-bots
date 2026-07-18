@@ -65,5 +65,11 @@ class S2bFeatures:
     gap_iv_shocks: tuple = (0.03, 0.05, 0.10)   # absolute IV bumps applied to BOTH legs
     gap_skew_bump: float = 0.03                  # extra IV bump on the SHORT leg (stressed put skew)
     gap_stress_widen: float = 0.25               # bid/ask widening haircut on the stressed close
-    gap_stress_model: str = "bs"                 # "bs" -> Black-Scholes grid; anything else -> intrinsic
+    gap_stress_model: str = "bs"                 # TELEMETRY ONLY: "bs" -> Black-Scholes grid; anything
+                                                  # else -> intrinsic. Post-v2 refinement §9 ("do not use
+                                                  # intrinsic value alone") made gap ENFORCEMENT always-BS
+                                                  # via gap_quantity_caps, so this no longer steers what is
+                                                  # enforced -- only the logged gap_stress_* OPEN-row
+                                                  # numbers. Leave at "bs" so logged == enforced; setting
+                                                  # "intrinsic" makes the LOG understate the real gate.
     gap_fallback_iv: float = 0.20                # usable IV when no per-leg IV is available

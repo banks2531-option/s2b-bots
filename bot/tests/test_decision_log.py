@@ -301,14 +301,20 @@ def test_risk_budget_bound_reject_writes_all_telemetry_to_csv(tmp_path):
     rec = decisions[0]
     # (a) the enriched decision string names the specific binding budget
     assert rec["decision"] == "risk_budget:expiry_stop"
-    # (b) all six risk_budget_* fields survive to the CSV with correct values (CSV -> strings)
+    # (b) Post-v2 refinement Task 5: the quantity-cap pipeline replaced the risk_budget_* telemetry
+    # with the richer risk-sizing set (limiting_gate + requested/final qty + the binding cap's
+    # exposure/limit/remaining/incremental). Same guard, retargeted: these must survive to the CSV,
+    # i.e. they must be present in wiring._DECISION_LOG_FIELDS or extrasaction='ignore' eats them.
     for col, expected in (
-        ("risk_budget_limiting", "expiry_stop"),
-        ("risk_budget_exposure", "2790.0"),
-        ("risk_budget_limit", "3000.0"),
-        ("risk_budget_headroom", "210.0"),
-        ("risk_budget_proposed_qty", "1"),
-        ("risk_budget_permitted_qty", "0"),
+        ("limiting_gate", "expiry_stop"),
+        ("requested_qty", "1"),
+        ("quality_adjusted_qty", "1"),
+        ("final_qty", "0"),
+        ("risk_current_exposure", "2790.0"),
+        ("risk_limit", "3000.0"),
+        ("risk_remaining_capacity", "210.0"),
+        ("risk_incremental_per_contract", "410.0"),
+        ("decision_outcome", "blocked_zero_capacity"),
     ):
         assert col in rec, f"{col} missing from CSV -- silently dropped by extrasaction=ignore"
         assert rec[col] == expected, f"{col}: expected {expected!r}, got {rec[col]!r}"

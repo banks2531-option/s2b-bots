@@ -17,6 +17,9 @@ from bot.strategy.credit_quality import (dte_bucket, full_size_threshold, _perce
                                           CreditObservation,
                                           low_credit_safety_pass)
 from bot.strategy.cost_gate import cost_gate_eval
+from bot.strategy.quote_quality import (spread_quote_age_seconds, calculate_quote_age_seconds,
+                                         quote_freshness_pass, calculate_atm_iv,
+                                         expected_move_to_expiry, expected_move_cushion_of)
 from bot.portfolio.risk_budget import (size_qty, remaining_stop_risk,
                                         planned_stop_loss_per_contract, structural_max_loss_per_contract,
                                         apply_quality_multiplier, budget_quantity_caps,
@@ -650,6 +653,16 @@ def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None,
     return tel
 
 
+def _chain_quote(chain, strike, nearest=False):
+    """The OptionQuote at `strike`, or None. With nearest=True return the closest strike instead of
+    requiring an exact match (used to find the at-the-money leg for the expected-move IV)."""
+    if not chain:
+        return None
+    if nearest:
+        return min(chain, key=lambda q: abs(q.strike - strike))
+    return next((q for q in chain if q.strike == strike), None)
+
+
 def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
     state.entry_cycles_started += 1      # advisor Decision 2, stage 1/3: count the CYCLE itself, before any
@@ -977,15 +990,28 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             #     (package_mid - package_natural) / max(package_mid, 0.01), from the leg quotes;
             #   cushion_atr          -- (spot - short_strike) / atr;
             #   short_delta          -- entry_delta (best-effort chain delta; None => FAIL CLOSED);
-            #   quote_age_seconds    -- 0.0: the chain was fetched THIS synchronous tick, so quotes are
-            #     fresh (the deferred MAX_QUOTE_AGE_SECONDS staleness TODO is about FUTURE staged /
-            #     laddered quotes, not this single-shot fetch);
-            #   expected_move_cushion-- 0.0 (UNPLUMBED: no IV / straddle feed) -> the lane leans on the
-            #     OR branch (short_delta <= 0.30);
+            #   quote_age_seconds    -- advisor Step 1A: the age of the OLDER leg, from the feed's
+            #     exchange quote timestamps. None (unknown) fails closed -- the current time is NEVER
+            #     substituted, since that would make stale cached data read as perfectly fresh;
+            #   expected_move_cushion-- advisor Step 1B: (spot - short_strike) / one-sigma expected
+            #     move to THIS candidate's expiry, from ATM IV on the same expiry. None when IV is
+            #     unavailable, in which case the lane falls back to the OR branch (short_delta<=0.30);
             #   defensive_market_state - regime.trend_regime == "risk_off".
-            # FOLLOW-UP: fully activating this lane needs quote-timestamp + expected-move (IV/straddle)
-            # plumbing; until then a thin-credit candidate can only qualify via the delta OR-branch.
             ttc = cost_gate_eval(credit_for_tier, deps.features)["target_to_cost_ratio"]
+            short_q = _chain_quote(chain, order.short_strike)
+            long_q = _chain_quote(chain, order.long_strike)
+            quote_age = (spread_quote_age_seconds(short_q, long_q, now)
+                         if short_q is not None and long_q is not None else None)
+            # ATM IV on the SAME expiry as the candidate (spec: "use the same expiration"). The chain
+            # this bot parses is puts-only, so the put side supplies the vol -- which the rule
+            # explicitly permits ("use the valid side if only one is available"). Near ATM the
+            # call/put vols are close enough that the put alone is a sound stand-in; if calls are
+            # ever parsed, pass the call IV here and the average takes over automatically.
+            atm_q = _chain_quote(chain, spot, nearest=True)
+            atm_iv = calculate_atm_iv(None, atm_q.iv if atm_q is not None else None)
+            exp_move = expected_move_to_expiry(spot, atm_iv, dte_from_expiry(expiry, today))
+            em_cushion = expected_move_cushion_of(spot=spot, short_strike=order.short_strike,
+                                                   expected_move=exp_move)
             if order.short_bid is not None:
                 pm = package_mid(order.short_bid, order.short_ask, order.long_bid, order.long_ask)
                 pn = package_natural(order.short_bid, order.short_ask, order.long_bid, order.long_ask)
@@ -995,15 +1021,34 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             cushion_atr = (spot - order.short_strike) / atr if atr and atr > 0 else 0.0
             defensive = (regime is not None
                          and getattr(regime, "trend_regime", "unknown") == "risk_off")
-            passed = entry_delta is not None and low_credit_safety_pass(
+            passed = low_credit_safety_pass(
                 target_to_cost_ratio=ttc,
                 package_width_ratio=pkg_width_ratio,
-                quote_age_seconds=0.0,
+                quote_age_seconds=quote_age,
                 cushion_atr=cushion_atr,
-                expected_move_cushion=0.0,
+                expected_move_cushion=em_cushion,
                 short_delta=entry_delta,
                 defensive_market_state=defensive,
             )
+            # Advisor Step 1A: log the freshness inputs so a lane decision is auditable after the
+            # fact -- which leg was stale, and whether the timestamp came from the feed at all.
+            credit_telemetry.update({
+                "lc_short_quote_age": (calculate_quote_age_seconds(short_q, now)
+                                       if short_q is not None else None),
+                "lc_long_quote_age": (calculate_quote_age_seconds(long_q, now)
+                                      if long_q is not None else None),
+                "lc_spread_quote_age": quote_age,
+                "lc_quote_time_source": ("exchange" if (short_q is not None
+                                                        and short_q.exchange_timestamp is not None)
+                                          else "received" if (short_q is not None
+                                                              and short_q.received_timestamp is not None)
+                                          else "none"),
+                "lc_quote_fresh": quote_freshness_pass(quote_age),
+                "lc_atm_iv": atm_iv,
+                "lc_expected_move": exp_move,
+                "lc_expected_move_cushion": em_cushion,
+                "lc_safety_pass": passed,
+            })
             if not passed:
                 decision_outcome_val = DecisionOutcome.BLOCKED_CREDIT_QUALITY.value
                 _log_decision("credit_too_low", spot=spot, atr=atr, expiry=expiry, order=order)

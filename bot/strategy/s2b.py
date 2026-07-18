@@ -15,6 +15,14 @@ class OptionQuote:
     delta: float    # absolute delta of the put (0..1)
     bid: float
     ask: float
+    # Advisor Step 1A/1B. All optional with None defaults so existing positional constructions stay
+    # valid and a feed that cannot supply them degrades to fail-closed rather than breaking.
+    exchange_timestamp: object = None   # datetime | None -- broker/exchange quote time, PREFERRED
+    received_timestamp: object = None   # datetime | None -- local receive time, fallback. Never
+                                         # defaulted to "now": a synthesized timestamp would make
+                                         # stale cached data read as fresh.
+    iv: float = None                    # mid implied vol for this strike, feeds the ATM IV /
+                                         # expected-move calculation
 
 
 @dataclass

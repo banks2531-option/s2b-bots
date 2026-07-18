@@ -2,6 +2,8 @@
 bucket, with a ceiling-clamped adaptive full-size threshold gated on a minimum signal count."""
 from dataclasses import dataclass
 
+from bot.strategy.quote_quality import quote_freshness_pass, MIN_EXPECTED_MOVE_CUSHION
+
 
 # ── Post-v2 refinement §1: credit-quality classification lanes ───────────────────────────────────
 # Credit-as-%-of-wing thresholds (do NOT loosen -- partner "do not loosen yet" list).
@@ -46,13 +48,21 @@ def low_credit_safety_pass(
 ) -> bool:
     """Post-v2 refinement §1. Additional hard gate a low_credit_safety candidate (0.08-0.10 band)
     must clear before it may trade at quarter size. Keyword-only so every call site is explicit and
-    a missing/renamed input can't silently slot into the wrong position."""
+    a missing/renamed input can't silently slot into the wrong position.
+
+    Advisor Step 1: quote_age_seconds and expected_move_cushion are now genuinely plumbed (see
+    bot/strategy/quote_quality.py) and BOTH accept None meaning "could not be determined". None
+    always fails its condition -- an unknown quote age is not fresh, and an uncomputable expected
+    move is not a cushion, leaving the short-delta branch as the only remaining way through the OR.
+    short_delta None likewise fails (no delta, no fallback)."""
     return (
         target_to_cost_ratio >= 4.5
         and package_width_ratio <= 0.20
-        and quote_age_seconds <= 2.0
+        and quote_freshness_pass(quote_age_seconds)
         and cushion_atr >= 1.15
-        and (expected_move_cushion >= 0.90 or short_delta <= 0.30)
+        and ((expected_move_cushion is not None
+              and expected_move_cushion >= MIN_EXPECTED_MOVE_CUSHION)
+             or (short_delta is not None and short_delta <= 0.30))
         and not defensive_market_state
     )
 

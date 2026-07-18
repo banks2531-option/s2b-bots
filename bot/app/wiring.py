@@ -32,7 +32,12 @@ _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_ex
                         # record shares date/expiry/short/long/credit_ratio with the columns already
                         # declared above; only these three are new. Declared here or
                         # extrasaction="ignore" drops the audit trail on the way to disk.
-                        "obs_dte_bucket", "obs_expected_executable_credit", "obs_candidate_key"]
+                        "obs_dte_bucket", "obs_expected_executable_credit", "obs_candidate_key",
+                        # Advisor Step 1A/1B: low-credit lane freshness + expected-move inputs, so
+                        # a lane decision is auditable (which leg was stale, was IV even available).
+                        "lc_short_quote_age", "lc_long_quote_age", "lc_spread_quote_age",
+                        "lc_quote_time_source", "lc_quote_fresh", "lc_atm_iv",
+                        "lc_expected_move", "lc_expected_move_cushion", "lc_safety_pass"]
                                               # spec §10/§11 risk-sizing + decision-outcome telemetry
                                               # (Task 4 declares; Task 5 emits). The risk_budget_*
                                               # fields above stay for back-compat.

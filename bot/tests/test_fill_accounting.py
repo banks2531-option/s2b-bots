@@ -108,6 +108,83 @@ def test_open_spread_live_shaped_leg_array_normalizes_credit_and_contracts():
     assert result.commissions == 0.70 * 2 * 1       # synthetic fallback uses the CONTRACT count
 
 
+def test_fill_reconcile_ledger_emitted_for_live_shaped_order(capsys):
+    """Advisor nextsteps2 section 1: the line a human reconciles against the broker statement.
+
+    It must carry BOTH the derived numbers and the order-level ones we ignored -- the whole claim
+    under validation is that those two order-level fields are wrong on the live broker, and a
+    ledger that omits them cannot demonstrate it."""
+    from bot.app.wiring import build_deps
+    from bot.tests.test_spread_fill import _open_order
+
+    def http(method, path, params=None, data=None):
+        if "/balances" in path:
+            return {"balances": {"total_equity": 20_000.0}}
+        if "/orders" in path and method == "POST":
+            return {"order": {"id": 9001, "status": "ok"}}
+        if "/orders/9001" in path:
+            return {"order": _open_order()}
+        return {}
+
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), features=S2bFeatures())
+    deps.open_spread({"price": 0.90, "quantity[0]": 1})
+    out = capsys.readouterr().out
+
+    assert "FILL_RECONCILE" in out
+    assert "derived_contracts=1" in out          # contracts, not the leg count
+    assert "derived_net=0.9200" in out           # positive magnitude
+    assert "cash_flow=credit" in out
+    assert "balanced=True" in out
+    # the numbers we deliberately did NOT use, carried for side-by-side comparison
+    assert "ignored_order_level_qty=2.0" in out
+    assert "ignored_order_level_px=-0.92" in out
+
+
+def test_fill_reconcile_ledger_silent_for_sandbox_shaped_order(capsys):
+    """No leg array -> nothing was normalized -> there is nothing to reconcile. Emitting a line
+    here would imply the leg reconstruction ran when it did not."""
+    from bot.app.wiring import build_deps
+
+    def http(method, path, params=None, data=None):
+        if "/balances" in path:
+            return {"balances": {"total_equity": 20_000.0}}
+        if "/orders" in path and method == "POST":
+            return {"order": {"id": 7001, "status": "ok"}}
+        if "/orders/7001" in path:
+            return {"order": {"id": 7001, "status": "filled", "avg_fill_price": 0.90}}
+        return {}
+
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), features=S2bFeatures())
+    deps.open_spread({"price": 0.90, "quantity[0]": 1})
+    assert "FILL_RECONCILE" not in capsys.readouterr().out
+
+
+def test_fill_reconcile_ledger_silent_for_unfilled_ladder_rung(capsys):
+    """A still-working ladder rung normalizes to a legitimate zero-fill. Bot B runs both ladders
+    ON, so without this gate one order would emit 6-12 lines, nearly all derived_contracts=0. A
+    ledger you have to filter noise out of is one nobody finishes reading."""
+    from bot.app.wiring import build_deps
+    from bot.tests.test_spread_fill import _open_order
+
+    def http(method, path, params=None, data=None):
+        if "/balances" in path:
+            return {"balances": {"total_equity": 20_000.0}}
+        if "/orders" in path and method == "POST":
+            return {"order": {"id": 9001, "status": "ok"}}
+        if "/orders/9001" in path:
+            order = _open_order(short_qty=0, long_qty=0)
+            order["status"] = "canceled"
+            return {"order": order}
+        return {}
+
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01), features=S2bFeatures())
+    deps.open_spread({"price": 0.90, "quantity[0]": 1})
+    assert "FILL_RECONCILE" not in capsys.readouterr().out
+
+
 def test_open_spread_sandbox_shaped_order_unaffected_by_leg_normalization():
     """Regression guard (advisor nextsteps2 section 1): the sandbox order shape carries no leg
     array, so normalize_spread_fill returns None and _to_execution_result must fall back to

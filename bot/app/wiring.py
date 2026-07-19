@@ -355,6 +355,36 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
             commissions = one_side_commission_per_contract(features) * filled_quantity
             regulatory_fees = 0.0
         oid = order.get("id") if isinstance(order, dict) else None
+        if normalized is not None and normalized.contracts > 0:
+            # Advisor nextsteps2 section 1 validation ledger. Every field needed to reconcile ONE
+            # execution against the broker statement by hand, on one line, INCLUDING the two
+            # order-level numbers we deliberately ignored -- the side-by-side comparison is the
+            # whole point, because the claim under test is precisely that those two fields are
+            # wrong on the live broker. Five clean reconciliations is what gates flipping
+            # actual_fill_accounting back on.
+            #
+            # print() rather than a CSV record: adding a row type to the trade log widens its
+            # fieldnames against an on-disk header, which is exactly what made every telemetry row
+            # unparseable in 0cc635d. This is read by a human once, five times, then never again --
+            # it does not belong in a machine-parsed file whose header is load-bearing.
+            #
+            # Gated on contracts > 0 because a still-working ladder rung normalizes to a legitimate
+            # zero-fill. Bot C runs both ladders OFF (one call per order), but Bot B runs both ON
+            # and would otherwise emit 6-12 lines per order, nearly all derived_contracts=0. A
+            # ledger you have to filter noise out of is one nobody finishes reading.
+            print(f"FILL_RECONCILE order_id={normalized.source_order_id} status={status} "
+                  f"requested_qty={requested_qty} "
+                  f"short_leg_qty={normalized.short_leg_qty} "
+                  f"long_leg_qty={normalized.long_leg_qty} "
+                  f"short_leg_px={normalized.short_leg_price} "
+                  f"long_leg_px={normalized.long_leg_price} "
+                  f"derived_contracts={normalized.contracts} "
+                  f"derived_net={normalized.net_price:.4f} "
+                  f"cash_flow={normalized.cash_flow_type} balanced={normalized.balanced} "
+                  f"ignored_order_level_qty={order.get('exec_quantity')} "
+                  f"ignored_order_level_px={order.get('avg_fill_price')} "
+                  f"submitted_limit={submitted_limit} commissions={commissions} "
+                  f"reg_fees={regulatory_fees}")
         return ExecutionResult(status=status, requested_quantity=requested_qty,
                                filled_quantity=filled_quantity, average_fill_price=average_fill_price,
                                submitted_limit=submitted_limit, commissions=commissions,

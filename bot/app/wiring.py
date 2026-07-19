@@ -102,6 +102,42 @@ def make_markout_logger(path):
     return log
 
 
+def _existing_header(path):
+    """First row of an existing CSV, or None when the file is absent/empty/unreadable."""
+    try:
+        with open(path, newline="") as fh:
+            return next(_csv.reader(fh), None)
+    except OSError:
+        return None
+
+
+def _ensure_header_matches(path, fields):
+    """Return whether `path` may be appended to as-is; rotate it aside first if its header does not
+    describe the columns this logger writes.
+
+    FOUND IN PRODUCTION 2026-07-19: both bots' CSVs carried a 12-column header while writing 63-69
+    field rows, because the header is only written when the file does not exist and both files were
+    created before decision/shadow logging was enabled. Every row since then had unnamed trailing
+    values, so csv.DictReader -- and therefore the §17 funnel report and the whole Bot B validation
+    review -- misparsed them. Telemetry that is written but unreadable is worse than absent: it looks
+    like data.
+
+    Rotating rather than rewriting in place is deliberate: the old rows stay intact in the archive,
+    and a live bot appending to the file is never exposed to a partially-rewritten one."""
+    if not _os.path.exists(path):
+        return False
+    header = _existing_header(path)
+    if header is None:                      # empty file -> treat as new so a header gets written
+        return False
+    if header == list(fields):
+        return True
+    n = 1
+    while _os.path.exists("%s.superseded-%d" % (path, n)):
+        n += 1
+    _os.replace(path, "%s.superseded-%d" % (path, n))
+    return False
+
+
 def make_trade_logger(path, include_cost_columns=False, include_decision_columns=False,
                       include_shadow_columns=False):
     """Return a callable that appends a trade-record dict to a CSV (header written once).
@@ -126,7 +162,7 @@ def make_trade_logger(path, include_cost_columns=False, include_decision_columns
     if include_shadow_columns:
         fields += _SHADOW_LOG_FIELDS
     def log(record):
-        exists = _os.path.exists(path)
+        exists = _ensure_header_matches(path, fields)
         with open(path, "a", newline="") as f:
             w = _csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
             if not exists:

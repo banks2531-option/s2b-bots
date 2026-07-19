@@ -77,11 +77,11 @@ def test_gap_quantity_cap_zero_incremental_imposes_no_constraint():
     unlimited size: the four aggregate budgets still bind (see
     test_a_risk_free_candidate_still_obeys_the_other_caps), so the worst case is that gap stress
     abstains and the other caps size the trade."""
-    from bot.portfolio.gap_stress import gap_quantity_cap, UNCONSTRAINED_QTY
+    from bot.portfolio.gap_stress import gap_quantity_cap
     cap = gap_quantity_cap("gap_1atr", current_book_loss=1000, one_contract_book_loss=1000,
                            loss_limit=5000)
     assert cap.incremental_risk_per_contract == 0.0
-    assert cap.maximum_qty == UNCONSTRAINED_QTY
+    assert cap.maximum_qty is None          # None == abstains, NOT 0 == permits nothing
     assert cap.remaining_capacity == 4000
 
 

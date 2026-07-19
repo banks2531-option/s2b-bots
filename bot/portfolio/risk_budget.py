@@ -75,7 +75,12 @@ class QuantityCap:
     rather than rejecting it outright, and a decision log can name the exact binding gate plus its
     exposure/limit/remaining/incremental figures."""
     name: str
-    maximum_qty: int
+    maximum_qty: int | None   # None == "this gate imposes NO constraint" (advisor botc/botb
+                               # directive). Used when a scenario has zero marginal risk to price, so
+                               # it abstains and the other caps size the trade. Semantically distinct
+                               # from 0 ("this gate permits nothing"), which is what the original
+                               # spec's `else 0` collapsed it into -- inverting the gate so the
+                               # SAFEST candidates were the ones rejected.
     current_exposure: float
     limit: float
     remaining_capacity: float
@@ -341,7 +346,20 @@ def size_to_risk_limits(requested_qty, caps):
             reason="ok",
         )
 
-    limiting_cap = min(caps, key=lambda cap: cap.maximum_qty)
+    # Caps that abstain (maximum_qty None) impose no constraint and are excluded from the min().
+    binding_caps = [cap for cap in caps if cap.maximum_qty is not None]
+    if not binding_caps:
+        return RiskSizingResult(
+            requested_qty=requested_qty,
+            final_qty=requested_qty,
+            allowed=requested_qty > 0,
+            limiting_gate=None,
+            limiting_quantity=None,
+            caps=caps,
+            reason="ok (every cap abstained)",
+        )
+
+    limiting_cap = min(binding_caps, key=lambda cap: cap.maximum_qty)
     final_qty = min(requested_qty, limiting_cap.maximum_qty)
     allowed = final_qty > 0
     return RiskSizingResult(

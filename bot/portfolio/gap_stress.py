@@ -35,11 +35,6 @@ STRESS_SCENARIOS = [
 # Extra debit-to-close slippage assumed when closing INTO a stressed/gapping market (spec §9).
 STRESSED_CLOSE_SLIPPAGE = 0.10
 
-# Sentinel for "this gate imposes no quantity constraint". Used when a candidate's marginal stressed
-# loss is zero or negative, i.e. it cannot worsen the book's gap position. Large enough never to be
-# the binding cap in the min()-of-caps sizing, finite so it stays a plain int and still reports
-# honestly in telemetry (rather than an inf that would poison arithmetic downstream).
-UNCONSTRAINED_QTY = 1_000_000
 
 # Per-scenario budget-pct feature-field names, in scenario order (1.0/1.5/2.0 ATR). The 1.5-ATR
 # scenario keeps the original max_gap_stress_loss_pct; the flanking scenarios use the new fields.
@@ -99,7 +94,14 @@ def stressed_spread_loss_bs_detail(short_strike, long_strike, credit, qty, spot,
     if not (short_strike > long_strike):
         raise ValueError("gap stress: bull put spread requires short_strike > long_strike, got "
                          f"{short_strike}/{long_strike}")
-    T = max(dte, 0) / 365.0
+    # Advisor directive (botbnextsteps): ZERO time to expiry is a legitimate state (expiry day) and
+    # prices at intrinsic; only NEGATIVE time is an error. `dte` is calendar days here, so the sign
+    # check happens before the /365 conversion.
+    if dte is None:
+        raise ValueError("gap stress: dte cannot be None")
+    if dte < 0:
+        raise ValueError(f"gap stress: time_to_expiry_years cannot be negative, got dte={dte}")
+    T = dte / 365.0
     S = spot - drop_atr * atr
     if not (S > 0):
         raise ValueError(f"gap stress: shocked spot must be positive, got {S} "
@@ -215,12 +217,12 @@ def gap_quantity_cap(scenario_name, current_book_loss, one_contract_book_loss, l
         # candidates -- the ones that cannot lose money in the stress scenario -- were the ones gap
         # stress rejected outright. Verified reachable: a 520/510 spread at spot 575 with a $2.00
         # credit returned maximum_qty 0 from all three scenarios.
-        qty = UNCONSTRAINED_QTY if current_book_loss <= loss_limit else 0
+        qty = None if current_book_loss <= loss_limit else 0
     else:
         qty = int(remaining // incremental)
     return QuantityCap(
         name=scenario_name,
-        maximum_qty=max(0, qty),
+        maximum_qty=(None if qty is None else max(0, qty)),
         current_exposure=current_book_loss,
         limit=loss_limit,
         remaining_capacity=remaining,
@@ -304,8 +306,13 @@ def gap_model_comparison(open_positions, candidate, spot, atr, f, risk_equity,
         "intrinsic_current_book_1_5": round(intr_book, 2),
         "bs_incremental_1_5": round(bs_cap.incremental_risk_per_contract, 2),
         "intrinsic_incremental_1_5": round(intr_cap.incremental_risk_per_contract, 2),
+        # An abstaining cap (maximum_qty None) means "no constraint from this scenario". Reported as
+        # None rather than coerced to a number, so a reader cannot mistake "unconstrained" for a
+        # literal permitted quantity; the difference is only meaningful when BOTH models bound.
         "bs_qty_1_5": bs_cap.maximum_qty,
         "intrinsic_qty_1_5": intr_cap.maximum_qty,
-        "qty_difference_1_5": intr_cap.maximum_qty - bs_cap.maximum_qty,
-        "bs_zeroed_the_candidate": bs_cap.maximum_qty == 0 and intr_cap.maximum_qty > 0,
+        "qty_difference_1_5": (None if (bs_cap.maximum_qty is None or intr_cap.maximum_qty is None)
+                               else intr_cap.maximum_qty - bs_cap.maximum_qty),
+        "bs_zeroed_the_candidate": (bs_cap.maximum_qty == 0
+                                    and (intr_cap.maximum_qty is None or intr_cap.maximum_qty > 0)),
     }

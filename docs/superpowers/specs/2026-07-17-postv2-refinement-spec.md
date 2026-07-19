@@ -108,7 +108,7 @@ from dataclasses import dataclass
 @dataclass
 class QuantityCap:
     name: str
-    maximum_qty: int
+    maximum_qty: int | None   # AMENDED 2026-07-19 (advisor): None == "no constraint from this gate"
 
     current_exposure: float
     limit: float
@@ -159,7 +159,7 @@ def quantity_cap_from_budget(
     remaining = max(0.0, limit - current_exposure)
 
     if incremental_risk_per_contract <= 0:
-        qty = 0
+        qty = no_constraint          # AMENDED 2026-07-19 (advisor) -- was `0`
     else:
         qty = int(
             remaining // incremental_risk_per_contract
@@ -167,7 +167,7 @@ def quantity_cap_from_budget(
 
     return QuantityCap(
         name=name,
-        maximum_qty=max(0, qty),
+        maximum_qty=(None if qty is no_constraint else max(0, qty)),
         current_exposure=current_exposure,
         limit=limit,
         remaining_capacity=remaining,
@@ -240,6 +240,17 @@ structural_cap = quantity_cap_from_budget(
 Keep:
 MAX_TOTAL_STRUCTURAL_RISK_PCT = 0.15
 Do not derive this limit from `max_open`.
+> **AMENDMENT 2026-07-19 (advisor directive `botbnextsteps.txt`).** The original text above read
+> `qty = 0` when `incremental_risk_per_contract <= 0`. That inverted the gate: a candidate whose
+> marginal stressed loss is zero -- i.e. one that CANNOT lose money in the scenario -- was assigned
+> zero permitted contracts and rejected. Verified in practice: a deep-OTM 520/510 spread at spot 575
+> with a $2.00 credit returned `maximum_qty 0` from all three gap scenarios.
+>
+> The correct rule is **zero marginal risk means the gate ABSTAINS**, represented as
+> `maximum_qty = None`, and the reducer excludes abstaining caps from the `min()`. The aggregate
+> stop-risk and structural-risk caps still size the trade, so this is not a licence for unlimited
+> quantity.
+
 8. Convert gap stress into an incremental quantity model
 This is one of the most important changes.
 The gap engine should calculate two values:

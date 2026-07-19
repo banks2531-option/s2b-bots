@@ -230,12 +230,11 @@ def test_risk_free_candidate_is_not_blocked_by_gap_stress():
     Before this fix every scenario returned maximum_qty 0, meaning the gate rejected precisely the
     candidates that cannot lose money in the stress scenario -- the meaning of the cap was inverted.
     """
-    from bot.portfolio.gap_stress import UNCONSTRAINED_QTY
     f = S2bFeatures()
     caps = gap_quantity_caps([], _pos(short=520.0, long_=510.0, credit=2.0), SPOT, ATR, f,
                              100_000.0, iv_fn=IV, today=TODAY)
     assert all(c.incremental_risk_per_contract == 0.0 for c in caps)
-    assert all(c.maximum_qty == UNCONSTRAINED_QTY for c in caps)
+    assert all(c.maximum_qty is None for c in caps)
 
 
 def test_zero_marginal_loss_still_blocks_when_the_book_is_already_over_its_limit():
@@ -249,9 +248,50 @@ def test_zero_marginal_loss_still_blocks_when_the_book_is_already_over_its_limit
 def test_a_risk_free_candidate_still_obeys_the_other_caps():
     """The sentinel must never become the binding cap -- the aggregate budgets still size the trade."""
     from bot.portfolio.risk_budget import size_to_risk_limits, QuantityCap
-    from bot.portfolio.gap_stress import UNCONSTRAINED_QTY
     caps = [QuantityCap("expiry_stop", 4, 100.0, 200.0, 100.0, 25.0),
-            QuantityCap("gap_1_5atr", UNCONSTRAINED_QTY, 0.0, 6000.0, 6000.0, 0.0)]
+            QuantityCap("gap_1_5atr", None, 0.0, 6000.0, 6000.0, 0.0)]
     result = size_to_risk_limits(10, caps)
     assert result.final_qty == 4
     assert result.limiting_gate == "expiry_stop"
+
+
+# ── the advisor's named tests (botbnextsteps decision 1), verbatim intent ────────────────────────
+
+def test_zero_incremental_gap_risk_does_not_block_candidate():
+    from bot.portfolio.gap_stress import gap_quantity_cap
+    cap = gap_quantity_cap(scenario_name="gap_2atr", current_book_loss=0.0,
+                           one_contract_book_loss=0.0, loss_limit=500.0)
+    assert cap.maximum_qty is None
+
+
+def test_zero_gap_risk_does_not_override_structural_cap():
+    from bot.portfolio.risk_budget import QuantityCap, size_to_risk_limits
+    caps = [
+        QuantityCap(name="gap_2atr", maximum_qty=None, current_exposure=0.0, limit=500.0,
+                    remaining_capacity=500.0, incremental_risk_per_contract=0.0),
+        QuantityCap(name="total_structural", maximum_qty=2, current_exposure=1000.0, limit=3000.0,
+                    remaining_capacity=2000.0, incremental_risk_per_contract=900.0),
+    ]
+    result = size_to_risk_limits(requested_qty=5, caps=caps)
+    assert result.final_qty == 2
+    assert result.limiting_gate == "total_structural"
+
+
+# ── decision 2: zero time is legitimate, negative time is not ───────────────────────────────────
+
+def test_zero_time_prices_at_intrinsic_value():
+    """At T=0 every BS cell collapses to intrinsic, so the grid's worst cell is just the intrinsic
+    spread -- then the stressed-close widen haircut still applies on top (it models the bid/ask you
+    would actually pay to close into a gapping market, which does not vanish at expiry)."""
+    d = _detail(dte=0, drop_atr=1.5)
+    assert d["time_to_expiry_years"] == 0.0
+    s = d["scenario_spot"]
+    intrinsic = max(0.0, 568.0 - s) - max(0.0, 558.0 - s)
+    assert intrinsic == pytest.approx(2.0)
+    widened = intrinsic * (1.0 + S2bFeatures().gap_stress_widen)
+    assert d["spread_close_debit"] == pytest.approx(widened, abs=1e-9)
+
+
+def test_negative_time_is_rejected():
+    with pytest.raises(ValueError, match="cannot be negative"):
+        _detail(dte=-1)

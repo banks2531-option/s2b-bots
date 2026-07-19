@@ -75,6 +75,66 @@ def test_open_spread_falls_back_to_submitted_limit_and_requested_qty_when_broker
     assert result.commissions == 0.65 * 2 * 3  # default commission_per_contract_per_leg_per_side = 0.65
 
 
+def test_open_spread_live_shaped_leg_array_normalizes_credit_and_contracts():
+    """Live-shaped order: order-level avg_fill_price is NEGATIVE (-0.92) and exec_quantity counts
+    LEGS (2.0) for a 1-contract vertical -- both poisonous if read directly (advisor nextsteps2
+    section 1). _to_execution_result must prefer the leg array and report a POSITIVE credit and
+    the CONTRACT count, not the leg count."""
+    from bot.app.wiring import build_deps
+    from bot.tests.test_spread_fill import _open_order
+
+    def http(method, path, params=None, data=None):
+        if "/balances" in path:
+            return {"balances": {"total_equity": 20_000.0}}
+        if "/orders" in path and method == "POST":
+            return {"order": {"id": 9001, "status": "ok"}}
+        if "/orders/9001" in path:
+            # live-shaped: leg array with sell_to_open 1.55 / buy_to_open 0.63
+            return {"order": _open_order()}
+        return {}
+
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01),
+                      features=S2bFeatures(commission_per_contract_per_leg_per_side=0.70))
+    result = deps.open_spread({"price": 0.90, "quantity[0]": 1})
+    assert isinstance(result, ExecutionResult)
+    assert result.average_fill_price == 0.92       # POSITIVE credit (1.55 - 0.63), not -0.92
+    assert result.filled_quantity == 1              # contracts, not the leg count (2.0)
+    assert result.normalized_fill is not None
+    assert result.legs_balanced is True
+    assert result.commissions == 0.70 * 2 * 1       # synthetic fallback uses the CONTRACT count
+
+
+def test_open_spread_sandbox_shaped_order_unaffected_by_leg_normalization():
+    """Regression guard (advisor nextsteps2 section 1): the sandbox order shape carries no leg
+    array, so normalize_spread_fill returns None and _to_execution_result must fall back to
+    EXACTLY the pre-existing order-level behaviour -- same filled_quantity, same
+    average_fill_price, same commissions as before this change. This is the same order shape as
+    test_open_spread_returns_execution_result_with_fill_fields above."""
+    from bot.app.wiring import build_deps
+
+    def http(method, path, params=None, data=None):
+        if "/balances" in path:
+            return {"balances": {"total_equity": 20_000.0}}
+        if "/orders" in path and method == "POST":
+            return {"order": {"id": 555, "status": "ok"}}
+        if "/orders/555" in path:
+            # sandbox: reports a fill price + quantity but NEVER commissions/fees, and NO leg array
+            return {"order": {"id": 555, "status": "filled",
+                              "avg_fill_price": 1.65, "exec_quantity": 2}}
+        return {}
+
+    deps = build_deps(http, account_id="ABC", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
+                      get_vix_regime=lambda: (0.5, 0.01),
+                      features=S2bFeatures(commission_per_contract_per_leg_per_side=0.70))
+    result = deps.open_spread({"price": 1.70, "quantity[0]": 2})
+    assert result.filled_quantity == 2
+    assert result.average_fill_price == 1.65
+    assert result.commissions == 0.70 * 2 * 2
+    assert result.normalized_fill is None
+    assert result.legs_balanced is True
+
+
 def test_open_and_close_synthetic_commissions_sum_to_round_trip_cross_check():
     # Cross-check tying wiring's synthetic per-order commission to the cost-gate model: an OPEN plus
     # its matching CLOSE (each = one side = 2 legs) must sum to EXACTLY the cost gate's

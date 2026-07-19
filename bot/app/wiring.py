@@ -191,6 +191,7 @@ def runner(state, deps, now_fn, sleep_fn, poll_s, ticks, tick_fn=tick, state_pat
 from bot.broker.tradier import TradierClient, BrokerError
 from bot.broker.submit import submit_and_verify, submit_entry_ladder, submit_close_ladder
 from bot.broker.order_state import ExecutionResult, OrderState, map_broker_status, TERMINAL
+from bot.broker.spread_fill import normalize_spread_fill
 from bot.strategy.manage import spread_value_mid, dte_from_expiry, build_close_payload, ExitAction
 from bot.strategy.s2b import OptionQuote
 from bot.strategy.execution_price import (package_mid, expected_executable_credit, quotes_valid,
@@ -315,17 +316,35 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
 
     def _to_execution_result(state, order, payload):
         """Build an ExecutionResult (spec §8) from a terminal OrderState + the raw Tradier order.
+
+        PREFERS leg-level reconstruction (bot/broker/spread_fill.py) over the order-level
+        `exec_quantity`/`avg_fill_price` fields, which are unusable against the LIVE broker: it
+        reports a credit spread's price as NEGATIVE and its quantity as a LEG COUNT. When the
+        payload carries no readable leg array -- always true on the sandbox -- falls back to the
+        previous order-level behaviour, so Bot B's accounting is byte-identical to before.
+
         Falls back to the requested/submitted values whenever the broker doesn't report an actual
-        fill (always true against the sandbox), and synthesizes commissions when the broker
-        reports none (sandbox never charges/reports fees)."""
+        fill, and synthesizes commissions when the broker reports none (sandbox never charges)."""
         status = state.value
         requested_qty = int(payload.get("quantity[0]", 0) or 0)
         submitted_limit = payload.get("price")
-        raw_filled_qty = order.get("exec_quantity") if isinstance(order, dict) else None
-        filled_quantity = (int(raw_filled_qty) if raw_filled_qty is not None
-                           else (requested_qty if status == "filled" else 0))
-        raw_fill_price = order.get("avg_fill_price") if isinstance(order, dict) else None
-        average_fill_price = float(raw_fill_price) if raw_fill_price is not None else submitted_limit
+
+        normalized = normalize_spread_fill(order)
+        if normalized is not None:
+            filled_quantity = normalized.contracts
+            # net_price is a positive MAGNITUDE; cash_flow_type carries the direction. Callers
+            # account a credit as a positive number, which is the convention order.credit uses.
+            average_fill_price = normalized.net_price
+            legs_balanced = normalized.balanced
+        else:
+            raw_filled_qty = order.get("exec_quantity") if isinstance(order, dict) else None
+            filled_quantity = (int(raw_filled_qty) if raw_filled_qty is not None
+                               else (requested_qty if status == "filled" else 0))
+            raw_fill_price = order.get("avg_fill_price") if isinstance(order, dict) else None
+            average_fill_price = (float(raw_fill_price) if raw_fill_price is not None
+                                  else submitted_limit)
+            legs_balanced = True
+
         raw_commission = order.get("commission") if isinstance(order, dict) else None
         raw_reg_fees = order.get("regulatory_fees") if isinstance(order, dict) else None
         if raw_commission is not None or raw_reg_fees is not None:  # broker reported at least one field
@@ -340,7 +359,8 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                                filled_quantity=filled_quantity, average_fill_price=average_fill_price,
                                submitted_limit=submitted_limit, commissions=commissions,
                                regulatory_fees=regulatory_fees,
-                               order_id=(str(oid) if oid is not None else None))
+                               order_id=(str(oid) if oid is not None else None),
+                               normalized_fill=normalized, legs_balanced=legs_balanced)
 
     def _open_spread_ladder(payload):
         """Midpoint->natural entry limit ladder (partner spec §6): start at the package midpoint,

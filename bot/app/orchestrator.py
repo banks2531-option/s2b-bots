@@ -24,7 +24,7 @@ from bot.portfolio.risk_budget import (size_qty, remaining_stop_risk,
                                         planned_stop_loss_per_contract, structural_max_loss_per_contract,
                                         apply_quality_multiplier, budget_quantity_caps,
                                         size_to_risk_limits, classify_outcome, DecisionOutcome)
-from bot.portfolio.gap_stress import gap_stress_losses, gap_quantity_caps
+from bot.portfolio.gap_stress import gap_stress_losses, gap_quantity_caps, gap_model_comparison
 from bot.portfolio import exposure
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
@@ -689,6 +689,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                     # Task 5 retired its population (the quantity-cap pipeline emits
                                     # risk_sizing_telemetry instead); the fields stay declared in
                                     # wiring._DECISION_LOG_FIELDS for CSV back-compat but go unfilled.
+    gap_comparison_telemetry = None  # Advisor Step 2B: intrinsic-vs-BS gap comparison, populated only
+                                      # when log_intrinsic_gap_comparison is on (Bot B validation).
     risk_sizing_telemetry = None   # Task 5 (§10/§11): the quantity-cap sizing outcome -- limiting_gate
                                     # + requested/quality-adjusted/final qty + the binding cap's
                                     # exposure/limit/remaining/incremental; set once the sizing runs.
@@ -780,6 +782,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             rec.update(risk_budget_telemetry)
         if risk_sizing_telemetry is not None:   # Task 5: quantity-cap sizing outcome + binding gate
             rec.update(risk_sizing_telemetry)
+        if gap_comparison_telemetry is not None:   # Step 2B: intrinsic-vs-BS gap comparison
+            rec.update(gap_comparison_telemetry)
         if decision_outcome_val is not None:    # Task 5: §11 decision-outcome label
             rec["decision_outcome"] = decision_outcome_val
         rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order,
@@ -1136,6 +1140,14 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                         iv_fn=iv_fn, today=today))
         else:
             caps = []
+        # Advisor Step 2B: during Bot B validation, also compute the INTRINSIC gap numbers and log
+        # them beside the enforced Black-Scholes ones, so the model change is measured rather than
+        # argued about. Comparison ONLY -- nothing here feeds a cap, and `caps` above is already
+        # fixed by this point. Off by default; no other bot pays the cost.
+        if deps.features.log_intrinsic_gap_comparison and quality_qty > 0:
+            gap_comparison_telemetry = gap_model_comparison(
+                gap_book_open, candidate_view, spot, atr, deps.features, req,
+                iv_fn=iv_fn, today=today)
         result = size_to_risk_limits(quality_qty, caps)
         final_qty = result.final_qty
         # Telemetry (spec §10/§11): name the binding-or-tightest cap and carry its exposure numbers.

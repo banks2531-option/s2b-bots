@@ -37,7 +37,12 @@ _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_ex
                         # a lane decision is auditable (which leg was stale, was IV even available).
                         "lc_short_quote_age", "lc_long_quote_age", "lc_spread_quote_age",
                         "lc_quote_time_source", "lc_quote_fresh", "lc_atm_iv",
-                        "lc_expected_move", "lc_expected_move_cushion", "lc_safety_pass"]
+                        "lc_expected_move", "lc_expected_move_cushion", "lc_safety_pass",
+                        # Advisor Step 2B: intrinsic-vs-Black-Scholes gap comparison (Bot B only).
+                        "enforced_model", "gap_loss_limit", "bs_current_book_1_5",
+                        "intrinsic_current_book_1_5", "bs_incremental_1_5",
+                        "intrinsic_incremental_1_5", "bs_qty_1_5", "intrinsic_qty_1_5",
+                        "qty_difference_1_5", "bs_zeroed_the_candidate"]
                                               # spec §10/§11 risk-sizing + decision-outcome telemetry
                                               # (Task 4 declares; Task 5 emits). The risk_budget_*
                                               # fields above stay for back-compat.

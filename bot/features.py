@@ -65,11 +65,40 @@ class S2bFeatures:
     gap_iv_shocks: tuple = (0.03, 0.05, 0.10)   # absolute IV bumps applied to BOTH legs
     gap_skew_bump: float = 0.03                  # extra IV bump on the SHORT leg (stressed put skew)
     gap_stress_widen: float = 0.25               # bid/ask widening haircut on the stressed close
-    gap_stress_model: str = "bs"                 # TELEMETRY ONLY: "bs" -> Black-Scholes grid; anything
-                                                  # else -> intrinsic. Post-v2 refinement §9 ("do not use
-                                                  # intrinsic value alone") made gap ENFORCEMENT always-BS
-                                                  # via gap_quantity_caps, so this no longer steers what is
-                                                  # enforced -- only the logged gap_stress_* OPEN-row
-                                                  # numbers. Leave at "bs" so logged == enforced; setting
-                                                  # "intrinsic" makes the LOG understate the real gate.
+    # Advisor Step 2A: the old `gap_stress_model` flag was RETIRED. It read as though it chose the
+    # enforcement model, but post-v2 refinement §9 ("do not use intrinsic value alone") made gap
+    # enforcement unconditionally Black-Scholes -- so setting it to "intrinsic" silently gave you BS
+    # enforcement with understating logs. A setting that appears to control risk but does not is worse
+    # than no setting. It is replaced by an explicit pair:
+    gap_stress_enforcement_model: str = "black_scholes"   # validated at startup; see
+                                                           # validate_gap_stress_config below
+    log_intrinsic_gap_comparison: bool = False   # Step 2B: also compute the INTRINSIC numbers and log
+                                                  # them beside the enforced BS ones. Comparison only --
+                                                  # never enforced. ON for Bot B during validation,
+                                                  # off by default so no other bot pays the cost.
     gap_fallback_iv: float = 0.20                # usable IV when no per-leg IV is available
+
+
+class ConfigurationError(Exception):
+    """Raised at startup when a configuration value would put the bot in an unsafe or
+    self-contradictory state. Fatal by design: better to refuse to start than to trade on a
+    misunderstood risk setting."""
+
+
+def validate_gap_stress_config(f) -> None:
+    """Advisor Step 2A: fail fast at startup unless gap-stress enforcement is Black-Scholes.
+
+    Spec §9 forbids enforcing gap stress on intrinsic value alone -- the intrinsic model ignores time
+    value, IV expansion, skew and gamma, and so materially UNDERSTATES the stressed loss. There is no
+    supported production configuration in which anything else enforces, so this is a hard error
+    rather than a warning. Also rejects the RETIRED `gap_stress_model` flag outright: a leftover in a
+    config file would otherwise sit there looking meaningful while controlling nothing."""
+    if getattr(f, "gap_stress_enforcement_model", None) != "black_scholes":
+        raise ConfigurationError(
+            "Production gap-stress enforcement must use Black-Scholes; got "
+            f"{getattr(f, 'gap_stress_enforcement_model', None)!r}.")
+    if hasattr(f, "gap_stress_model"):
+        raise ConfigurationError(
+            "`gap_stress_model` was retired (advisor Step 2A): it appeared to select the gap-stress "
+            "ENFORCEMENT model but only ever affected logging. Use `gap_stress_enforcement_model` "
+            "(enforcement, must be 'black_scholes') and `log_intrinsic_gap_comparison` (logging).")

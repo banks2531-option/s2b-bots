@@ -63,13 +63,25 @@ def test_gap_gate_uses_incremental_candidate_loss():
     assert cap.maximum_qty == 2
 
 
-def test_gap_quantity_cap_zero_incremental_gives_zero_qty():
-    from bot.portfolio.gap_stress import gap_quantity_cap
-    # candidate adds no stressed loss (e.g. deep OTM after shock) -> incremental 0 -> qty 0 per spec
+def test_gap_quantity_cap_zero_incremental_imposes_no_constraint():
+    """DELIBERATE DEVIATION from spec §8, which says `qty = floor(remaining/incremental) when
+    incremental > 0 else 0`.
+
+    Taken literally, that rejects every candidate that adds NO stressed loss -- i.e. the gate blocks
+    precisely the spreads that cannot lose money in the stress scenario (verified: a deep-OTM 520/510
+    at spot 575 with a $2.00 credit returned maximum_qty 0 from all three scenarios). The `else 0`
+    reads as a safe-looking guard against dividing by zero rather than a considered decision about
+    risk-free candidates, and its literal effect is the opposite of the gate's purpose.
+
+    So zero marginal risk now means "this gate imposes no constraint". It is NOT a licence to trade
+    unlimited size: the four aggregate budgets still bind (see
+    test_a_risk_free_candidate_still_obeys_the_other_caps), so the worst case is that gap stress
+    abstains and the other caps size the trade."""
+    from bot.portfolio.gap_stress import gap_quantity_cap, UNCONSTRAINED_QTY
     cap = gap_quantity_cap("gap_1atr", current_book_loss=1000, one_contract_book_loss=1000,
                            loss_limit=5000)
     assert cap.incremental_risk_per_contract == 0.0
-    assert cap.maximum_qty == 0
+    assert cap.maximum_qty == UNCONSTRAINED_QTY
     assert cap.remaining_capacity == 4000
 
 
@@ -388,9 +400,12 @@ def test_gap_stress_losses_intrinsic_when_params_omitted_unchanged():
             stressed_spread_loss(568.0, 558.0, 2.0, 1, spot, atr, d, wing)
             + stressed_spread_loss(568.0, 558.0, 0.5, 2, spot, atr, d, wing), 2)
     assert gap_stress_losses(positions, spot, atr, wing) == expected
-    f = S2bFeatures(gap_stress_model="intrinsic")
+    # Advisor Step 2A: the model is now an explicit argument, not a config read. Asking for
+    # intrinsic explicitly (the Step 2B comparison path) yields the same intrinsic numbers even with
+    # f/iv_fn/today all supplied.
     assert gap_stress_losses(positions, spot, atr, wing, today="2026-07-09",
-                             iv_fn=lambda p: (0.2, 0.2), f=f) == expected
+                             iv_fn=lambda p: (0.2, 0.2), f=S2bFeatures(),
+                             model="intrinsic") == expected
 
 
 def test_gap_stress_bs_foreign_position_no_iv_uses_fallback_and_is_finite():
@@ -410,20 +425,21 @@ def test_orchestrator_bs_gap_stress_logged_equals_enforced_and_exceeds_intrinsic
     # (c) logged == enforced under BS: the §12 DECISION agg_gap_stress_1_5 equals the §10 OPEN
     # gap_stress_1_5 on the BS path (all three call sites share one iv_fn/today/features), AND the BS
     # loss exceeds the intrinsic loss for the same scenario (proving BS is actually the active model).
-    def _run(model):
-        log = []
-        state = BotState()
-        f = S2bFeatures(aggregate_risk_budget=True, decision_logging=True,
-                        max_gap_stress_loss_pct=1.0, gap_stress_model=model)
-        d = _deps(features=f, trade_log=lambda rec: log.append(rec))
-        state, info = run_entry_cycle(state, d, MONDAY)
-        assert info == "filled"
-        decision = next(r for r in log if r["event"] == "DECISION" and r["decision"] == "filled")
-        open_rec = next(r for r in log if r["event"] == "OPEN")
-        assert decision["agg_gap_stress_1_5"] == pytest.approx(open_rec["gap_stress_1_5"])
-        return open_rec["gap_stress_1_5"]
-    bs_loss = _run("bs")
-    intrinsic_loss = _run("intrinsic")
+    # Advisor Step 2A: the orchestrator no longer has an intrinsic ENFORCEMENT mode to select -- BS is
+    # unconditional -- so the comparison arm now calls gap_stress_losses(model="intrinsic") directly,
+    # which is exactly what the Step 2B comparison logging does.
+    log = []
+    f = S2bFeatures(aggregate_risk_budget=True, decision_logging=True, max_gap_stress_loss_pct=1.0)
+    d = _deps(features=f, trade_log=lambda rec: log.append(rec))
+    state, info = run_entry_cycle(BotState(), d, MONDAY)
+    assert info == "filled"
+    decision = next(r for r in log if r["event"] == "DECISION" and r["decision"] == "filled")
+    open_rec = next(r for r in log if r["event"] == "OPEN")
+    assert decision["agg_gap_stress_1_5"] == pytest.approx(open_rec["gap_stress_1_5"])
+    bs_loss = open_rec["gap_stress_1_5"]
+
+    opened = state.open_positions[-1]
+    intrinsic_loss = gap_stress_losses([opened], 575.0, 6.0, 10.0, model="intrinsic")[1.5]
     assert bs_loss > intrinsic_loss
 
 

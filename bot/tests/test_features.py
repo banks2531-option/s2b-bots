@@ -86,8 +86,12 @@ def test_risk_classification_defaults_to_unclassified():
 
 def test_bot_c_declares_itself_an_aggressive_live_pilot():
     """Advisor nextsteps2 section 2: 'If immediate live trading remains the priority, retain the
-    current one-contract configuration but classify it accurately.' The classification is a
-    config value, not a comment, so it appears in decision logs alongside every trade."""
+    current one-contract configuration but classify it accurately.'
+
+    The classification is a config value rather than a comment so it sits with the numbers it
+    describes and cannot drift out of sync with them. Nothing reads it -- it is documentation
+    under test, which is the point: this test fails if someone quietly relabels Bot C as
+    something tamer than an aggressive pilot without changing its actual sizing."""
     from bot.app.run_s2b_live import LIVE_FEATURES
     assert LIVE_FEATURES.risk_classification == "AGGRESSIVE_LIVE_PILOT"
     assert LIVE_FEATURES.min_equity_to_open == 540.0

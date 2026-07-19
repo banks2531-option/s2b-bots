@@ -117,11 +117,18 @@ class S2bFeatures:
                                        # wing is >21% of equity) and 4500 for normal operation;
                                        # Bot C runs 540 by operator decision so the live pilot can
                                        # keep collecting data at its current ~$842.
-    risk_classification: str = "UNCLASSIFIED"   # honest label carried into decision logs.
+    risk_classification: str = "UNCLASSIFIED"   # honest label on the config itself.
                                                  # "AGGRESSIVE_LIVE_PILOT" for Bot C: one $5 wing
                                                  # is ~50% of its account. The advisor's point is
                                                  # that no software setting makes that "low risk",
                                                  # so the config should not imply otherwise.
+                                                 # NOT read by anything -- it is documentation that
+                                                 # lives with the values it describes, so it cannot
+                                                 # drift out of sync the way a comment in a wrapper
+                                                 # can. Deliberately NOT wired into _log_decision:
+                                                 # that path enumerates _DECISION_LOG_FIELDS, and a
+                                                 # header/field mismatch there is what previously
+                                                 # made every telemetry row unparseable.
 
 
 class ConfigurationError(Exception):

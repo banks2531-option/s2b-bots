@@ -1,18 +1,28 @@
 """S2b bot — LIVE small-account variant (real money), ALL-DAYS.
 
-Same S2b bull-put-spread core as Bot B (all-days), geometry + sizing calibrated for a tiny
-real-money account (~$400) that cannot margin a standard $10-wide spread:
-  - NARROW WING ($1): max loss ~$85/contract instead of ~$863, so a contract fits at the lowest
-    feasible per-trade risk (~21%).
-  - ALL weekdays (Mon-Fri), up to 3 concurrent positions. ($402 buying power / ~$85 margin per
-    spread caps the feasible book at ~4; 3 keeps a reserve. Bot B's 5 won't fit a $400 account.)
-  - risk caps KEPT INTACT; base_risk_pct is raised only so the indivisible 1-contract minimum
-    (already ~21% of a $400 account) isn't auto-blocked. Every structural guard still applies:
+Same S2b bull-put-spread core as Bot B (all-days), geometry + sizing calibrated for a small
+real-money account (~$842, account 6YB71948):
+  - $5 WING (widened from $1 on 2026-07-16): max loss ~$425/contract. The $1 wing collected
+    ~$0.17, whose 50% take-profit (~$8.50) did not clear ~4x the round-trip cost (~$34.40), so
+    transaction_cost_gate rejected nearly every trade. See the WING_WIDTH note below.
+  - ONE CONTRACT MAXIMUM (max_entry_qty=1), one open position, one entry per day. This is a
+    CONTROLLED LIVE PILOT, not a production sizing.
+  - ALL weekdays (Mon-Fri). risk caps KEPT INTACT; base_risk_pct is raised only so the
+    indivisible 1-contract minimum isn't auto-blocked. Every structural guard still applies:
     total-risk cap, max_concurrent, settled-cash, ATR cushion, daily-loss halt.
 
-TWO HONEST CAVEATS: (1) a $1 wing leaves almost no room between the 2x stop and max loss, so each
-trade is closer to binary; (2) our own research found the ALL-DAYS schedule DILUTES S2b's edge vs
-Monday-only (it failed the 2x-cost stress). This is a higher-variance cousin of the validated edge.
+RISK CLASSIFICATION: AGGRESSIVE_LIVE_PILOT. One $5 wing's ~$425 structural loss is ~50% of a
+$842 account. This is NOT a low-risk production strategy and must not be described as one. The
+advisor's reasonably-controlled band (8.5%-10% of equity per spread) needs ~$4,250-$5,000; the
+minimum at which one $5 wing is merely aggressive rather than existential is ~$2,000.
+
+THREE HONEST CAVEATS:
+  (1) a single adverse gap can take ~half the account;
+  (2) our own research found the ALL-DAYS schedule DILUTES S2b's edge vs Monday-only (it failed
+      the 2x-cost stress) -- this is a higher-variance cousin of the validated edge;
+  (3) actual_fill_accounting is OFF. Recorded economics are SYNTHETIC (requested credit/qty)
+      until leg-level normalization is validated against five live executions. See
+      bot/broker/spread_fill.py.
 
 Requires (C8: config from environment only):
   TRADIER_TOKEN, TRADIER_ACCOUNT_ID, TRADIER_BASE_URL=https://api.tradier.com/v1,
@@ -97,8 +107,13 @@ LIVE_FEATURES = S2bFeatures(
                                          # verified against real broker responses -- only synthetic
                                          # fixtures. The regular 10%+ probe and full-size lanes are
                                          # unaffected. Turn on once the fields are confirmed live.
-    enable_five_wide_live=False,        # T11 not built; no live $5-wing trading
-    enable_five_wide_shadow=False,      # T11 not built
+    # NOTE ON NAMING: these two flags govern the T11 ALTERNATE $5-wide FALLBACK path only --
+    # the branch that asks "what would a $5 wing at this short strike have done?" when a
+    # $10-wide candidate is reduced to zero by a risk cap. They do NOT disable Bot C's PRIMARY
+    # spread geometry, which is already $5 wide (WING_WIDTH = 5 above). T11 shipped in 6ede08d;
+    # "not built" was stale.
+    enable_five_wide_live=False,        # the T11 fallback may never trade live (startup-asserted)
+    enable_five_wide_shadow=False,      # Bot B carries the shadow evaluation; Bot C does not
     log_intrinsic_gap_comparison=True,  # Step 2B: record what the OLD intrinsic model would have
                                          # permitted beside the enforced Black-Scholes number. This
                                          # is how the fill-rate question gets answered with data

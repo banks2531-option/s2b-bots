@@ -884,12 +884,15 @@ def test_entry_unbalanced_legs_halts_new_entries_full_fill_status_flag_on():
     # then also uses filled_quantity (the covered count) rather than the requested order.qty.
     from bot.broker.spread_fill import normalize_spread_fill
     from bot.tests.test_spread_fill import _open_order
-    normalized = normalize_spread_fill(_open_order(short_qty=3, long_qty=2))
+    # 3 shorts against 1 long -> covered count 1. Deliberately NOT 2: this harness sizes
+    # order.qty to 2, so asserting 2 would pass even if the covered count were ignored.
+    normalized = normalize_spread_fill(_open_order(short_qty=3, long_qty=1))
+    assert normalized.contracts == 1 and normalized.balanced is False
 
     alerts = []
     state = BotState()
     d = _deps(features=S2bFeatures(actual_fill_accounting=True),
-              open_spread=lambda payload: _er(status="filled", requested_qty=3, filled_qty=2,
+              open_spread=lambda payload: _er(status="filled", requested_qty=3, filled_qty=1,
                                               avg_fill=normalized.net_price,
                                               normalized_fill=normalized, legs_balanced=False),
               alert_sink=lambda a: alerts.extend(a))
@@ -898,8 +901,39 @@ def test_entry_unbalanced_legs_halts_new_entries_full_fill_status_flag_on():
     assert state.halted is True
     assert state.halt_reason == "unmatched legs"
     assert len(state.open_positions) == 1
-    assert state.open_positions[0].qty == 2
+    assert state.open_positions[0].qty == 1
     assert any(a.severity == Severity.CRITICAL for a in alerts)
+
+
+def test_entry_unbalanced_legs_full_fill_records_covered_count_with_flag_OFF():
+    """Bot C's REAL configuration: actual_fill_accounting=False, broker reports status "filled".
+
+    The full-fill branch normally trusts order.qty when the flag is off, because "filled" has
+    always meant the REQUESTED quantity filled. Leg normalization breaks that invariant -- here
+    the broker says "filled" but only 2 of 3 spreads are covered by matching legs. Recording 3
+    would track a position larger than the broker actually gave us, which is the untracked-at-
+    broker fault that halted this account before. The covered count must win regardless of the
+    flag, exactly as it already does on the partial-fill branch."""
+    from bot.broker.spread_fill import normalize_spread_fill
+    from bot.tests.test_spread_fill import _open_order
+    # 3 shorts against 1 long -> covered count 1. This harness naturally sizes order.qty to 2, so
+    # a covered count of 1 is the only value that DISCRIMINATES: asserting 2 here would pass
+    # whether or not the fix exists.
+    normalized = normalize_spread_fill(_open_order(short_qty=3, long_qty=1))
+    assert normalized.contracts == 1 and normalized.balanced is False
+
+    state = BotState()
+    d = _deps(features=S2bFeatures(actual_fill_accounting=False),
+              open_spread=lambda payload: _er(status="filled", requested_qty=3, filled_qty=1,
+                                              avg_fill=normalized.net_price,
+                                              normalized_fill=normalized, legs_balanced=False))
+    state, info = run_entry_cycle(state, d, MONDAY)
+
+    assert state.halted is True
+    assert len(state.open_positions) == 1
+    assert state.open_positions[0].qty == 1, (
+        "must record the COVERED count (1), not the sized order.qty (2) -- tracking more than "
+        "the broker filled is the untracked_at_broker fault")
 
 
 def test_entry_balanced_fill_never_halts_sandbox_regression():

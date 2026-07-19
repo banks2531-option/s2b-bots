@@ -1379,6 +1379,19 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # With the flag OFF (default, and always for the live bot) this is byte-identical to
         # before: the requested credit/qty, and opening_fees stays 0.0.
         credit, qty, opening_fees = order.credit, order.qty, 0.0
+        # UNBALANCED-LEG EXCEPTION (advisor nextsteps2 section 1). This branch rests on the
+        # invariant that broker status "filled" means the REQUESTED quantity filled, which is why
+        # order.qty is safe here with the flag off. Leg-level normalization BREAKS that invariant:
+        # "filled" can now arrive alongside unequal legs, where only the covered count
+        # (min of the legs) is actually ours. Recording order.qty there would track MORE than the
+        # broker gave us -- the exact untracked_at_broker fault that halted this account before.
+        # So qty follows the covered count regardless of actual_fill_accounting, which is the same
+        # rule the partial-fill branch below already applies: qty is the one value that must never
+        # stay at the requested amount. credit/opening_fees keep the flag-gated convention.
+        if not getattr(open_result, "legs_balanced", True):
+            covered_qty = getattr(open_result, "filled_quantity", None)
+            if covered_qty:
+                qty = covered_qty
         if deps.features.actual_fill_accounting:
             fill_price = getattr(open_result, "average_fill_price", None)
             if fill_price is not None:

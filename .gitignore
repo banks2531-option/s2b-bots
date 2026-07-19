@@ -1,2 +1,6 @@
 research/intraday/bars/
 dashboard/dashboard.html
+
+# Python bytecode (never belongs in the repo; swept in accidentally by a git add -A)
+__pycache__/
+*.pyc

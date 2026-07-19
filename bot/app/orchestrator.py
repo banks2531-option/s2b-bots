@@ -1349,6 +1349,30 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     # (see wiring._to_execution_result), NOT "partially_filled". A legacy bare-string return has no
     # filled_quantity, so open_filled_qty is 0 and only the status=="filled" full-fill path can fire.
     open_filled_qty = getattr(open_result, "filled_quantity", 0) or 0
+    # Advisor nextsteps2 section 1: unequal legs are not a complete spread. Three shorts against
+    # two longs is two COVERED spreads plus one NAKED short -- an unbounded-risk position this
+    # account cannot support, and a materially different trade than the three spreads a naive
+    # count would book. _to_execution_result already reports the covered count (min of the legs),
+    # so the position recorded below is the one we can actually account for. What remains is to
+    # stop opening anything NEW until a human has reconciled the broker book against ours.
+    #
+    # The reason string is deliberately NOT "failed close" or "reconcile drift": run_reconcile_cycle
+    # auto-clears those two, and an unmatched leg is not something a later clean reconcile can
+    # resolve on its own. It stays sticky until an operator calls clear_halt().
+    #
+    # Existing positions stay under normal management -- halting entries must not also abandon
+    # live exposure.
+    if not getattr(open_result, "legs_balanced", True):
+        nf = getattr(open_result, "normalized_fill", None)
+        deps.alert_sink([Alert(Severity.CRITICAL,
+                               f"unmatched legs on order {getattr(nf, 'source_order_id', None)}: "
+                               f"short_qty={getattr(nf, 'short_leg_qty', None)} "
+                               f"long_qty={getattr(nf, 'long_leg_qty', None)} "
+                               f"covered_contracts={getattr(nf, 'contracts', None)}; "
+                               f"new entries disabled pending broker/local reconciliation, "
+                               f"existing positions remain under management")])
+        state.halted = True
+        state.halt_reason = "unmatched legs"
     if status == "filled":
         # §8: with actual_fill_accounting ON, the position is recorded off the ACTUAL fill
         # (price + quantity), never the requested/quoted values; opening fees are captured too.

@@ -11,16 +11,19 @@ from bot.strategy.manage import ManagedPosition, ExitAction
 from bot.strategy.s2b import OptionQuote
 from bot.risk_gate import AccountState
 from bot.features import S2bFeatures
+from bot.ops.monitor import Severity
 from bot.app.orchestrator import (BotState, Deps, run_entry_cycle, run_management_cycle,
-                                  run_degross_cycle, run_flow_degross_cycle, tick)
+                                  run_degross_cycle, run_flow_degross_cycle, run_reconcile_cycle, tick)
 
 
 def _er(status="filled", requested_qty=1, filled_qty=1, avg_fill=None, submitted_limit=None,
-        commissions=0.0, regulatory_fees=0.0, order_id=None):
+        commissions=0.0, regulatory_fees=0.0, order_id=None, normalized_fill=None,
+        legs_balanced=True):
     return ExecutionResult(status=status, requested_quantity=requested_qty,
                            filled_quantity=filled_qty, average_fill_price=avg_fill,
                            submitted_limit=submitted_limit, commissions=commissions,
-                           regulatory_fees=regulatory_fees, order_id=order_id)
+                           regulatory_fees=regulatory_fees, order_id=order_id,
+                           normalized_fill=normalized_fill, legs_balanced=legs_balanced)
 
 
 # ── (a) ExecutionResult shape from open_spread (wiring-level, fake broker, no network) ──────────
@@ -830,6 +833,105 @@ def test_failed_close_that_raised_still_halts():
     state, results = run_management_cycle(state, d, today="2026-06-19")
     assert results[0].action == ExitAction.ERROR
     assert state.halted is True
+
+# ── Task 6 (advisor nextsteps2 section 1 reaction): unmatched legs halt new entries ──────────────
+# normalize_spread_fill already reports the COVERED count (min of the legs) and balanced=False for
+# an unequal-leg fill (e.g. 3 shorts vs 2 longs = 2 covered spreads + 1 NAKED short). What's under
+# test here is the reaction: stop opening anything NEW until a human reconciles, while the position
+# itself stays tracked at the covered count -- a halt must never abandon live exposure.
+
+def test_unbalanced_open_order_normalizes_to_covered_count():
+    # Unit-level sanity check (exercises the earlier task's normalize_spread_fill directly, not the
+    # orchestrator): 3 shorts vs 2 longs -> 2 covered contracts, balanced False.
+    from bot.broker.spread_fill import normalize_spread_fill
+    from bot.tests.test_spread_fill import _open_order
+    f = normalize_spread_fill(_open_order(short_qty=3, long_qty=2))
+    assert f.contracts == 2
+    assert f.balanced is False
+
+
+def test_entry_unbalanced_legs_halts_new_entries_and_records_covered_count_bot_c():
+    # Bot C shape: actual_fill_accounting OFF (the real live setting). An unequal-leg fill realistically
+    # surfaces as a partial (remainder legs still working/cancelled), so it lands on the SAME
+    # partial-fill accounting path Task 2 built -- which already records open_filled_qty
+    # unconditionally, regardless of the flag. That is what makes the covered count (2), not the
+    # short-leg count (3), get recorded here even though the flag is off.
+    from bot.broker.spread_fill import normalize_spread_fill
+    from bot.tests.test_spread_fill import _open_order
+    normalized = normalize_spread_fill(_open_order(short_qty=3, long_qty=2))
+    assert normalized.contracts == 2 and normalized.balanced is False   # sanity on the fixture
+
+    alerts = []
+    state = BotState()
+    d = _deps(open_spread=lambda payload: _er(status="canceled", requested_qty=3, filled_qty=2,
+                                              avg_fill=normalized.net_price,
+                                              normalized_fill=normalized, legs_balanced=False),
+              alert_sink=lambda a: alerts.extend(a))
+    assert d.features.actual_fill_accounting is False   # Bot C's real setting
+
+    state, info = run_entry_cycle(state, d, MONDAY)
+
+    assert state.halted is True
+    assert state.halt_reason == "unmatched legs"
+    assert len(state.open_positions) == 1
+    assert state.open_positions[0].qty == 2              # covered count, NOT the short-leg count (3)
+    assert any(a.severity == Severity.CRITICAL for a in alerts)
+
+
+def test_entry_unbalanced_legs_halts_new_entries_full_fill_status_flag_on():
+    # Companion case: the broker reports the order status "filled" outright (both legs' orders
+    # closed out, just at unequal quantities) with actual_fill_accounting ON -- the full-fill branch
+    # then also uses filled_quantity (the covered count) rather than the requested order.qty.
+    from bot.broker.spread_fill import normalize_spread_fill
+    from bot.tests.test_spread_fill import _open_order
+    normalized = normalize_spread_fill(_open_order(short_qty=3, long_qty=2))
+
+    alerts = []
+    state = BotState()
+    d = _deps(features=S2bFeatures(actual_fill_accounting=True),
+              open_spread=lambda payload: _er(status="filled", requested_qty=3, filled_qty=2,
+                                              avg_fill=normalized.net_price,
+                                              normalized_fill=normalized, legs_balanced=False),
+              alert_sink=lambda a: alerts.extend(a))
+    state, info = run_entry_cycle(state, d, MONDAY)
+
+    assert state.halted is True
+    assert state.halt_reason == "unmatched legs"
+    assert len(state.open_positions) == 1
+    assert state.open_positions[0].qty == 2
+    assert any(a.severity == Severity.CRITICAL for a in alerts)
+
+
+def test_entry_balanced_fill_never_halts_sandbox_regression():
+    # Regression guard: normalize_spread_fill returns None for sandbox payloads (Bot B), which
+    # wiring.py maps to legs_balanced=True by default -- confirm a normal balanced fill never trips
+    # the new halt.
+    state = BotState()
+    d = _deps(open_spread=lambda payload: _er(status="filled", filled_qty=2, legs_balanced=True))
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert state.halted is False
+    assert state.halt_reason == ""
+
+
+def test_entry_zero_fill_balanced_never_halts():
+    # A fully unfilled order normalizes to contracts=0, balanced=True -- must not halt.
+    state = BotState()
+    d = _deps(open_spread=lambda payload: _er(status="timeout", filled_qty=0, legs_balanced=True))
+    state, info = run_entry_cycle(state, d, MONDAY)
+    assert state.halted is False
+
+
+def test_reconcile_does_not_auto_clear_unmatched_legs_halt():
+    # "unmatched legs" is deliberately NOT one of the reasons run_reconcile_cycle auto-clears
+    # ("failed close", "reconcile drift"): an unmatched leg needs a human to reconcile the broker
+    # book against ours, not a later clean reconcile. This is the test that stops someone later
+    # adding our reason to that auto-clear tuple without noticing.
+    pos = ManagedPosition("SPY", 568.0, 558.0, credit=3.0, qty=2, expiry="2026-06-19")
+    state = BotState(open_positions=[pos], halted=True, halt_reason="unmatched legs")
+    d = _deps(broker_positions=lambda: [pos])   # even a CLEAN reconcile...
+    state, _ = run_reconcile_cycle(state, d)
+    assert state.halted is True and state.halt_reason == "unmatched legs"   # ...must not clear it
+
 
 def test_successful_take_profit_still_removes_position_no_halt():
     # byte-identical happy path: TAKE_PROFIT fills fully -> position removed, no halt.

@@ -127,6 +127,28 @@ def test_missing_leg_price_returns_none():
     assert normalize_spread_fill(order) is None
 
 
+def test_balance_and_count_use_exec_quantity_not_ordered_quantity():
+    """The fixtures above set quantity == exec_quantity, so they cannot tell the two fields
+    apart. This one can: 3 contracts ORDERED, 1 filled on each leg. Booking the ordered amount
+    would record a position the broker does not hold -- the untracked_at_broker fault that
+    previously halted the live bot."""
+    order = _open_order(short_qty=1, long_qty=1)
+    order["leg"][0]["quantity"] = 3.0
+    order["leg"][1]["quantity"] = 3.0
+    f = normalize_spread_fill(order)
+    assert f.contracts == 1, "must count what filled, not what was ordered"
+    assert f.short_leg_qty == 1 and f.long_leg_qty == 1
+    assert f.balanced is True
+
+
+def test_fractional_quantity_fails_closed():
+    """int(min(...)) would truncate 1.5 to 1, silently under-recording the position while the
+    broker holds more. Every other unreadable input in this module returns None; so does this."""
+    order = _open_order()
+    order["leg"][0]["exec_quantity"] = 1.5
+    assert normalize_spread_fill(order) is None
+
+
 def test_negative_net_price_is_flagged_unbalanced():
     """A bull put spread's short strike is higher, so the short leg is always worth more. A
     negative net means the legs were misidentified or the payload is malformed -- refuse it."""

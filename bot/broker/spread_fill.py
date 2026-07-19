@@ -90,9 +90,19 @@ def normalize_spread_fill(order):
     if short_leg is None or long_leg is None:
         return None
 
+    # NOTE: exec_quantity (what FILLED), never quantity (what was ORDERED). A partially-filled
+    # leg reports the smaller exec_quantity, and booking the ordered amount is precisely the
+    # untracked-at-broker bug this module exists to prevent.
     short_qty = _leg_float(short_leg, "exec_quantity")
     long_qty = _leg_float(long_leg, "exec_quantity")
     if short_qty is None or long_qty is None:
+        return None
+    # Options fill in whole contracts. A fractional quantity is a broker data fault, and int()
+    # below would truncate it toward zero -- silently losing a contract from the recorded
+    # position while the broker still holds it. Every other unreadable input here returns None;
+    # this one must too, or the module's fail-closed contract has a hole in exactly the place
+    # that produces an under-recorded live position.
+    if short_qty != int(short_qty) or long_qty != int(long_qty):
         return None
 
     short_px = _leg_float(short_leg, "avg_fill_price")

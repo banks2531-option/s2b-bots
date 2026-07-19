@@ -172,3 +172,38 @@ def test_gap_rejections_no_longer_use_the_retired_reason_string():
     src = inspect.getsource(orch)
     assert '"gap_stress"' not in src
     assert 'return state, "gap_stress"' not in src
+
+
+def test_bot_c_actual_fill_accounting_stays_off_until_live_validated():
+    """The leg-level normalizer is IMPLEMENTED but not yet validated against five live
+    executions. Until the FILL_RECONCILE ledger is checked against the broker statement, Bot C
+    keeps accounting synthetically. Implementing a fix is not the same as proving it."""
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    assert LIVE_FEATURES.actual_fill_accounting is False
+
+
+def test_bot_c_ladders_and_experimental_lanes_stay_off():
+    """Advisor nextsteps2 section 1: no ladders, no alternate expirations, no low-credit lane
+    until actual-fill accounting is fixed AND live-validated."""
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    assert LIVE_FEATURES.entry_price_ladder is False
+    assert LIVE_FEATURES.tp_price_ladder is False
+    assert LIVE_FEATURES.enable_alternate_expirations is False
+    assert LIVE_FEATURES.enable_low_credit_08_to_10 is False
+    assert LIVE_FEATURES.enable_five_wide_live is False
+
+
+def test_min_equity_to_open_is_declared_but_not_yet_enforced():
+    """Task 7 was SPLIT (operator decision 2026-07-19). The config field ships now; the
+    orchestrator early-return ships separately, because it is the only change in this release
+    that can stop a live trade.
+
+    This test exists so the gap cannot be forgotten. A config value that reads as a risk floor
+    but is checked nowhere is worse than no value -- it invites someone to believe they are
+    protected. WHEN THE GATE LANDS: delete this test and replace it with one asserting the
+    orchestrator actually rejects below the floor."""
+    import inspect
+    from bot.app import orchestrator
+    assert "min_equity_to_open" not in inspect.getsource(orchestrator), (
+        "min_equity_to_open is now referenced in the orchestrator -- the enforcement gate has "
+        "landed. Delete this test and assert the enforcement behaviour instead.")

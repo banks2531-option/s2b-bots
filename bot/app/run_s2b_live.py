@@ -137,10 +137,14 @@ def main(argv=None):
     # refusing to start beats trading on a misunderstood risk setting.
     validate_live_config(LIVE_FEATURES, live=True,
                          expected_structural_pct=BOT_C_STRUCTURAL_PCT)
-    # LIVE: all weekdays, up to 3 concurrent, narrow wing, small-account sizing. Caps intact.
+    # CONTROLLED LIVE PILOT (advisor nextsteps2 section 2): one open position, one entry per day.
+    # Previously 3/3, inherited from the $1-wing era when three ~$85 spreads fit a $400 account.
+    # A $5 wing is ~50% of this account, so three is not a reachable state -- the aggregate risk
+    # budget already blocks the second. Declaring 1/1 makes the intended ceiling match the
+    # enforced one instead of relying on a risk cap to contradict the wrapper.
     return build_and_run(args.ticks, args.poll_seconds,
-                         entry_days=frozenset({0, 1, 2, 3, 4}), max_open=3, label="LIVE",
-                         shared_account=args.shared_account, max_entries_per_day=3,
+                         entry_days=frozenset({0, 1, 2, 3, 4}), max_open=1, label="LIVE",
+                         shared_account=args.shared_account, max_entries_per_day=1,
                          s2b_cfg=S2bConfig(wing_width=WING_WIDTH), base_risk_pct=BASE_RISK_PCT,
                          features=LIVE_FEATURES)
 

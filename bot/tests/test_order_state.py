@@ -20,3 +20,13 @@ def test_terminal_set():
     assert OrderState.FILLED in TERMINAL
     assert OrderState.OPEN not in TERMINAL
     assert OrderState.TIMEOUT in TERMINAL
+
+
+def test_execution_result_defaults_normalized_fill_to_none_and_balanced_to_true():
+    """A result built without leg-level data (sandbox, or a legacy caller) must not read as an
+    unbalanced fill -- legs_balanced defaults True so only a genuine leg mismatch halts."""
+    from bot.broker.order_state import ExecutionResult
+    r = ExecutionResult(status="filled", requested_quantity=1, filled_quantity=1,
+                        average_fill_price=0.9, submitted_limit=0.9)
+    assert r.normalized_fill is None
+    assert r.legs_balanced is True

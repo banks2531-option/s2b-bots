@@ -48,6 +48,12 @@ class ExecutionResult:
     quote_timestamp: str | None = None
     first_submission_timestamp: str | None = None
     final_fill_timestamp: str | None = None
+    # Advisor nextsteps2 section 1: the leg-level reconstruction this result was derived from,
+    # when the broker sent a readable leg array. None means the order-level fallback was used
+    # (always true on sandbox). `legs_balanced` defaults True so a result carrying no leg data
+    # never reads as an unbalanced fill -- only a genuine short/long mismatch sets it False.
+    normalized_fill: object = None
+    legs_balanced: bool = True
 
 
 def result_status(result) -> str:

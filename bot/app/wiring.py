@@ -48,7 +48,15 @@ _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_ex
                         "no_candidate_fits",
                         # T9 (spec §16): ENTRY_STATE transition records.
                         "previous_state", "new_state", "changed_at", "reason",
-                        "unique_candidate_opportunities", "open_positions", "entries_today"]
+                        "unique_candidate_opportunities", "open_positions", "entries_today",
+                        # T11 (spec §15): $5-wide SHADOW research record. Never an order.
+                        "source", "can_submit_order", "ten_wide_short_strike",
+                        "ten_wide_long_strike", "ten_wide_final_qty", "ten_wide_limiting_gate",
+                        "five_wide_short_strike", "five_wide_long_strike", "five_wide_available",
+                        "five_wide_credit", "five_wide_credit_ratio",
+                        "five_wide_target_to_cost_ratio", "five_wide_structural_risk",
+                        "five_wide_stop_risk", "five_wide_incremental_gap_risk",
+                        "five_wide_final_qty", "five_wide_limiting_gate"]
                                               # spec §10/§11 risk-sizing + decision-outcome telemetry
                                               # (Task 4 declares; Task 5 emits). The risk_budget_*
                                               # fields above stay for back-compat.

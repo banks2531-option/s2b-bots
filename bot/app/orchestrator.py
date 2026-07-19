@@ -1,4 +1,5 @@
 """Bot orchestrator: tick = reconcile -> manage -> enter, with halt-gating (spec §3,4,5,7)."""
+import types
 from dataclasses import dataclass, field, replace
 
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
@@ -29,6 +30,7 @@ from bot.portfolio import exposure
 from bot.app.expirations import (get_candidate_expirations, select_best_candidate,
                                   evaluate_expiration)
 from bot.app.entry_state import classify_entry_state, note_entry_state
+from bot.strategy.fallback import should_evaluate_five_wide, evaluate_five_wide_shadow
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 from bot.regime.shadow_monitor import compute_shadow_signals, shadow_caution_score
@@ -1265,6 +1267,26 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             # When quality_qty was already 0 (limiting_gate == "requested_qty", set by size_to_risk_limits
             # before any cap is consulted), log the bare "risk_budget" -- no cap can be blamed.
             decision_outcome_val = DecisionOutcome.BLOCKED_ZERO_CAPACITY.value
+            # T11 (spec §15): this candidate cleared every non-risk gate and was zeroed by a RISK cap
+            # -- exactly the case where a narrower $5 wing might have fitted. Evaluate it and LOG the
+            # hypothetical. Shadow only: evaluate_five_wide_shadow returns a record, never an order.
+            if deps.features.enable_five_wide_shadow and deps.trade_log is not None:
+                try:
+                    _tw = types.SimpleNamespace(
+                        passed_non_risk_gates=True, quality_adjusted_qty=quality_qty,
+                        final_qty=final_qty, limiting_gate=result.limiting_gate,
+                        short_strike=order.short_strike, long_strike=order.long_strike,
+                        expiry=expiry)
+                    if should_evaluate_five_wide(_tw):
+                        _shadow = evaluate_five_wide_shadow(
+                            ten_wide=_tw, chain=chain, spot=spot, atr=atr, f=deps.features,
+                            risk_equity=req, open_positions=state.open_positions,
+                            foreign_positions=foreign_position_list, mark_fn=deps.mark_position,
+                            iv_fn=iv_fn, today=today)
+                        if _shadow is not None:
+                            deps.trade_log(_shadow)
+                except Exception:
+                    pass      # research must never break an entry cycle
             reason = ("risk_budget" if result.limiting_gate in (None, "requested_qty")
                       else f"risk_budget:{result.limiting_gate}")
             _log_decision(reason, spot=spot, atr=atr, expiry=expiry, order=order)

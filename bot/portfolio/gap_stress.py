@@ -149,8 +149,21 @@ def stressed_spread_loss_bs_detail(short_strike, long_strike, credit, qty, spot,
     }
 
 
+def _book_dte(expiry, today):
+    """Calendar days to expiry for a BOOK position, floored at 0.
+
+    A position whose expiry has already passed is worth its intrinsic value, not an error: the bot
+    exits at time_exit_dte but a close that fails to fill can leave a position lingering past its
+    expiry (observed in production -- 157 consecutive rejected stop-closes on the live account). The
+    negative-time guard in stressed_spread_loss_bs_detail exists to catch a CALLER passing nonsense;
+    an expired position in the book is a real state, and crashing the entry cycle over it would turn
+    a stuck position into an outage."""
+    return max(0, _dte(expiry, today))
+
+
 def _dte(expiry, today):
-    """Calendar days from `today` to `expiry` (both "YYYY-MM-DD"). 0 on any parse failure/missing."""
+    """Calendar days from `today` to `expiry` (both "YYYY-MM-DD"). 0 on any parse failure/missing.
+    NEGATIVE when the expiry has passed -- use _book_dte for book positions."""
     try:
         return (datetime.strptime(expiry, "%Y-%m-%d") - datetime.strptime(today, "%Y-%m-%d")).days
     except Exception:
@@ -179,7 +192,7 @@ def gap_stress_losses(positions, spot, atr, wing_width=10.0, today=None, iv_fn=N
         total = 0.0
         for p in positions:
             if use_bs:
-                dte = _dte(getattr(p, "expiry", None), today)
+                dte = _book_dte(getattr(p, "expiry", None), today)
                 short_iv, long_iv = iv_fn(p)
                 total += stressed_spread_loss_bs(p.short_strike, p.long_strike, p.credit, p.qty,
                                                  spot, atr, d, dte, short_iv, long_iv, f, wing_width)
@@ -234,7 +247,7 @@ def _scenario_stressed_loss(inst, qty, scenario, spot, atr, f, iv_fn, today):
     """Stressed BS loss ($) for one instrument at `qty` under a StressScenario -- IV bump driven by
     the scenario's iv_point_change, plus STRESSED_CLOSE_SLIPPAGE, DTE from inst.expiry vs today,
     per-leg IV from iv_fn(inst) (or f.gap_fallback_iv when no iv_fn), own wing = short-long."""
-    dte = _dte(getattr(inst, "expiry", None), today) if today is not None else 0
+    dte = _book_dte(getattr(inst, "expiry", None), today) if today is not None else 0
     if iv_fn is not None:
         short_iv, long_iv = iv_fn(inst)
     else:

@@ -295,3 +295,28 @@ def test_zero_time_prices_at_intrinsic_value():
 def test_negative_time_is_rejected():
     with pytest.raises(ValueError, match="cannot be negative"):
         _detail(dte=-1)
+
+
+# ── regression: an expired book position must not crash the entry cycle ─────────────────────────
+
+def test_an_expired_book_position_prices_at_intrinsic_rather_than_raising():
+    """REGRESSION (introduced and caught 2026-07-19, pre-restart). The negative-time guard is right
+    for a caller passing nonsense, but a position whose expiry has PASSED is a real state: the bot
+    exits at time_exit_dte, yet a close that fails to fill leaves the position lingering. The live
+    account had logged 157 consecutive rejected stop-closes, so this was reachable -- and
+    gap_quantity_caps runs in the entry cycle with no try/except, so it would have turned a stuck
+    position into an outage."""
+    from bot.portfolio.gap_stress import gap_stress_losses, gap_quantity_caps
+    expired = _pos(expiry="2026-06-01")            # well before TODAY (2026-06-15)
+    losses = gap_stress_losses([expired], SPOT, ATR, 10.0, today=TODAY, iv_fn=IV,
+                               f=S2bFeatures())
+    assert all(isinstance(v, float) for v in losses.values())
+    caps = gap_quantity_caps([expired], _pos(), SPOT, ATR, S2bFeatures(), 100_000.0,
+                             iv_fn=IV, today=TODAY)
+    assert [c.name for c in caps] == ["gap_1atr", "gap_1_5atr", "gap_2atr"]
+
+
+def test_a_negative_dte_passed_directly_to_the_pricer_still_raises():
+    """The guard must stay sharp for its real purpose -- catching a caller passing nonsense."""
+    with pytest.raises(ValueError, match="cannot be negative"):
+        _detail(dte=-1)

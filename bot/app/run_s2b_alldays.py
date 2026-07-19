@@ -18,6 +18,7 @@ ALLDAYS_FEATURES = S2bFeatures(
     # quantity-cap system can demonstrate whether it correctly selects one, two or more contracts
     # under the real budgets. Deliberately NO max_entry_qty ceiling here -- that is Bot C's
     # controlled-release guard, and imposing it on the sandbox would defeat the point.
+    entry_state_tracking=True,           # T9: state transitions (observability only)
     enable_alternate_expirations=True,   # T8: evaluate up to 3 expirations, pick best net profit
     log_intrinsic_gap_comparison=True,   # Step 2B: measure the BS-vs-intrinsic gap difference
     enable_five_wide_shadow=False,       # T11 not built yet; flipped on when it lands

@@ -45,7 +45,10 @@ _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_ex
                         "qty_difference_1_5", "bs_zeroed_the_candidate",
                         # T8 (spec §14): alternate-expiration evaluation + selection.
                         "expirations_evaluated", "expiration_selected", "expiration_outcomes",
-                        "no_candidate_fits"]
+                        "no_candidate_fits",
+                        # T9 (spec §16): ENTRY_STATE transition records.
+                        "previous_state", "new_state", "changed_at", "reason",
+                        "unique_candidate_opportunities", "open_positions", "entries_today"]
                                               # spec §10/§11 risk-sizing + decision-outcome telemetry
                                               # (Task 4 declares; Task 5 emits). The risk_budget_*
                                               # fields above stay for back-compat.

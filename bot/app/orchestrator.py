@@ -28,6 +28,7 @@ from bot.portfolio.gap_stress import gap_stress_losses, gap_quantity_caps, gap_m
 from bot.portfolio import exposure
 from bot.app.expirations import (get_candidate_expirations, select_best_candidate,
                                   evaluate_expiration)
+from bot.app.entry_state import classify_entry_state, note_entry_state
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 from bot.regime.shadow_monitor import compute_shadow_signals, shadow_caution_score
@@ -65,6 +66,9 @@ class BotState:
                                                             # should_record_observation to dedup repeated
                                                             # near-identical candidates within a polling day
                                                             # (partner review v2 item 3 fix)
+    current_entry_state: str = None    # T9 (spec §16): the operational state last reported. Stored as
+                                        # a plain string so it round-trips through the JSON state file.
+    entry_state_changed_at: str = None # ISO timestamp of the last state TRANSITION
     entry_cycles_started: int = 0                         # advisor Decision 2: EVERY scheduled entry cycle,
                                                             # counted at the very top -- including cycles that
                                                             # exit at max_open/max_entries before a candidate
@@ -778,6 +782,22 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         regardless of decision_logging, since the two flags are orthogonal."""
         if deps.features.markout_tracking and order is not None:
             _record_markout(reason, order, expiry, spot)
+        # T9 (spec §16): classify and record the operational state. Runs BEFORE the decision_logging
+        # gate and independently of it -- knowing what the bot is doing should not depend on whether
+        # verbose per-decision logging happens to be on. Emits only on a TRANSITION, so a bot parked
+        # in one state all session produces one record, not one per tick. Observability only: nothing
+        # here can influence the decision that was already made above.
+        if deps.features.entry_state_tracking:
+            try:
+                _gate = (risk_sizing_telemetry or {}).get("limiting_gate")
+                note_entry_state(state, classify_entry_state(reason, _gate), now, deps.trade_log,
+                                 context={"limiting_gate": _gate, "reason": reason,
+                                          "unique_candidate_opportunities":
+                                              state.unique_candidate_opportunities,
+                                          "open_positions": len(state.open_positions),
+                                          "entries_today": state.entries_today})
+            except Exception:
+                pass          # observability must never break an entry cycle
         if not deps.features.decision_logging:
             return
         try:

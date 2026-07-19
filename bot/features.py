@@ -97,6 +97,9 @@ class S2bFeatures:
                                                   # ON for Bot B sandbox validation.
     alternate_expiration_count: int = 3
     alternate_expiration_min_dte: int = 4
+    entry_state_tracking: bool = False   # T9 (spec §16): emit an ENTRY_STATE record on each state
+                                          # TRANSITION. Observability only -- changes no order
+                                          # decision. Off by default; on for Bot B.
 
 
 class ConfigurationError(Exception):

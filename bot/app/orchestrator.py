@@ -26,6 +26,8 @@ from bot.portfolio.risk_budget import (size_qty, remaining_stop_risk,
                                         size_to_risk_limits, classify_outcome, DecisionOutcome)
 from bot.portfolio.gap_stress import gap_stress_losses, gap_quantity_caps, gap_model_comparison
 from bot.portfolio import exposure
+from bot.app.expirations import (get_candidate_expirations, select_best_candidate,
+                                  evaluate_expiration)
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 from bot.regime.shadow_monitor import compute_shadow_signals, shadow_caution_score
@@ -126,6 +128,10 @@ class Deps:
     entry_days: frozenset = frozenset({0})   # weekdays allowed to enter (0=Mon). A/B variable.
     max_open: int = 1                        # max concurrent open positions for this bot
     max_entries_per_day: int = 1             # max NEW positions opened per calendar day
+    get_expirations: callable = None   # T8 (spec §14): (today_str) -> [expiry_str] the broker lists.
+                                        # None (default) -> alternate-expiration evaluation is skipped
+                                        # and pick_expiry's single choice is used, so every existing
+                                        # caller and the live bot are unaffected.
     shared_account: bool = False             # True when multiple bots share ONE broker account
     trade_log: callable = (lambda record: None)   # (dict) -> None; per-bot trade/P&L log sink
     regime_provider: callable = None                 # () -> RegimeState | None
@@ -653,6 +659,17 @@ def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None,
     return tel
 
 
+def _foreign_for_preselect(deps, state):
+    """Foreign SPY spreads for the T8 pre-selection's gap book. Best-effort: the pre-selection only
+    RANKS expirations, so if the broker spread feed is unavailable we rank on this bot's own book
+    rather than failing the cycle. The winner's authoritative sizing below re-derives this properly."""
+    try:
+        raw = deps.account_spy_spreads() if deps.account_spy_spreads is not None else []
+        return exposure.foreign_spreads(raw, state.open_positions)
+    except Exception:
+        return []
+
+
 def _chain_quote(chain, strike, nearest=False):
     """The OptionQuote at `strike`, or None. With nearest=True return the closest strike instead of
     requiring an exact match (used to find the at-the-money leg for the expected-move IV)."""
@@ -689,6 +706,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                     # Task 5 retired its population (the quantity-cap pipeline emits
                                     # risk_sizing_telemetry instead); the fields stay declared in
                                     # wiring._DECISION_LOG_FIELDS for CSV back-compat but go unfilled.
+    expiry_telemetry = None   # T8/§14: which expirations were evaluated, which won, and why each
+                               # loser lost. Populated only when alternate expirations are enabled.
     gap_comparison_telemetry = None  # Advisor Step 2B: intrinsic-vs-BS gap comparison, populated only
                                       # when log_intrinsic_gap_comparison is on (Bot B validation).
     risk_sizing_telemetry = None   # Task 5 (§10/§11): the quantity-cap sizing outcome -- limiting_gate
@@ -784,6 +803,8 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             rec.update(risk_sizing_telemetry)
         if gap_comparison_telemetry is not None:   # Step 2B: intrinsic-vs-BS gap comparison
             rec.update(gap_comparison_telemetry)
+        if expiry_telemetry is not None:           # T8: alternate-expiration evaluation + selection
+            rec.update(expiry_telemetry)
         if decision_outcome_val is not None:    # Task 5: §11 decision-outcome label
             rec["decision_outcome"] = decision_outcome_val
         rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order,
@@ -851,6 +872,43 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     spot = deps.get_spot("SPY")
     atr = deps.get_atr("SPY")
     expiry = deps.pick_expiry(today)
+    # T8 / spec §14 (advisor botbnextsteps Step 1): evaluate up to three eligible expirations rather
+    # than polling the nearest one all day and never noticing that a later one would have qualified.
+    #
+    # This is a PRE-SELECTION: it ranks expirations, then the ordinary entry path below runs IN FULL
+    # on the winner, where the authoritative gates fire and every state mutation happens. So the loop
+    # can only NARROW the choice -- a later expiration is an alternative, never an exemption.
+    #
+    # Flag OFF (Bot C, live) -> `expiry` stays exactly what pick_expiry returned and the code below is
+    # byte-identical to before. That matters: a real-money bot now runs this path.
+    if deps.features.enable_alternate_expirations and deps.get_expirations is not None:
+        _cands = get_candidate_expirations(deps.get_expirations(today), today,
+                                            minimum_dte=deps.features.alternate_expiration_min_dte,
+                                            maximum_count=deps.features.alternate_expiration_count)
+        _evals = []
+        for _exp, _dte in _cands:
+            try:
+                _evals.append(evaluate_expiration(
+                    expiry=_exp, dte=_dte, chain=deps.get_chain("SPY", _exp), spot=spot, atr=atr,
+                    deps=deps, state=state, now=now, regime=regime,
+                    credit_history=state.credit_ratio_history, iv_fn=iv_fn,
+                    prime_leg_ivs=_prime_leg_ivs, open_positions=state.open_positions,
+                    foreign_positions=_foreign_for_preselect(deps, state), today=today))
+            except Exception:
+                continue     # one bad expiration must not cost the whole cycle; it simply can't win
+        _best = select_best_candidate(_evals)
+        expiry_telemetry = {
+            "expirations_evaluated": len(_evals),
+            "expiration_selected": (_best.expiry if _best is not None else None),
+            "expiration_outcomes": ";".join(
+                "%s:%s" % (e.expiry, e.rejection_reason or ("qty%d" % e.final_qty)) for e in _evals),
+            "no_candidate_fits": _best is None,
+        }
+        if _best is not None:
+            expiry = _best.expiry
+        # _best None -> fall through on the NEAREST expiry so the entry path below produces its
+        # specific, per-gate rejection reason rather than a generic "nothing fits". The
+        # no_candidate_fits flag above records the §14 outcome for the report.
     chain = deps.get_chain("SPY", expiry)
     order = build_spread_order(spot, atr, chain, deps.s2b_cfg)
     if order is None:

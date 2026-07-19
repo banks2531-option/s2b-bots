@@ -91,6 +91,12 @@ class S2bFeatures:
     enable_five_wide_live: bool = False   # $5-wing TRADING. Stays False until T11 ships; the shadow
                                            # evaluation is a separate, non-trading flag.
     enable_five_wide_shadow: bool = False  # T11 not built yet
+    enable_alternate_expirations: bool = False   # T8 (spec §14): evaluate up to N expirations and
+                                                  # pick the best by expected NET target profit.
+                                                  # OFF by default so the live path stays unchanged;
+                                                  # ON for Bot B sandbox validation.
+    alternate_expiration_count: int = 3
+    alternate_expiration_min_dte: int = 4
 
 
 class ConfigurationError(Exception):

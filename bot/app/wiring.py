@@ -42,7 +42,10 @@ _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_ex
                         "enforced_model", "gap_loss_limit", "bs_current_book_1_5",
                         "intrinsic_current_book_1_5", "bs_incremental_1_5",
                         "intrinsic_incremental_1_5", "bs_qty_1_5", "intrinsic_qty_1_5",
-                        "qty_difference_1_5", "bs_zeroed_the_candidate"]
+                        "qty_difference_1_5", "bs_zeroed_the_candidate",
+                        # T8 (spec §14): alternate-expiration evaluation + selection.
+                        "expirations_evaluated", "expiration_selected", "expiration_outcomes",
+                        "no_candidate_fits"]
                                               # spec §10/§11 risk-sizing + decision-outcome telemetry
                                               # (Task 4 declares; Task 5 emits). The risk_budget_*
                                               # fields above stay for back-compat.
@@ -471,6 +474,16 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         resp = http("GET", "/markets/options/expirations", params={"symbol": "SPY"})
         return feeds.pick_expiry_from_list(feeds.parse_expirations(resp), today)
 
+    def get_expirations(today):
+        """T8 (spec §14): the broker's listed SPY expirations, for alternate-expiration evaluation.
+        Best-effort -- returns [] on any failure, which makes the orchestrator fall back to
+        pick_expiry's single choice rather than failing the cycle."""
+        try:
+            resp = http("GET", "/markets/options/expirations", params={"symbol": "SPY"})
+            return feeds.parse_expirations(resp)
+        except Exception:
+            return []
+
     from bot.regime.engine import compute_regime_state
     from bot.regime.vix_term import fetch_vix_term
     from bot.regime.flow_uw import flow_context
@@ -662,6 +675,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
     return Deps(
         get_spot=get_spot, get_atr=get_atr, get_chain=get_chain,
         pick_expiry=pick_expiry,
+        get_expirations=get_expirations,
         get_vix_regime=get_vix_regime, account_state=account_state,
         mark_position=mark_position, dte_of=lambda p, today: dte_from_expiry(p.expiry, today),
         open_spread=open_spread, close_spread=close_spread,

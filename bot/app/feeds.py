@@ -31,9 +31,43 @@ def parse_chain(resp) -> list:
         ask = o.get("ask")
         if bid is None or ask is None:
             continue
+        greeks = o.get("greeks") or {}
         out.append(OptionQuote(strike=float(o["strike"]), delta=abs(float(delta)),
-                               bid=float(bid), ask=float(ask)))
+                               bid=float(bid), ask=float(ask),
+                               exchange_timestamp=_quote_time(o),
+                               iv=_positive_or_none(greeks.get("mid_iv"))))
     return out
+
+
+def _positive_or_none(v):
+    """Floats that are absent or non-positive are treated as ABSENT -- a 0.0 IV is missing data, not
+    a real vol, and must not flow into the expected-move calculation."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if f > 0 else None
+
+
+def _quote_time(o):
+    """Exchange quote time for one option leg, as a naive ET datetime, or None when unavailable.
+
+    Tradier reports bid_date/ask_date as epoch MILLISECONDS. The older of the two sides is used: a
+    leg is only as fresh as its stalest quoted side. Returns None (never "now") on anything
+    unparseable, so an unknown age fails the freshness gate closed."""
+    stamps = []
+    for field in ("bid_date", "ask_date"):
+        v = o.get(field)
+        try:
+            ms = float(v)
+        except (TypeError, ValueError):
+            continue
+        if ms > 0:
+            stamps.append(ms)
+    if not stamps:
+        return None
+    from zoneinfo import ZoneInfo
+    return datetime.fromtimestamp(min(stamps) / 1000.0, tz=ZoneInfo("America/New_York"))
 
 
 def parse_equity(resp) -> float:

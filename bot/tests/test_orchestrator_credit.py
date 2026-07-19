@@ -186,7 +186,14 @@ def test_decision_log_carries_credit_telemetry():
     assert rec["credit_sample_count"] == 2
     assert rec["credit_pctl40"] == pytest.approx(0.14)
     assert rec["credit_threshold"] == 0.115   # count(2) < min_signals(30) -> floor
-    assert rec["credit_quality_mult"] == 0.0
+    # Post-v2 refinement §1: ratio 0.097 sits in the [0.08, 0.10) low_credit_safety BAND, so
+    # classify_credit_quality returns that lane's 0.25x multiplier -- NOT the old flat 0.0 reject
+    # (only ratio < ABSOLUTE_CREDIT_FLOOR 0.08 classifies as "reject" now). The candidate is still
+    # REJECTED here, by the strict low_credit_safety_pass gate that follows: entry_delta is None on
+    # this chain, and that gate FAILS CLOSED without a short delta. So the multiplier telemetry
+    # reports the CLASSIFICATION (0.25) while decision_outcome reports the OUTCOME (blocked).
+    assert rec["credit_quality_mult"] == 0.25
+    assert rec["decision_outcome"] == "blocked_credit_quality"
 
 
 # ── (i) feature OFF by default -> byte-identical behavior, no history, no telemetry ─────────────

@@ -23,7 +23,43 @@ _DECISION_LOG_FIELDS = ["decision", "flags", "positions_today", "positions_in_ex
                         "cost_target_ratio",   # spec §5 cost-gate telemetry (Task 2.3)
                         "risk_budget_limiting", "risk_budget_exposure", "risk_budget_limit",
                         "risk_budget_headroom", "risk_budget_proposed_qty",
-                        "risk_budget_permitted_qty"]   # §9 aggregate-risk-budget attribution (Task 7)
+                        "risk_budget_permitted_qty",   # §9 aggregate-risk-budget attribution (Task 7)
+                        "limiting_gate", "requested_qty", "quality_adjusted_qty", "final_qty",
+                        "risk_current_exposure", "risk_limit", "risk_remaining_capacity",
+                        "risk_incremental_per_contract",
+                        "decision_outcome",
+                        # Advisor Decision 1 (Option B): CreditObservation audit record fields. The
+                        # record shares date/expiry/short/long/credit_ratio with the columns already
+                        # declared above; only these three are new. Declared here or
+                        # extrasaction="ignore" drops the audit trail on the way to disk.
+                        "obs_dte_bucket", "obs_expected_executable_credit", "obs_candidate_key",
+                        # Advisor Step 1A/1B: low-credit lane freshness + expected-move inputs, so
+                        # a lane decision is auditable (which leg was stale, was IV even available).
+                        "lc_short_quote_age", "lc_long_quote_age", "lc_spread_quote_age",
+                        "lc_quote_time_source", "lc_quote_fresh", "lc_atm_iv",
+                        "lc_expected_move", "lc_expected_move_cushion", "lc_safety_pass",
+                        # Advisor Step 2B: intrinsic-vs-Black-Scholes gap comparison (Bot B only).
+                        "enforced_model", "gap_loss_limit", "bs_current_book_1_5",
+                        "intrinsic_current_book_1_5", "bs_incremental_1_5",
+                        "intrinsic_incremental_1_5", "bs_qty_1_5", "intrinsic_qty_1_5",
+                        "qty_difference_1_5", "bs_zeroed_the_candidate",
+                        # T8 (spec §14): alternate-expiration evaluation + selection.
+                        "expirations_evaluated", "expiration_selected", "expiration_outcomes",
+                        "no_candidate_fits",
+                        # T9 (spec §16): ENTRY_STATE transition records.
+                        "previous_state", "new_state", "changed_at", "reason",
+                        "unique_candidate_opportunities", "open_positions", "entries_today",
+                        # T11 (spec §15): $5-wide SHADOW research record. Never an order.
+                        "source", "can_submit_order", "ten_wide_short_strike",
+                        "ten_wide_long_strike", "ten_wide_final_qty", "ten_wide_limiting_gate",
+                        "five_wide_short_strike", "five_wide_long_strike", "five_wide_available",
+                        "five_wide_credit", "five_wide_credit_ratio",
+                        "five_wide_target_to_cost_ratio", "five_wide_structural_risk",
+                        "five_wide_stop_risk", "five_wide_incremental_gap_risk",
+                        "five_wide_final_qty", "five_wide_limiting_gate"]
+                                              # spec §10/§11 risk-sizing + decision-outcome telemetry
+                                              # (Task 4 declares; Task 5 emits). The risk_budget_*
+                                              # fields above stay for back-compat.
                         # only added when decision_logging is on (spec §1, §12); this list must stay
                         # a SUPERSET of every key run_entry_cycle's _log_decision can merge onto a
                         # DECISION record (base rec + _decision_telemetry + credit_telemetry +
@@ -66,6 +102,42 @@ def make_markout_logger(path):
     return log
 
 
+def _existing_header(path):
+    """First row of an existing CSV, or None when the file is absent/empty/unreadable."""
+    try:
+        with open(path, newline="") as fh:
+            return next(_csv.reader(fh), None)
+    except OSError:
+        return None
+
+
+def _ensure_header_matches(path, fields):
+    """Return whether `path` may be appended to as-is; rotate it aside first if its header does not
+    describe the columns this logger writes.
+
+    FOUND IN PRODUCTION 2026-07-19: both bots' CSVs carried a 12-column header while writing 63-69
+    field rows, because the header is only written when the file does not exist and both files were
+    created before decision/shadow logging was enabled. Every row since then had unnamed trailing
+    values, so csv.DictReader -- and therefore the §17 funnel report and the whole Bot B validation
+    review -- misparsed them. Telemetry that is written but unreadable is worse than absent: it looks
+    like data.
+
+    Rotating rather than rewriting in place is deliberate: the old rows stay intact in the archive,
+    and a live bot appending to the file is never exposed to a partially-rewritten one."""
+    if not _os.path.exists(path):
+        return False
+    header = _existing_header(path)
+    if header is None:                      # empty file -> treat as new so a header gets written
+        return False
+    if header == list(fields):
+        return True
+    n = 1
+    while _os.path.exists("%s.superseded-%d" % (path, n)):
+        n += 1
+    _os.replace(path, "%s.superseded-%d" % (path, n))
+    return False
+
+
 def make_trade_logger(path, include_cost_columns=False, include_decision_columns=False,
                       include_shadow_columns=False):
     """Return a callable that appends a trade-record dict to a CSV (header written once).
@@ -90,7 +162,7 @@ def make_trade_logger(path, include_cost_columns=False, include_decision_columns
     if include_shadow_columns:
         fields += _SHADOW_LOG_FIELDS
     def log(record):
-        exists = _os.path.exists(path)
+        exists = _ensure_header_matches(path, fields)
         with open(path, "a", newline="") as f:
             w = _csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
             if not exists:
@@ -449,6 +521,16 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         resp = http("GET", "/markets/options/expirations", params={"symbol": "SPY"})
         return feeds.pick_expiry_from_list(feeds.parse_expirations(resp), today)
 
+    def get_expirations(today):
+        """T8 (spec §14): the broker's listed SPY expirations, for alternate-expiration evaluation.
+        Best-effort -- returns [] on any failure, which makes the orchestrator fall back to
+        pick_expiry's single choice rather than failing the cycle."""
+        try:
+            resp = http("GET", "/markets/options/expirations", params={"symbol": "SPY"})
+            return feeds.parse_expirations(resp)
+        except Exception:
+            return []
+
     from bot.regime.engine import compute_regime_state
     from bot.regime.vix_term import fetch_vix_term
     from bot.regime.flow_uw import flow_context
@@ -640,6 +722,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
     return Deps(
         get_spot=get_spot, get_atr=get_atr, get_chain=get_chain,
         pick_expiry=pick_expiry,
+        get_expirations=get_expirations,
         get_vix_regime=get_vix_regime, account_state=account_state,
         mark_position=mark_position, dte_of=lambda p, today: dte_from_expiry(p.expiry, today),
         open_spread=open_spread, close_spread=close_spread,

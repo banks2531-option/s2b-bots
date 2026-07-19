@@ -1,22 +1,36 @@
 """Bot orchestrator: tick = reconcile -> manage -> enter, with halt-gating (spec §3,4,5,7)."""
+import types
 from dataclasses import dataclass, field, replace
 
 from bot.sizing import contracts_for_risk, regime_adjusted_risk_pct
 from bot.risk_gate import RiskGate, RiskConfig
 from bot.strategy.s2b import build_spread_order, S2bConfig, to_tradier_payload, _occ
-from bot.strategy.execution_price import (quotes_valid, package_too_wide,
-                                           expected_executable_credit, spot_moved_too_far)
+from bot.strategy.execution_price import (quotes_valid, package_too_wide, package_mid,
+                                           package_natural, expected_executable_credit,
+                                           spot_moved_too_far)
 from bot.features import S2bFeatures
 from bot.broker.order_state import result_status
 from bot.strategy.manage import (monitor_positions, ManageConfig, ManagedPosition, ExitAction,
                                   dte_from_expiry)
-from bot.strategy.credit_quality import (dte_bucket, full_size_threshold, credit_tier, _percentile,
-                                          should_record_observation)
+from bot.strategy.credit_quality import (dte_bucket, full_size_threshold, _percentile,
+                                          should_record_observation, classify_credit_quality,
+                                          candidate_key, record_candidate, bucket15_of,
+                                          CreditObservation,
+                                          low_credit_safety_pass)
 from bot.strategy.cost_gate import cost_gate_eval
-from bot.portfolio.risk_budget import (size_qty, cap_to_budgets, remaining_stop_risk,
-                                        planned_stop_loss_per_contract, structural_max_loss_per_contract)
-from bot.portfolio.gap_stress import gap_stress_losses
+from bot.strategy.quote_quality import (spread_quote_age_seconds, calculate_quote_age_seconds,
+                                         quote_freshness_pass, calculate_atm_iv,
+                                         expected_move_to_expiry, expected_move_cushion_of)
+from bot.portfolio.risk_budget import (size_qty, remaining_stop_risk,
+                                        planned_stop_loss_per_contract, structural_max_loss_per_contract,
+                                        apply_quality_multiplier, budget_quantity_caps, entry_ceiling_cap,
+                                        size_to_risk_limits, classify_outcome, DecisionOutcome)
+from bot.portfolio.gap_stress import gap_stress_losses, gap_quantity_caps, gap_model_comparison
 from bot.portfolio import exposure
+from bot.app.expirations import (get_candidate_expirations, select_best_candidate,
+                                  evaluate_expiration)
+from bot.app.entry_state import classify_entry_state, note_entry_state
+from bot.strategy.fallback import should_evaluate_five_wide, evaluate_five_wide_shadow
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
 from bot.regime.shadow_monitor import compute_shadow_signals, shadow_caution_score
@@ -54,6 +68,28 @@ class BotState:
                                                             # should_record_observation to dedup repeated
                                                             # near-identical candidates within a polling day
                                                             # (partner review v2 item 3 fix)
+    current_entry_state: str = None    # T9 (spec §16): the operational state last reported. Stored as
+                                        # a plain string so it round-trips through the JSON state file.
+    entry_state_changed_at: str = None # ISO timestamp of the last state TRANSITION
+    entry_cycles_started: int = 0                         # advisor Decision 2: EVERY scheduled entry cycle,
+                                                            # counted at the very top -- including cycles that
+                                                            # exit at max_open/max_entries before a candidate
+                                                            # is ever constructed. The gap between this and
+                                                            # raw_candidate_evaluations is exactly "how much of
+                                                            # the session was spent blocked by position limits".
+    seen_candidate_keys: dict = field(default_factory=dict)  # post-v2 refinement §12: candidate_key ->
+                                                            # last-seen credit ratio (the anchor). A dict
+                                                            # rather than the spec's bare set because the
+                                                            # ">= 0.005 ratio move re-counts" rule needs the
+                                                            # prior ratio per key. Pruned to the current
+                                                            # trading date on each record_candidate call;
+                                                            # round-trips via state_store (tuple keys are
+                                                            # encoded as lists for JSON).
+    raw_candidate_evaluations: int = 0                    # §12/§17: incremented once a valid candidate spread
+                                                            # has actually been CONSTRUCTED (diagnostics only --
+                                                            # "do not use raw polling evaluations in
+                                                            # profitability reports")
+    unique_candidate_opportunities: int = 0               # §12/§17: materially distinct opportunities
     realized_today: float = 0.0                           # sum of realized P&L from closes on `risk_day` (partner review v2 §11)
     risk_day: str = ""                                    # the calendar date `realized_today` applies to
     markout_pending: list = field(default_factory=list)   # persisted MarkoutTracker pending state
@@ -98,6 +134,10 @@ class Deps:
     entry_days: frozenset = frozenset({0})   # weekdays allowed to enter (0=Mon). A/B variable.
     max_open: int = 1                        # max concurrent open positions for this bot
     max_entries_per_day: int = 1             # max NEW positions opened per calendar day
+    get_expirations: callable = None   # T8 (spec §14): (today_str) -> [expiry_str] the broker lists.
+                                        # None (default) -> alternate-expiration evaluation is skipped
+                                        # and pick_expiry's single choice is used, so every existing
+                                        # caller and the live bot are unaffected.
     shared_account: bool = False             # True when multiple bots share ONE broker account
     trade_log: callable = (lambda record: None)   # (dict) -> None; per-bot trade/P&L log sink
     regime_provider: callable = None                 # () -> RegimeState | None
@@ -625,8 +665,32 @@ def _decision_telemetry(state: BotState, deps: Deps, today, spot=None, atr=None,
     return tel
 
 
+def _foreign_for_preselect(deps, state):
+    """Foreign SPY spreads for the T8 pre-selection's gap book. Best-effort: the pre-selection only
+    RANKS expirations, so if the broker spread feed is unavailable we rank on this bot's own book
+    rather than failing the cycle. The winner's authoritative sizing below re-derives this properly."""
+    try:
+        raw = deps.account_spy_spreads() if deps.account_spy_spreads is not None else []
+        return exposure.foreign_spreads(raw, state.open_positions)
+    except Exception:
+        return []
+
+
+def _chain_quote(chain, strike, nearest=False):
+    """The OptionQuote at `strike`, or None. With nearest=True return the closest strike instead of
+    requiring an exact match (used to find the at-the-money leg for the expected-move IV)."""
+    if not chain:
+        return None
+    if nearest:
+        return min(chain, key=lambda q: abs(q.strike - strike))
+    return next((q for q in chain if q.strike == strike), None)
+
+
 def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     today = now.strftime("%Y-%m-%d")
+    state.entry_cycles_started += 1      # advisor Decision 2, stage 1/3: count the CYCLE itself, before any
+                                          # gate can return -- so a session spent entirely at the position
+                                          # limit is distinguishable from one that evaluated and rejected.
     if state.last_entry_date != today:
         state.entries_today = 0          # new calendar day -> reset the daily entry counter
 
@@ -644,7 +708,20 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     risk_budget_telemetry = None   # Priority-0 fix item 7: which of the four aggregate risk budgets
                                     # (same_day_stop/expiry_stop/total_stop/total_structural) bound
                                     # a risk_budget reject, + its exposure/limit/headroom numbers;
-                                    # set once the aggregate_risk_budget block runs and caps to 0
+                                    # set once the aggregate_risk_budget block runs and caps to 0.
+                                    # Task 5 retired its population (the quantity-cap pipeline emits
+                                    # risk_sizing_telemetry instead); the fields stay declared in
+                                    # wiring._DECISION_LOG_FIELDS for CSV back-compat but go unfilled.
+    expiry_telemetry = None   # T8/§14: which expirations were evaluated, which won, and why each
+                               # loser lost. Populated only when alternate expirations are enabled.
+    gap_comparison_telemetry = None  # Advisor Step 2B: intrinsic-vs-BS gap comparison, populated only
+                                      # when log_intrinsic_gap_comparison is on (Bot B validation).
+    risk_sizing_telemetry = None   # Task 5 (§10/§11): the quantity-cap sizing outcome -- limiting_gate
+                                    # + requested/quality-adjusted/final qty + the binding cap's
+                                    # exposure/limit/remaining/incremental; set once the sizing runs.
+    decision_outcome_val = None    # Task 5 (§11): the DecisionOutcome label (allowed_full/reduced,
+                                    # blocked_zero_capacity, blocked_credit_quality); set at each
+                                    # risk-sizing / credit-quality decision point.
     entry_delta = None       # §14: best-effort short-put delta at signal time, set once the chain is
                               # fetched and an order is built; feeds _record_markout below
     foreign_position_list = []   # Priority-0 fix item 6: quantity-aware foreign SPY spreads at the
@@ -671,8 +748,10 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         follow-up (filled=True carries tp_value/stop_value and drives time-to-TP/time-to-stop) -- the
         reject->fill transition is exactly the filled-vs-rejected comparison §14 exists to measure."""
         try:
-            minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET
-            bucket15 = minutes_since_open // 15
+            # Post-v2 refinement §13 alignment: same clock-quarter-hour window as the §12 candidate
+            # dedup and the credit-history dedup. This block's whole premise is "reusing the item-3
+            # dedup notion", so it must not keep a third, different definition of a 15-minute window.
+            bucket15 = bucket15_of(now)          # `now` is ET
             filled = (reason == "filled")
             key = {"date": today, "expiry": expiry, "short": order.short_strike,
                    "long": order.long_strike, "bucket15": bucket15, "filled": filled}
@@ -705,6 +784,22 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         regardless of decision_logging, since the two flags are orthogonal."""
         if deps.features.markout_tracking and order is not None:
             _record_markout(reason, order, expiry, spot)
+        # T9 (spec §16): classify and record the operational state. Runs BEFORE the decision_logging
+        # gate and independently of it -- knowing what the bot is doing should not depend on whether
+        # verbose per-decision logging happens to be on. Emits only on a TRANSITION, so a bot parked
+        # in one state all session produces one record, not one per tick. Observability only: nothing
+        # here can influence the decision that was already made above.
+        if deps.features.entry_state_tracking:
+            try:
+                _gate = (risk_sizing_telemetry or {}).get("limiting_gate")
+                note_entry_state(state, classify_entry_state(reason, _gate), now, deps.trade_log,
+                                 context={"limiting_gate": _gate, "reason": reason,
+                                          "unique_candidate_opportunities":
+                                              state.unique_candidate_opportunities,
+                                          "open_positions": len(state.open_positions),
+                                          "entries_today": state.entries_today})
+            except Exception:
+                pass          # observability must never break an entry cycle
         if not deps.features.decision_logging:
             return
         try:
@@ -726,6 +821,14 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             rec.update(cost_telemetry)
         if risk_budget_telemetry is not None:   # item 7: which budget bound a risk_budget reject
             rec.update(risk_budget_telemetry)
+        if risk_sizing_telemetry is not None:   # Task 5: quantity-cap sizing outcome + binding gate
+            rec.update(risk_sizing_telemetry)
+        if gap_comparison_telemetry is not None:   # Step 2B: intrinsic-vs-BS gap comparison
+            rec.update(gap_comparison_telemetry)
+        if expiry_telemetry is not None:           # T8: alternate-expiration evaluation + selection
+            rec.update(expiry_telemetry)
+        if decision_outcome_val is not None:    # Task 5: §11 decision-outcome label
+            rec["decision_outcome"] = decision_outcome_val
         rec.update(_decision_telemetry(state, deps, today, spot=spot, atr=atr, expiry=expiry, order=order,
                                         foreign_positions=foreign_position_list, iv_fn=iv_fn,
                                         prime_iv=_prime_leg_ivs))
@@ -791,6 +894,43 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     spot = deps.get_spot("SPY")
     atr = deps.get_atr("SPY")
     expiry = deps.pick_expiry(today)
+    # T8 / spec §14 (advisor botbnextsteps Step 1): evaluate up to three eligible expirations rather
+    # than polling the nearest one all day and never noticing that a later one would have qualified.
+    #
+    # This is a PRE-SELECTION: it ranks expirations, then the ordinary entry path below runs IN FULL
+    # on the winner, where the authoritative gates fire and every state mutation happens. So the loop
+    # can only NARROW the choice -- a later expiration is an alternative, never an exemption.
+    #
+    # Flag OFF (Bot C, live) -> `expiry` stays exactly what pick_expiry returned and the code below is
+    # byte-identical to before. That matters: a real-money bot now runs this path.
+    if deps.features.enable_alternate_expirations and deps.get_expirations is not None:
+        _cands = get_candidate_expirations(deps.get_expirations(today), today,
+                                            minimum_dte=deps.features.alternate_expiration_min_dte,
+                                            maximum_count=deps.features.alternate_expiration_count)
+        _evals = []
+        for _exp, _dte in _cands:
+            try:
+                _evals.append(evaluate_expiration(
+                    expiry=_exp, dte=_dte, chain=deps.get_chain("SPY", _exp), spot=spot, atr=atr,
+                    deps=deps, state=state, now=now, regime=regime,
+                    credit_history=state.credit_ratio_history, iv_fn=iv_fn,
+                    prime_leg_ivs=_prime_leg_ivs, open_positions=state.open_positions,
+                    foreign_positions=_foreign_for_preselect(deps, state), today=today))
+            except Exception:
+                continue     # one bad expiration must not cost the whole cycle; it simply can't win
+        _best = select_best_candidate(_evals)
+        expiry_telemetry = {
+            "expirations_evaluated": len(_evals),
+            "expiration_selected": (_best.expiry if _best is not None else None),
+            "expiration_outcomes": ";".join(
+                "%s:%s" % (e.expiry, e.rejection_reason or ("qty%d" % e.final_qty)) for e in _evals),
+            "no_candidate_fits": _best is None,
+        }
+        if _best is not None:
+            expiry = _best.expiry
+        # _best None -> fall through on the NEAREST expiry so the entry path below produces its
+        # specific, per-gate rejection reason rather than a generic "nothing fits". The
+        # no_candidate_fits flag above records the §14 outcome for the report.
     chain = deps.get_chain("SPY", expiry)
     order = build_spread_order(spot, atr, chain, deps.s2b_cfg)
     if order is None:
@@ -827,6 +967,21 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             # TODO(partner review v2 §4): MAX_QUOTE_AGE_SECONDS staleness enforcement is deferred --
             # OptionQuote/parse_chain doesn't carry a quote timestamp yet. Wire this once quote
             # timestamps are plumbed through parse_chain (a later task).
+    # Post-v2 refinement §12: count this evaluation BEFORE any sizing/credit gate can reject it, so
+    # the opportunity statistics cover every candidate the bot actually looked at (§17 reports
+    # rejections BY gate, which only reconciles if the denominator counts pre-rejection). Two
+    # counters: raw_polling_evaluations (every look) and unique_candidate_opportunities (materially
+    # distinct ones -- new strike pair / expiry / 15-min bucket, or a >= 0.005 credit-ratio move).
+    # Unconditional (not behind credit_tiers): this is pure REPORTING state, it gates nothing, and
+    # opportunity counts are exactly as meaningful on a bot with tiering off. `now` is ET.
+    # Stages 2/3 and 3/3 of the advisor's Decision 2 counter split (stage 1/3 is at the top of this
+    # function). We are past the point where a valid candidate spread has been CONSTRUCTED.
+    state.raw_candidate_evaluations += 1
+    _cand_credit = exec_credit if exec_credit is not None else order.credit
+    _cand_key = candidate_key(today, expiry, order.short_strike, order.long_strike, now)
+    if record_candidate(key=_cand_key, ratio=round(_cand_credit / deps.s2b_cfg.wing_width, 4),
+                        seen=state.seen_candidate_keys, trading_date=today):
+        state.unique_candidate_opportunities += 1
     # Adaptive credit-quality tiering (partner review v2 §3), OPT-IN via deps.features.credit_tiers
     # (False = feature OFF -> this entire block is a no-op, so default behavior is byte-identical to
     # before). Sizes off exec_credit (the conservative expected-executable credit computed by the §4
@@ -835,6 +990,9 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     # rejected outright; a mid-tier credit is sized down to a "probe"; a strong credit trades full
     # size (see bot/strategy/credit_quality.py).
     quality_multiplier = 1.0
+    quality_maximum_qty = None   # Post-v2 refinement §1: the low_credit_safety lane caps qty at 1;
+                                  # None otherwise (probe/full). Consumed by apply_quality_multiplier
+                                  # (aggregate path) AND the legacy else-branch min() (aggregate OFF).
     if deps.features.credit_tiers:
         wing = deps.s2b_cfg.wing_width
         credit_for_tier = exec_credit if exec_credit is not None else order.credit
@@ -859,8 +1017,12 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # NOTE: `prior`/`thr` above are computed from the copy captured BEFORE this append -- that
         # ordering is unchanged, so there is still no look-ahead regardless of whether this candidate
         # gets recorded.
-        minutes_since_open = (now.hour - 9) * 60 + (now.minute - 30)   # `now` is ET (see run_entry_cycle docstring)
-        bucket15 = minutes_since_open // 15
+        # Post-v2 refinement §13: the research window is now the SAME one §12's candidate_key uses
+        # (clock quarter-hours, hour-qualified) instead of the old minutes-since-open count, so the
+        # two dedup rules can't drift apart. NOTE: the first tick after deploy sees a bucket15 that
+        # doesn't match the persisted pre-deploy value and records one extra observation -- a
+        # one-off, harmless against the 60-entry window. `now` is ET (see run_entry_cycle docstring).
+        bucket15 = bucket15_of(now)
         ratio_r = round(ratio, 4)   # single rounded value shared by the dedup key, the append, and the anchor
         obs = {"date": today, "expiry": expiry, "short": order.short_strike, "long": order.long_strike,
                "ratio": ratio_r, "bucket15": bucket15}
@@ -868,22 +1030,122 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                       short=order.short_strike, long=order.long_strike,
                                       ratio=ratio_r, bucket15=bucket15):
             hist = state.credit_ratio_history.setdefault(bucket, [])
-            hist.append(ratio_r)
-            state.credit_ratio_history[bucket] = hist[-60:]   # keep only the last 60 entries
+            hist.append(ratio_r)                              # STILL a bare float (advisor Decision 1,
+            state.credit_ratio_history[bucket] = hist[-60:]   # Option B: no persisted-state migration)
             state.credit_obs_last[bucket] = obs
-        mult = credit_tier(credit_for_tier, wing, deps.features.min_credit_ratio, thr,
-                            deps.features.probe_size_multiplier)
+            # Advisor Decision 1 (Option B): emit the structured audit record to the LOG only. Gated
+            # by the same dedup rule as the append, so the audit trail mirrors the rolling history
+            # one-for-one instead of becoming a per-poll firehose.
+            if deps.trade_log is not None:
+                deps.trade_log(CreditObservation(
+                    timestamp=now, expiry=expiry, dte_bucket=bucket,
+                    short_strike=order.short_strike, long_strike=order.long_strike,
+                    expected_executable_credit=round(credit_for_tier, 4), credit_ratio=ratio_r,
+                    candidate_key=_cand_key,
+                ).log_fields())
+        # Post-v2 refinement §1: classify_credit_quality REPLACES the old credit_tier multiplier --
+        # four lanes (reject / low_credit_safety / probe / full), returning the size multiplier AND a
+        # maximum_quantity (the low-credit lane caps at 1). This is the credit classifier on the
+        # credit-tiers path REGARDLESS of aggregate_risk_budget, so the low_credit_safety lane is live
+        # wherever credit_tiers is on (spec §1). ABSOLUTE_CREDIT_FLOOR (0.08) is the hard reject floor
+        # now, NOT min_credit_ratio (0.10): the [0.08, 0.10) band is a low_credit_safety lane,
+        # tradeable at quarter size ONLY if the strict low_credit_safety_pass gate holds (NOT loosened).
+        tier, quality_mult, quality_max = classify_credit_quality(ratio, thr)
         credit_telemetry = {
             "credit_ratio": ratio,
             "credit_pctl40": (_percentile(prior, 40) if count else None),
             "credit_sample_count": count,
             "credit_threshold": thr,
-            "credit_quality_mult": mult,
+            "credit_quality_mult": quality_mult,
         }
-        quality_multiplier = mult
-        if mult == 0.0:
+        quality_multiplier = quality_mult
+        quality_maximum_qty = quality_max
+        if tier == "reject":
+            decision_outcome_val = DecisionOutcome.BLOCKED_CREDIT_QUALITY.value
             _log_decision("credit_too_low", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "credit_too_low"
+        if tier == "low_credit_safety" and not deps.features.enable_low_credit_08_to_10:
+            # Advisor directive (botc.txt): the 0.08-0.10 exception lane is disabled for the first
+            # live release -- its quote-age and expected-move inputs are code-complete and unit-tested
+            # but NOT yet verified against real broker responses. A candidate in this band is simply
+            # rejected, exactly as it was before the lane existed. The regular 10%+ probe and
+            # full-size lanes are untouched.
+            decision_outcome_val = DecisionOutcome.BLOCKED_CREDIT_QUALITY.value
+            _log_decision("credit_too_low", spot=spot, atr=atr, expiry=expiry, order=order)
+            return state, "credit_too_low"
+        if tier == "low_credit_safety":
+            # Additional hard gate for the 0.08-0.10 band (spec §1). INPUT WIRING + availability
+            # caveats (3 available, 2 derivable, 2 unplumbed) -- documented here so the approximations
+            # are auditable on this real-money path:
+            #   target_to_cost_ratio -- cost_gate_eval on the conservative credit (computed HERE even
+            #     if the transaction_cost_gate flag path did not run);
+            #   package_width_ratio  -- the SAME scalar package_too_wide thresholds:
+            #     (package_mid - package_natural) / max(package_mid, 0.01), from the leg quotes;
+            #   cushion_atr          -- (spot - short_strike) / atr;
+            #   short_delta          -- entry_delta (best-effort chain delta; None => FAIL CLOSED);
+            #   quote_age_seconds    -- advisor Step 1A: the age of the OLDER leg, from the feed's
+            #     exchange quote timestamps. None (unknown) fails closed -- the current time is NEVER
+            #     substituted, since that would make stale cached data read as perfectly fresh;
+            #   expected_move_cushion-- advisor Step 1B: (spot - short_strike) / one-sigma expected
+            #     move to THIS candidate's expiry, from ATM IV on the same expiry. None when IV is
+            #     unavailable, in which case the lane falls back to the OR branch (short_delta<=0.30);
+            #   defensive_market_state - regime.trend_regime == "risk_off".
+            ttc = cost_gate_eval(credit_for_tier, deps.features)["target_to_cost_ratio"]
+            short_q = _chain_quote(chain, order.short_strike)
+            long_q = _chain_quote(chain, order.long_strike)
+            quote_age = (spread_quote_age_seconds(short_q, long_q, now)
+                         if short_q is not None and long_q is not None else None)
+            # ATM IV on the SAME expiry as the candidate (spec: "use the same expiration"). The chain
+            # this bot parses is puts-only, so the put side supplies the vol -- which the rule
+            # explicitly permits ("use the valid side if only one is available"). Near ATM the
+            # call/put vols are close enough that the put alone is a sound stand-in; if calls are
+            # ever parsed, pass the call IV here and the average takes over automatically.
+            atm_q = _chain_quote(chain, spot, nearest=True)
+            atm_iv = calculate_atm_iv(None, atm_q.iv if atm_q is not None else None)
+            exp_move = expected_move_to_expiry(spot, atm_iv, dte_from_expiry(expiry, today))
+            em_cushion = expected_move_cushion_of(spot=spot, short_strike=order.short_strike,
+                                                   expected_move=exp_move)
+            if order.short_bid is not None:
+                pm = package_mid(order.short_bid, order.short_ask, order.long_bid, order.long_ask)
+                pn = package_natural(order.short_bid, order.short_ask, order.long_bid, order.long_ask)
+                pkg_width_ratio = (pm - pn) / max(pm, 0.01)
+            else:
+                pkg_width_ratio = float("inf")   # no leg quotes -> fail the width condition (closed)
+            cushion_atr = (spot - order.short_strike) / atr if atr and atr > 0 else 0.0
+            defensive = (regime is not None
+                         and getattr(regime, "trend_regime", "unknown") == "risk_off")
+            passed = low_credit_safety_pass(
+                target_to_cost_ratio=ttc,
+                package_width_ratio=pkg_width_ratio,
+                quote_age_seconds=quote_age,
+                cushion_atr=cushion_atr,
+                expected_move_cushion=em_cushion,
+                short_delta=entry_delta,
+                defensive_market_state=defensive,
+            )
+            # Advisor Step 1A: log the freshness inputs so a lane decision is auditable after the
+            # fact -- which leg was stale, and whether the timestamp came from the feed at all.
+            credit_telemetry.update({
+                "lc_short_quote_age": (calculate_quote_age_seconds(short_q, now)
+                                       if short_q is not None else None),
+                "lc_long_quote_age": (calculate_quote_age_seconds(long_q, now)
+                                      if long_q is not None else None),
+                "lc_spread_quote_age": quote_age,
+                "lc_quote_time_source": ("exchange" if (short_q is not None
+                                                        and short_q.exchange_timestamp is not None)
+                                          else "received" if (short_q is not None
+                                                              and short_q.received_timestamp is not None)
+                                          else "none"),
+                "lc_quote_fresh": quote_freshness_pass(quote_age),
+                "lc_atm_iv": atm_iv,
+                "lc_expected_move": exp_move,
+                "lc_expected_move_cushion": em_cushion,
+                "lc_safety_pass": passed,
+            })
+            if not passed:
+                decision_outcome_val = DecisionOutcome.BLOCKED_CREDIT_QUALITY.value
+                _log_decision("credit_too_low", spot=spot, atr=atr, expiry=expiry, order=order)
+                return state, "credit_too_low"
     # Transaction-cost profitability gate (partner review v2 §5), OPT-IN via
     # deps.features.transaction_cost_gate. Runs AFTER the credit-tier decision above (so a candidate
     # already rejected as credit_too_low never reaches here) and BEFORE sizing. Rejects a candidate
@@ -935,69 +1197,108 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # the stop/structural budgets but silently absent from the gap-stress stress test).
         foreign_position_list = exposure.foreign_spreads(broker_spy_spreads, state.open_positions)
         foreign = exposure.account_spy_exposure(foreign_position_list)
-        proposed_qty = size_qty(req, risk_credit, deps.s2b_cfg.wing_width, deps.features,
-                                quality_multiplier=quality_multiplier)
-        # Priority-0 fix item 7: cap_to_budgets now returns a RiskBudgetResult naming WHICH of the
-        # four budgets (if any) bound the candidate down, not just a bare int -- so a reject can be
-        # decision-logged as e.g. "risk_budget:expiry_stop" instead of an undifferentiated
-        # "risk_budget". int(budget_result) is used for sizing so behavior/qty is unchanged
-        # (RiskBudgetResult is int-compatible via __int__/__eq__ for any other caller too).
-        budget_result = cap_to_budgets(proposed_qty, risk_credit, deps.s2b_cfg.wing_width, expiry,
-                                       today, state.open_positions, deps.mark_position, req,
-                                       deps.features, foreign_exposure=foreign)
-        qty = int(budget_result)
-        if qty <= 0:
-            limiting = budget_result.limiting_budget
-            # limiting is None when proposed_qty itself was already <=0 (size_qty rounded to zero
-            # before any book budget was even consulted) -- keep the bare "risk_budget" reason in
-            # that case since no specific budget can be blamed; only suffix it when a real budget
-            # bound (unconstrained-input case is a pure regression: exact same reason as before).
-            reason = f"risk_budget:{limiting}" if limiting is not None else "risk_budget"
-            # Read exposure/limit straight off the result (keyed on ITS OWN limiting_budget) rather
-            # than re-deriving the mapping here -- so a budget rename can't silently drift into None.
-            binding_exposure, binding_limit = budget_result.limiting_exposure_and_limit()
-            risk_budget_telemetry = {
-                "risk_budget_limiting": limiting,
-                "risk_budget_exposure": (round(binding_exposure, 2)
-                                         if binding_exposure is not None else None),
-                "risk_budget_limit": round(binding_limit, 2) if binding_limit is not None else None,
-                "risk_budget_headroom": (round(binding_limit - binding_exposure, 2)
-                                         if binding_exposure is not None and binding_limit is not None
-                                         else None),
-                "risk_budget_proposed_qty": proposed_qty,
-                "risk_budget_permitted_qty": qty,
-            }
+        wing = deps.s2b_cfg.wing_width
+        # Post-v2 refinement §2 "Correct sequence" (REDUCE-not-reject): base qty -> quality qty ->
+        # cap to ALL risk limits, taking the strictest. size_qty with quality_multiplier=1.0 returns
+        # the pre-quality BASE (min(entry-stop, structural)); apply_quality_multiplier then folds in
+        # the credit-quality multiplier AND the low-credit maximum (a probe no longer floors a valid
+        # base to 0; the low_credit_safety lane caps at 1). That quality qty flows into
+        # size_to_risk_limits against the four aggregate budgets (budget_quantity_caps) PLUS the three
+        # gap-stress scenarios (gap_quantity_caps, spec §8/§9) -- so an oversized request is SIZED DOWN
+        # to the binding cap and PROCEEDS; only final_qty <= 0 rejects. This REPLACES the old
+        # cap_to_budgets int + gap-stress shrink-loop (both deleted; gap is now just another cap).
+        base_qty = size_qty(req, risk_credit, wing, deps.features, quality_multiplier=1.0)
+        quality_qty = apply_quality_multiplier(base_qty, quality_multiplier, quality_maximum_qty)
+        # The gap-stress book mirrors the budget caps' foreign inclusion (Priority-0 fix item 6):
+        # foreign SPY spreads at the broker must be stressed too (budget caps get foreign via
+        # foreign_exposure=foreign; the gap book must carry foreign_position_list to match). Gap caps
+        # are BS-only (spec §9: "Do not use intrinsic value alone" -- gap_quantity_caps always reprices
+        # via Black-Scholes; the old f.gap_stress_model flag was RETIRED in advisor Step 2A).
+        # Prime the batched, memoized real-greeks fetch once for the whole book -- but ONLY when a
+        # positive quality qty is actually going to be sized (mirrors the old no-fetch-on-zero path, so
+        # a candidate that rounds to 0 before any book budget is consulted still triggers no fetch).
+        gap_book_open = state.open_positions + foreign_position_list
+        candidate_view = replace(order, credit=risk_credit)   # proposed leg stressed at the
+                                                              # conservative credit; qty irrelevant here
+                                                              # (gap_quantity_caps stresses 1 contract)
+        if quality_qty > 0:
+            _prime_leg_ivs(gap_book_open + [candidate_view])
+            caps = (budget_quantity_caps(risk_credit, wing, expiry, today, state.open_positions,
+                                         deps.mark_position, req, deps.features, foreign_exposure=foreign)
+                    + gap_quantity_caps(gap_book_open, candidate_view, spot, atr, deps.features, req,
+                                        iv_fn=iv_fn, today=today))
+            # Advisor directive (botc.txt): the controlled-release per-entry contract ceiling, as one
+            # more cap. Being in the min() means it can only REDUCE -- it can never raise a zero into
+            # a forced one-contract trade, and it names itself in limiting_gate when it binds.
+            ceiling = entry_ceiling_cap(deps.features.max_entry_qty)
+            if ceiling is not None:
+                caps.append(ceiling)
+        else:
+            caps = []
+        # Advisor Step 2B: during Bot B validation, also compute the INTRINSIC gap numbers and log
+        # them beside the enforced Black-Scholes ones, so the model change is measured rather than
+        # argued about. Comparison ONLY -- nothing here feeds a cap, and `caps` above is already
+        # fixed by this point. Off by default; no other bot pays the cost.
+        if deps.features.log_intrinsic_gap_comparison and quality_qty > 0:
+            gap_comparison_telemetry = gap_model_comparison(
+                gap_book_open, candidate_view, spot, atr, deps.features, req,
+                iv_fn=iv_fn, today=today)
+        result = size_to_risk_limits(quality_qty, caps)
+        final_qty = result.final_qty
+        # Telemetry (spec §10/§11): name the binding-or-tightest cap and carry its exposure numbers.
+        binding_cap = next((c for c in result.caps if c.name == result.limiting_gate), None)
+        risk_sizing_telemetry = {
+            "limiting_gate": result.limiting_gate,
+            "requested_qty": quality_qty,
+            "quality_adjusted_qty": quality_qty,
+            "final_qty": final_qty,
+            "risk_current_exposure": (round(binding_cap.current_exposure, 2)
+                                      if binding_cap is not None else None),
+            "risk_limit": round(binding_cap.limit, 2) if binding_cap is not None else None,
+            "risk_remaining_capacity": (round(binding_cap.remaining_capacity, 2)
+                                        if binding_cap is not None else None),
+            "risk_incremental_per_contract": (round(binding_cap.incremental_risk_per_contract, 2)
+                                              if binding_cap is not None else None),
+        }
+        if final_qty <= 0:
+            # Reduce-not-reject still rejects a genuinely full book. Return the BARE "risk_budget" info
+            # string (unchanged from before, so callers keying on it are unaffected); the SPECIFIC gate
+            # lives in the logged reason f"risk_budget:{limiting_gate}" + the limiting_gate telemetry.
+            # When quality_qty was already 0 (limiting_gate == "requested_qty", set by size_to_risk_limits
+            # before any cap is consulted), log the bare "risk_budget" -- no cap can be blamed.
+            decision_outcome_val = DecisionOutcome.BLOCKED_ZERO_CAPACITY.value
+            # T11 (spec §15): this candidate cleared every non-risk gate and was zeroed by a RISK cap
+            # -- exactly the case where a narrower $5 wing might have fitted. Evaluate it and LOG the
+            # hypothetical. Shadow only: evaluate_five_wide_shadow returns a record, never an order.
+            if deps.features.enable_five_wide_shadow and deps.trade_log is not None:
+                try:
+                    _tw = types.SimpleNamespace(
+                        passed_non_risk_gates=True, quality_adjusted_qty=quality_qty,
+                        final_qty=final_qty, limiting_gate=result.limiting_gate,
+                        short_strike=order.short_strike, long_strike=order.long_strike,
+                        expiry=expiry)
+                    if should_evaluate_five_wide(_tw):
+                        _shadow = evaluate_five_wide_shadow(
+                            ten_wide=_tw, chain=chain, spot=spot, atr=atr, f=deps.features,
+                            risk_equity=req, open_positions=state.open_positions,
+                            foreign_positions=foreign_position_list, mark_fn=deps.mark_position,
+                            iv_fn=iv_fn, today=today)
+                        if _shadow is not None:
+                            deps.trade_log(_shadow)
+                except Exception:
+                    pass      # research must never break an entry cycle
+            reason = ("risk_budget" if result.limiting_gate in (None, "requested_qty")
+                      else f"risk_budget:{result.limiting_gate}")
             _log_decision(reason, spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "risk_budget"
-        order.qty = qty
-        # Gap-risk stress test (partner review v2 §10), OPT-IN behind the same flag: stress ALL
-        # open positions, FOREIGN positions (Priority-0 fix item 6 -- foreign_position_list, same
-        # quantity-aware helper used for the stop/structural budgets above), AND the proposed trade
-        # at SPY down 1.0/1.5/2.0 ATR (conservative intrinsic-value repricing). If the 1.5-ATR total
-        # stressed loss exceeds the budget, shrink the proposed qty (re-checking each step) until it
-        # fits, or reject outright if even 1 contract doesn't. All three scenario losses are
-        # recorded for the final qty. The proposed leg is stressed at risk_credit (a `replace()`
-        # view -- the real `order` object, used for the broker payload/OPEN record below, is left
-        # untouched).
-        gap_budget = deps.features.max_gap_stress_loss_pct * req
-        # Priority-0 fix item 5: BS shock-grid reprice (worst-cell) instead of intrinsic-only. Uses
-        # the SAME memoized iv_fn/today/features as the §12 DECISION-telemetry calc, so the logged
-        # agg_gap_stress_1_5 matches this enforced/OPEN-row gap_stress_1_5 -- exactly when
-        # risk_credit == order.credit (they diverge only on the credit-tier/cost-gate path, where the
-        # proposed leg is stressed at exec_credit here vs order.credit in telemetry; deferred nuance).
-        # prime_leg_ivs runs the single batched greeks fetch for the whole book (memoized thereafter).
-        gap_stress_book = state.open_positions + foreign_position_list + [replace(order, credit=risk_credit)]
-        _prime_leg_ivs(gap_stress_book)
-        gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width,
-                                       today=today, iv_fn=iv_fn, f=deps.features)
-        while order.qty > 0 and gap_losses[1.5] > gap_budget:
-            order.qty -= 1
-            gap_stress_book = state.open_positions + foreign_position_list + [replace(order, credit=risk_credit)]
-            gap_losses = gap_stress_losses(gap_stress_book, spot, atr, deps.s2b_cfg.wing_width,
-                                           today=today, iv_fn=iv_fn, f=deps.features)
-        if order.qty <= 0:
-            _log_decision("gap_stress", spot=spot, atr=atr, expiry=expiry, order=order)
-            return state, "gap_stress"
+        order.qty = final_qty
+        decision_outcome_val = classify_outcome(quality_qty, final_qty).value   # allowed_full/reduced
+        # OPEN-row gap telemetry (spec §10): the ENFORCED gap-stress losses at the FINAL qty. Reuse
+        # gap_stress_losses(model="black_scholes"), the same model gap_quantity_caps enforces, so
+        # this equals the BS-enforced caps, so "logged == enforced" holds for the real configs. The
+        # book mirrors the caps' book (own + foreign + proposed); iv_fn/today already primed above.
+        gap_losses = gap_stress_losses(gap_book_open + [replace(order, credit=risk_credit)],
+                                       spot, atr, wing, today=today, iv_fn=iv_fn, f=deps.features)
         # Continuous daily-risk gate (partner review v2 §11), OPT-IN behind the same flag: don't
         # wait for the first stop to restrict entries. daily_risk_consumption = today's realized
         # loss (if any) + the remaining stop risk of positions already opened TODAY + this
@@ -1019,6 +1320,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                                             deps.features.expected_stop_slippage) * order.qty
             daily_risk_consumption = abs(min(state.realized_today, 0.0)) + today_stop + proposed_stop
         if order.qty <= 0:
+            decision_outcome_val = None   # not a risk-sizing outcome; don't carry a stale allowed_*
             _log_decision("daily_risk", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "daily_risk"
         # ALSO halt new entries (but never management/closing) once today's total P&L (realized +
@@ -1026,14 +1328,18 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         unrealized_today = sum((p.credit - deps.mark_position(p)) * 100 * p.qty
                                 for p in state.open_positions)
         if state.realized_today + unrealized_today <= -deps.features.daily_pnl_halt_pct * req:
+            decision_outcome_val = None   # halt reason, not a risk-sizing outcome
             _log_decision("day_loss_halt", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "day_loss_halt"
     else:
         order.qty = contracts_for_risk(acct.equity, order.max_loss_per_contract, risk)
         if deps.features.credit_tiers:
             order.qty = max(1, int(order.qty * quality_multiplier))   # a probe of a 1-lot stays 1
+            if quality_maximum_qty is not None:   # the low_credit_safety lane caps at 1 (spec §1) --
+                order.qty = min(order.qty, quality_maximum_qty)       # honor it on the legacy path too
     decision = RiskGate(deps.risk_cfg).is_order_allowed(order, acct)
     if not decision.allowed:
+        decision_outcome_val = None   # a RiskGate reject is not a risk-sizing outcome
         _log_decision(decision.reason, spot=spot, atr=atr, expiry=expiry, order=order)
         return state, decision.reason
     open_result = deps.open_spread(to_tradier_payload(order, expiry, order.qty))

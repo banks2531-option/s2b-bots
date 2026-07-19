@@ -398,6 +398,8 @@ def build_report(trade_log_path, markout_log_path=None, allocated_equity=DEFAULT
             period_trades,
             lambda t: t["entry_number_in_day"] if t["entry_number_in_day"] is not None else "unknown"),
         "markouts": markouts,
+        # T10 (spec §17): the reconciled entry funnel -- see build_funnel.
+        "funnel": build_funnel(period_rows),
     }
 
 
@@ -526,6 +528,80 @@ def render_markdown(report: dict) -> str:
         lines.append(f"  - avg MFE/MAE (rejected): {mo['avg_mfe_rejected']} / {mo['avg_mae_rejected']}")
         lines.append("")
 
+
+    # ── T10 (spec §17): the reconciled entry funnel ─────────────────────────────────────────────
+    fn = report.get("funnel")
+    if fn:
+        a, c, o = fn["activity"], fn["contracts"], fn["orders"]
+        lines.append("")
+        lines.append("## Entry funnel (spec §17)")
+        lines.append("")
+        lines.append("### Activity")
+        lines.append(f"- Entry cycles started: {a['entry_cycles_started']}")
+        lines.append(f"- Raw candidate evaluations: {a['raw_candidate_evaluations']}")
+        lines.append(f"- Unique candidate opportunities: {a['unique_candidate_opportunities']}")
+        lines.append(f"- Unique strike pairs: {a['unique_strike_pairs']}")
+        lines.append(f"- Unique expirations evaluated: {a['unique_expirations_evaluated']}")
+        lines.append("")
+        lines.append("> Profitability figures must use UNIQUE candidate opportunities, never raw")
+        lines.append("> evaluations -- the raw count is a polling-frequency measure (spec §12).")
+        lines.append("")
+        lines.append("### Credit and quality gates")
+        lines.append(_table(["gate", "count"],
+                            [[k, v] for k, v in _sorted_group_items(fn["credit_gates"])]))
+        lines.append("")
+        lines.append("### Quantity outcomes")
+        lines.append(_table(["outcome", "count"],
+                            [[k, v] for k, v in _sorted_group_items(fn["quantity_outcomes"])]))
+        if fn["limiting_caps"]:
+            lines.append("")
+            lines.append("### Limiting cap on zero-capacity blocks")
+            lines.append(_table(["cap", "count"],
+                                [[k, v] for k, v in _sorted_group_items(fn["limiting_caps"])]))
+        lines.append("")
+        lines.append("### Contract reconciliation")
+        lines.append(f"- Requested: {c['requested']}")
+        lines.append(f"- Quality-adjusted: {c['quality_adjusted']}")
+        lines.append(f"- Risk-approved: {c['risk_approved']}")
+        lines.append(f"- Submitted: {c['submitted']}")
+        lines.append(f"- Filled: {c['filled']}")
+        lines.append(f"- Removed by credit sizing: {c['removed_by_credit_sizing']}")
+        lines.append(f"- Removed by aggregate risk: {c['removed_by_aggregate_risk']}")
+        lines.append(f"- Removed by gap stress: {c['removed_by_gap_stress']}")
+        lines.append(f"- **Reconciles: {c['reconciles']}**"
+                     + ("" if c["reconciles"] else
+                        "  <- requested != filled + removed; a stage is misreporting"))
+        lines.append("")
+        lines.append("### Order funnel")
+        lines.append(f"- Candidates allowed: {o['candidates_allowed']}")
+        lines.append(f"- Orders submitted: {o['orders_submitted']}")
+        lines.append(f"- Orders filled: {o['orders_filled']}")
+        lines.append(f"- Orders partially filled: {o['orders_partially_filled']}")
+        lines.append(f"- Orders cancelled: {o['orders_cancelled']}")
+        lines.append(f"- Orders expired: {o['orders_expired']}")
+        lines.append(f"- Qualified but unfilled: {o['qualified_but_unfilled']}")
+        g = fn.get("gap_comparison")
+        if g:
+            lines.append("")
+            lines.append("### Gap model comparison (Black-Scholes enforcing, intrinsic for reference)")
+            lines.append(f"- Candidates compared: {g['candidates_compared']}")
+            lines.append(f"- Contracts intrinsic would permit: {g['contracts_intrinsic_would_permit']}")
+            lines.append(f"- Contracts Black-Scholes permits: {g['contracts_black_scholes_permits']}")
+            lines.append("- Candidates Black-Scholes turned tradeable -> zero: "
+                         f"{g['candidates_zeroed_by_black_scholes']}")
+            lines.append(f"- Incremental stress difference avg: {g['avg_incremental_difference']}")
+            lines.append(f"- Incremental stress difference median: {g['median_incremental_difference']}")
+            lines.append(f"- Incremental stress difference max: {g['max_incremental_difference']}")
+        fw = fn.get("five_wide_shadow")
+        if fw:
+            lines.append("")
+            lines.append("### $5-wide shadow (research only -- never traded)")
+            lines.append(f"- Evaluated: {fw['evaluated']}")
+            lines.append(f"- Narrower leg available: {fw['available']}")
+            lines.append(f"- Would have qualified: {fw['would_have_qualified']}")
+            lines.append(f"- Hypothetical contracts: {fw['hypothetical_contracts']}")
+
+
     return "\n".join(lines)
 
 
@@ -549,3 +625,189 @@ def _main(argv=None):
 
 if __name__ == "__main__":
     _main()
+
+
+# ── T10 (spec §17): the reconciled entry funnel ─────────────────────────────────────────────────
+# Accounts for every candidate from "the bot woke up" to "contracts actually filled", so a session
+# with no trades can be EXPLAINED rather than guessed at. The reconciliation check is the point: if
+# requested contracts do not equal filled plus everything removed along the way, a stage is lying.
+
+_QUOTE_REASONS = ("quote_invalid", "quote_wide", "quote_stale")
+
+
+def _i(x):
+    """Int coercion for CSV strings; None on anything unparseable (never raises)."""
+    v = _f(x)
+    return int(v) if v is not None else None
+
+
+def _truthy(x):
+    return str(x).strip().lower() in ("true", "1", "yes")
+
+
+def _max_counter(rows, key):
+    """Cumulative BotState counters are snapshotted onto every row, so the window's value is the
+    HIGHEST seen -- summing them would multiply by the number of decisions logged."""
+    vals = [_i(r.get(key)) for r in rows]
+    vals = [v for v in vals if v is not None]
+    return max(vals) if vals else 0
+
+
+def _percentile_sorted(s, p):
+    """Percentile of an already-sorted list (linear interpolation). Empty -> None."""
+    if not s:
+        return None
+    k = (len(s) - 1) * (p / 100.0)
+    lo = int(k)
+    hi = min(lo + 1, len(s) - 1)
+    return s[lo] + (s[hi] - s[lo]) * (k - lo)
+
+
+def build_funnel(rows):
+    """The section 17 funnel for an already-windowed set of log rows."""
+    decisions = [r for r in rows if r.get("event") == "DECISION"]
+    opens = [r for r in rows if r.get("event") == "OPEN"]
+    shadows = [r for r in rows if r.get("event") == "FIVE_WIDE_SHADOW"]
+
+    def dec(name):
+        return [r for r in decisions if r.get("decision") == name]
+
+    # ── activity ────────────────────────────────────────────────────────────────────────────────
+    pairs = {(r.get("short"), r.get("long")) for r in decisions
+             if r.get("short") not in (None, "") and r.get("long") not in (None, "")}
+    expiries = {r.get("expiry") for r in decisions if r.get("expiry") not in (None, "")}
+    activity = {
+        "entry_cycles_started": _max_counter(decisions, "entry_cycles_started"),
+        "raw_candidate_evaluations": _max_counter(decisions, "raw_candidate_evaluations"),
+        "unique_candidate_opportunities": _max_counter(decisions, "unique_candidate_opportunities"),
+        "unique_strike_pairs": len(pairs),
+        "unique_expirations_evaluated": len(expiries),
+    }
+
+    # ── credit / quality gates ──────────────────────────────────────────────────────────────────
+    # The 8-10% low-credit band is distinguished from an outright sub-floor reject by the ratio, so
+    # "the lane declined it" is never conflated with "the credit was never plausible".
+    low_band = [r for r in decisions
+                if 0.08 <= (_f(r.get("credit_ratio")) or 0) < 0.10]
+    credit_gates = {
+        "rejected_below_absolute_floor": sum(
+            1 for r in dec("credit_too_low") if (_f(r.get("credit_ratio")) or 0) < 0.08),
+        "rejected_low_credit_safety": sum(
+            1 for r in low_band if r.get("decision") == "credit_too_low"),
+        "qualified_low_credit_safety": sum(
+            1 for r in low_band if r.get("decision") != "credit_too_low"),
+        "qualified_probe": sum(1 for r in decisions if _f(r.get("credit_quality_mult")) == 0.4),
+        "qualified_full_size": sum(1 for r in decisions if _f(r.get("credit_quality_mult")) == 1.0),
+        "rejected_transaction_cost": len(dec("cost_gate")),
+        "rejected_quote_quality": sum(len(dec(x)) for x in _QUOTE_REASONS),
+        "rejected_trend": len(dec("trend_paused")),
+        "rejected_regime": len(dec("regime_blocked")),
+        "rejected_duplicate": len(dec("duplicate_strikes")),
+    }
+
+    # ── quantity outcomes ───────────────────────────────────────────────────────────────────────
+    def outcome(name):
+        return [r for r in decisions if r.get("decision_outcome") == name]
+    reduced = outcome("allowed_reduced")
+    quantity_outcomes = {
+        "allowed_at_requested_quantity": len(outcome("allowed_full")),
+        "allowed_at_reduced_quantity": len(reduced),
+        "allowed_as_one_contract_probe": sum(1 for r in reduced if _i(r.get("final_qty")) == 1),
+        "blocked_at_zero_capacity": len(outcome("blocked_zero_capacity")),
+        "blocked_credit_quality": len(outcome("blocked_credit_quality")),
+    }
+
+    # Limiting caps counted ONLY for zero-capacity blocks. A cap that merely trimmed a trade is not
+    # the same as one that killed it, and merging them would make gap stress look like it is
+    # rejecting trades it actually only reduced.
+    limiting_caps = Counter(r.get("limiting_gate") for r in outcome("blocked_zero_capacity")
+                            if r.get("limiting_gate"))
+
+    # ── contract reconciliation ─────────────────────────────────────────────────────────────────
+    requested = sum(_i(r.get("requested_qty")) or 0 for r in decisions)
+    quality = sum(_i(r.get("quality_adjusted_qty")) or 0 for r in decisions)
+    approved = sum(_i(r.get("final_qty")) or 0 for r in decisions)
+    filled_contracts = sum(_i(r.get("qty")) or 0 for r in opens
+                           if (r.get("status") or "").strip().lower() == "filled")
+    by_gap = by_agg = 0
+    for r in decisions:
+        q, fin = _i(r.get("quality_adjusted_qty")), _i(r.get("final_qty"))
+        if q is None or fin is None or q <= fin:
+            continue
+        removed = q - fin
+        if str(r.get("limiting_gate") or "").startswith("gap_"):
+            by_gap += removed
+        else:
+            by_agg += removed
+    by_credit = max(0, requested - quality)
+    contracts = {
+        "requested": requested,
+        "quality_adjusted": quality,
+        "risk_approved": approved,
+        "submitted": sum(_i(r.get("qty")) or 0 for r in opens),
+        "filled": filled_contracts,
+        "removed_by_credit_sizing": by_credit,
+        "removed_by_aggregate_risk": by_agg,
+        "removed_by_gap_stress": by_gap,
+    }
+    contracts["reconciles"] = (requested == filled_contracts + by_credit + by_agg + by_gap)
+
+    # ── order funnel ────────────────────────────────────────────────────────────────────────────
+    def status_count(name):
+        return sum(1 for r in opens if (r.get("status") or "").strip().lower() == name)
+    orders_filled = status_count("filled")
+    orders = {
+        "candidates_allowed": len(dec("filled")),
+        "orders_submitted": len(opens),
+        "orders_filled": orders_filled,
+        "orders_partially_filled": status_count("partially_filled") + status_count("partial"),
+        "orders_cancelled": status_count("cancelled") + status_count("canceled"),
+        "orders_expired": status_count("expired"),
+        "qualified_but_unfilled": max(0, len(dec("filled")) - orders_filled),
+    }
+
+    # ── gap-model comparison (Bot B validation) ─────────────────────────────────────────────────
+    cmp_rows = [r for r in decisions if r.get("bs_qty_1_5") not in (None, "")]
+    gap_comparison = None
+    if cmp_rows:
+        diffs = []
+        for r in cmp_rows:
+            b, i = _f(r.get("bs_incremental_1_5")), _f(r.get("intrinsic_incremental_1_5"))
+            if b is not None and i is not None:
+                diffs.append(b - i)
+        gap_comparison = {
+            "candidates_compared": len(cmp_rows),
+            "contracts_intrinsic_would_permit": sum(_i(r.get("intrinsic_qty_1_5")) or 0
+                                                    for r in cmp_rows),
+            "contracts_black_scholes_permits": sum(_i(r.get("bs_qty_1_5")) or 0 for r in cmp_rows),
+            "candidates_zeroed_by_black_scholes": sum(
+                1 for r in cmp_rows if _truthy(r.get("bs_zeroed_the_candidate"))),
+            "avg_incremental_difference": round(sum(diffs) / len(diffs), 2) if diffs else None,
+            "median_incremental_difference": (round(_percentile_sorted(sorted(diffs), 50), 2)
+                                              if diffs else None),
+            "max_incremental_difference": round(max(diffs), 2) if diffs else None,
+        }
+
+    # ── $5-wide shadow ──────────────────────────────────────────────────────────────────────────
+    five_wide = None
+    if shadows:
+        qualified = [r for r in shadows if (_i(r.get("five_wide_final_qty")) or 0) > 0]
+        five_wide = {
+            "evaluated": len(shadows),
+            "available": sum(1 for r in shadows if _truthy(r.get("five_wide_available"))),
+            "would_have_qualified": len(qualified),
+            "hypothetical_contracts": sum(_i(r.get("five_wide_final_qty")) or 0 for r in qualified),
+            "by_ten_wide_gate": dict(Counter(r.get("ten_wide_limiting_gate") for r in shadows
+                                             if r.get("ten_wide_limiting_gate"))),
+        }
+
+    return {
+        "activity": activity,
+        "credit_gates": credit_gates,
+        "quantity_outcomes": quantity_outcomes,
+        "limiting_caps": dict(limiting_caps),
+        "contracts": contracts,
+        "orders": orders,
+        "gap_comparison": gap_comparison,
+        "five_wide_shadow": five_wide,
+    }

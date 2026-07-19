@@ -13,6 +13,16 @@ from bot.features import S2bFeatures
 # Partner review v2 feature set for Bot B (all-days). The four Phase-4 alpha flags
 # (regime_entry_blocks, automatic_hedging, bearish_module, early_loss_exit) stay OFF.
 ALLDAYS_FEATURES = S2bFeatures(
+    # ── post-v2 refinement, Bot B sandbox validation config (advisor botbnextsteps) ──────────────
+    # Bot B is the validation environment: it runs the FULL feature set at FULL sizing so the
+    # quantity-cap system can demonstrate whether it correctly selects one, two or more contracts
+    # under the real budgets. Deliberately NO max_entry_qty ceiling here -- that is Bot C's
+    # controlled-release guard, and imposing it on the sandbox would defeat the point.
+    entry_state_tracking=True,           # T9: state transitions (observability only)
+    enable_alternate_expirations=True,   # T8: evaluate up to 3 expirations, pick best net profit
+    log_intrinsic_gap_comparison=True,   # Step 2B: measure the BS-vs-intrinsic gap difference
+    enable_five_wide_shadow=True,        # T11: research the $5 alternative, never trade it
+    enable_five_wide_live=False,         # never
     credit_tiers=True,
     transaction_cost_gate=True,
     entry_price_ladder=True,

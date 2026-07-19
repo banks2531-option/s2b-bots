@@ -72,3 +72,22 @@ def test_build_deps_live_style_no_features_stays_all_off():
     deps = build_deps(http, account_id="6YB71948", get_spot=lambda s: 575.0, get_atr=lambda s: 6.0,
                       get_vix_regime=lambda: (0.5, 0.01))
     assert deps.features.credit_tiers is False
+
+
+def test_min_equity_to_open_defaults_to_zero_no_gate():
+    from bot.features import S2bFeatures
+    assert S2bFeatures().min_equity_to_open == 0.0
+
+
+def test_risk_classification_defaults_to_unclassified():
+    from bot.features import S2bFeatures
+    assert S2bFeatures().risk_classification == "UNCLASSIFIED"
+
+
+def test_bot_c_declares_itself_an_aggressive_live_pilot():
+    """Advisor nextsteps2 section 2: 'If immediate live trading remains the priority, retain the
+    current one-contract configuration but classify it accurately.' The classification is a
+    config value, not a comment, so it appears in decision logs alongside every trade."""
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    assert LIVE_FEATURES.risk_classification == "AGGRESSIVE_LIVE_PILOT"
+    assert LIVE_FEATURES.min_equity_to_open == 540.0

@@ -101,6 +101,28 @@ class S2bFeatures:
                                           # TRANSITION. Observability only -- changes no order
                                           # decision. Off by default; on for Bot B.
 
+    # ── Advisor nextsteps2 section 2: explicit capital gate ──────────────────────────────────
+    # NOT YET ENFORCED. The orchestrator check is deliberately deferred to a separate change
+    # (operator decision 2026-07-19) because it is the only edit in this release that can stop a
+    # live trade. Until then this field DECLARES a floor that nothing checks -- see
+    # test_min_equity_to_open_is_declared_but_not_yet_enforced, which fails the moment the
+    # orchestrator starts referencing it, as the prompt to replace it with an enforcement test.
+    min_equity_to_open: float = 0.0   # block NEW entries below this account equity. 0.0 = no gate
+                                       # (Bot B sandbox). Today Bot C's floor is IMPLICIT -- it
+                                       # emerges from base_risk_pct=0.80 against a ~$425 max loss,
+                                       # so it moves silently whenever either is retuned. Making it
+                                       # explicit means the floor is a stated number that can be
+                                       # raised as the account funds, not an accident of two other
+                                       # settings. The advisor recommends 2000 (below which one $5
+                                       # wing is >21% of equity) and 4500 for normal operation;
+                                       # Bot C runs 540 by operator decision so the live pilot can
+                                       # keep collecting data at its current ~$842.
+    risk_classification: str = "UNCLASSIFIED"   # honest label carried into decision logs.
+                                                 # "AGGRESSIVE_LIVE_PILOT" for Bot C: one $5 wing
+                                                 # is ~50% of its account. The advisor's point is
+                                                 # that no software setting makes that "low risk",
+                                                 # so the config should not imply otherwise.
+
 
 class ConfigurationError(Exception):
     """Raised at startup when a configuration value would put the bot in an unsafe or

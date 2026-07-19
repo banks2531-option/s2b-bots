@@ -119,6 +119,14 @@ LIVE_FEATURES = S2bFeatures(
                                          # is how the fill-rate question gets answered with data
                                          # rather than argument, on the account that is actually
                                          # trading.
+    # Advisor nextsteps2 section 2. The advisor's recommendation is 2000; the operator elected on
+    # 2026-07-19 to set the gate at the account's existing implicit floor (~$540, where the
+    # RiskGate already rejects a $5 wing at base_risk_pct=0.80) so the live pilot keeps producing
+    # data at ~$842. RAISE THIS AS THE ACCOUNT FUNDS: 2000 is the point below which one spread is
+    # an outsized bet; 4500 brings a single spread's structural loss to the ~10% the risk
+    # framework targets. NOTE: not yet enforced -- see the field's note in bot/features.py.
+    min_equity_to_open=540.0,
+    risk_classification="AGGRESSIVE_LIVE_PILOT",
 )
 
 # The structural-risk limit Bot C is CURRENTLY calibrated to run (set 2026-07-17 for the ~$842

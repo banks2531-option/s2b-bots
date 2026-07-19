@@ -77,6 +77,20 @@ class S2bFeatures:
                                                   # never enforced. ON for Bot B during validation,
                                                   # off by default so no other bot pays the cost.
     gap_fallback_iv: float = 0.20                # usable IV when no per-leg IV is available
+    # ── Bot C controlled-deployment safeguards (advisor directive botc.txt, 2026-07-19) ──────────
+    max_entry_qty: int = None            # hard ceiling on contracts per entry, applied as one more
+                                          # QuantityCap (min of all caps) so it can only ever REDUCE
+                                          # a risk-approved quantity, never raise a zero. None = no
+                                          # ceiling (Bot B, which is validating full sizing).
+    enable_low_credit_08_to_10: bool = True   # the 0.08-0.10 low_credit_safety exception lane. Code
+                                               # complete and unit-tested, but its inputs depend on
+                                               # live feed fields not yet verified against real
+                                               # broker responses -- so OFF for the first live
+                                               # release. Turning it off does NOT affect the regular
+                                               # 10%+ probe and full-size lanes.
+    enable_five_wide_live: bool = False   # $5-wing TRADING. Stays False until T11 ships; the shadow
+                                           # evaluation is a separate, non-trading flag.
+    enable_five_wide_shadow: bool = False  # T11 not built yet
 
 
 class ConfigurationError(Exception):
@@ -102,3 +116,40 @@ def validate_gap_stress_config(f) -> None:
             "`gap_stress_model` was retired (advisor Step 2A): it appeared to select the gap-stress "
             "ENFORCEMENT model but only ever affected logging. Use `gap_stress_enforcement_model` "
             "(enforcement, must be 'black_scholes') and `log_intrinsic_gap_comparison` (logging).")
+
+
+def validate_live_config(f, *, live: bool, expected_structural_pct: float = None) -> None:
+    """Advisor directive (botc.txt) pre-deployment assertions, checked at startup so a
+    misconfiguration refuses to start rather than trading real money on a misunderstood setting.
+
+    `live=False` (Bot B sandbox) skips the live-only ceiling: Bot B exists to validate FULL sizing,
+    so inheriting Bot C's one-contract cap would defeat its purpose.
+
+    DEVIATION, deliberate: the directive says `assert MAX_TOTAL_STRUCTURAL_RISK_PCT == 0.15`. Bot C
+    does not run 0.15 -- it runs 0.50, set on 2026-07-17 because a single $5-wing spread is ~49% of
+    its ~$842 account and the big-account 0.15 default sized every trade to zero. Asserting 0.15
+    would refuse to start Bot C. The directive's INTENT is "this deployment must not loosen risk
+    limits", so the caller passes the value Bot C already runs and any drift from it fails."""
+    validate_gap_stress_config(f)
+    if f.bearish_module:
+        raise ConfigurationError("bearish module must stay off (advisor directive): bearish_module")
+    if getattr(f, "enable_five_wide_live", False):
+        raise ConfigurationError("five_wide live trading must stay off until T11 ships: "
+                                 "enable_five_wide_live")
+    if expected_structural_pct is not None and \
+            f.max_total_structural_risk_pct != expected_structural_pct:
+        raise ConfigurationError(
+            "structural risk limit changed from this bot's deployed calibration: "
+            f"max_total_structural_risk_pct={f.max_total_structural_risk_pct}, "
+            f"expected {expected_structural_pct}. This deployment must not alter risk limits.")
+    if not live:
+        return
+    if f.max_entry_qty != 1:
+        raise ConfigurationError(
+            "first live release requires the one-contract ceiling: max_entry_qty must be 1, got "
+            f"{f.max_entry_qty!r}")
+    if getattr(f, "enable_low_credit_08_to_10", False):
+        raise ConfigurationError(
+            "the 0.08-0.10 low_credit lane must stay off in live until its quote-age and "
+            "expected-move inputs are verified against real broker responses: "
+            "enable_low_credit_08_to_10")

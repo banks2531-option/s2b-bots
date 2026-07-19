@@ -24,7 +24,7 @@ Requires (C8: config from environment only):
 """
 from bot.app.run_s2b import parse_args, build_and_run
 from bot.strategy.s2b import S2bConfig
-from bot.features import S2bFeatures
+from bot.features import S2bFeatures, validate_live_config
 
 # WING WIDENED $1 -> $5 on 2026-07-16 (account funding to $600-800). RATIONALE: a $1 wing collects
 # ~$0.17 credit, whose 50% take-profit target (~$8.50) does NOT clear ~4x the round-trip cost (~$34.40),
@@ -79,11 +79,49 @@ LIVE_FEATURES = S2bFeatures(
     max_trade_structural_risk_pct=0.50, # (0.05) ~$421 >= one $5-wing structural (~$410) -> sizes 1
     max_total_structural_risk_pct=0.50, # (0.15) ~$421: total book structural ~1 $5-wing, blocks a 2nd
     # entry_price_ladder / tp_price_ladder: HELD OFF -- unvalidated on a real broker (real-money guard).
+    #
+    # ── post-v2 refinement controlled release (advisor directive botc.txt, 2026-07-19) ───────────
+    # The completed T1-T7 work ships to Bot C now rather than waiting five sandbox sessions, but
+    # under a hard ceiling so an undiscovered fault costs one contract, not a full-size position.
+    max_entry_qty=1,                    # applied as a QuantityCap in the min() -- can only REDUCE a
+                                         # risk-approved quantity, never raise a zero into a trade.
+                                         # REMOVE only after the directive's exit criteria are met:
+                                         # >=3 processed live entry decisions, >=1 actual fill, >=1
+                                         # risk-based reduction or validated full-size decision, no
+                                         # duplicate orders, no partial-fill mismatch, no
+                                         # broker/local divergence, stable gap numbers across cycles,
+                                         # working restart persistence.
+    enable_low_credit_08_to_10=False,   # the 0.08-0.10 exception lane stays OFF live. It is code
+                                         # complete and unit-tested, but its inputs read Tradier
+                                         # bid_date/ask_date and greeks.mid_iv, which have NOT been
+                                         # verified against real broker responses -- only synthetic
+                                         # fixtures. The regular 10%+ probe and full-size lanes are
+                                         # unaffected. Turn on once the fields are confirmed live.
+    enable_five_wide_live=False,        # T11 not built; no live $5-wing trading
+    enable_five_wide_shadow=False,      # T11 not built
+    log_intrinsic_gap_comparison=True,  # Step 2B: record what the OLD intrinsic model would have
+                                         # permitted beside the enforced Black-Scholes number. This
+                                         # is how the fill-rate question gets answered with data
+                                         # rather than argument, on the account that is actually
+                                         # trading.
 )
+
+# The structural-risk limit Bot C is CURRENTLY calibrated to run (set 2026-07-17 for the ~$842
+# account: a single $5-wing is ~49% of it, so the big-account 0.15 default sized every trade to
+# zero). validate_live_config asserts the deployed config still matches this, so the post-v2
+# deployment cannot quietly alter a risk limit. NOTE: the advisor's checklist says
+# `assert MAX_TOTAL_STRUCTURAL_RISK_PCT == 0.15` -- that is the big-account default and asserting it
+# literally would refuse to start Bot C. The intent (do not loosen limits in this deployment) is
+# enforced against Bot C's own calibration instead.
+BOT_C_STRUCTURAL_PCT = 0.50
 
 
 def main(argv=None):
     args = parse_args(argv)
+    # Advisor directive (botc.txt): startup assertions. Fatal by design -- on a real-money account,
+    # refusing to start beats trading on a misunderstood risk setting.
+    validate_live_config(LIVE_FEATURES, live=True,
+                         expected_structural_pct=BOT_C_STRUCTURAL_PCT)
     # LIVE: all weekdays, up to 3 concurrent, narrow wing, small-account sizing. Caps intact.
     return build_and_run(args.ticks, args.poll_seconds,
                          entry_days=frozenset({0, 1, 2, 3, 4}), max_open=3, label="LIVE",

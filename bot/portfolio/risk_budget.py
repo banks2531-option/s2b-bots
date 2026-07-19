@@ -202,7 +202,15 @@ def _book_exposures(wing_width, expiry, today, open_positions, mark_fn, f, forei
 
 def cap_to_budgets(qty, credit, wing_width, expiry, today, open_positions, mark_fn, risk_equity, f,
                    foreign_exposure=None):
-    """Reduce qty (down to 0) until adding this trade keeps every budget satisfied:
+    """
+    SUPERSEDED -- DO NOT CALL FROM NEW CODE (post-v2 refinement Task 5).
+
+    The live entry path uses budget_quantity_caps + gap_quantity_caps + entry_ceiling_cap fed into
+    size_to_risk_limits. This function considers ONLY the four aggregate budgets: it knows nothing
+    about the three gap-stress scenarios or the live per-entry contract ceiling, so calling it would
+    silently bypass both. Retained only so existing tests keep documenting the original budget maths.
+    Scheduled for removal once those tests are ported.
+Reduce qty (down to 0) until adding this trade keeps every budget satisfied:
     same-day stop (f.max_same_day_stop_risk_pct), expiry stop (f.max_expiry_stop_risk_pct),
     total stop (f.max_total_stop_risk_pct), total structural (f.max_total_structural_risk_pct).
     Book risk is computed from open_positions: for each p, stop risk = remaining_stop_risk(
@@ -373,3 +381,26 @@ def classify_outcome(requested_qty, final_qty, quality_maximum_qty=None):
     if final_qty >= requested_qty:
         return DecisionOutcome.ALLOWED_FULL
     return DecisionOutcome.ALLOWED_REDUCED
+
+
+def entry_ceiling_cap(max_entry_qty):
+    """Advisor directive (botc.txt): a hard per-entry contract ceiling for a controlled live release,
+    expressed as one more QuantityCap.
+
+    Modelling it as a cap rather than a post-hoc clamp means it flows through the same min()-of-caps
+    sizing and names itself in the limiting_gate telemetry when it binds -- and, critically, it can
+    only ever REDUCE a quantity. A min() cannot raise a zero, so the directive's "do not force one
+    contract when the risk-approved quantity is zero" holds by construction rather than by a
+    separate guard someone could later forget.
+
+    Returns None when no ceiling is configured (Bot B), so the caller can simply filter it out."""
+    if max_entry_qty is None:
+        return None
+    return QuantityCap(
+        name="live_entry_ceiling",
+        maximum_qty=int(max_entry_qty),
+        current_exposure=0.0,
+        limit=float(max_entry_qty),
+        remaining_capacity=float(max_entry_qty),
+        incremental_risk_per_contract=1.0,
+    )

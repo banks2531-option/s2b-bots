@@ -22,7 +22,7 @@ from bot.strategy.quote_quality import (spread_quote_age_seconds, calculate_quot
                                          expected_move_to_expiry, expected_move_cushion_of)
 from bot.portfolio.risk_budget import (size_qty, remaining_stop_risk,
                                         planned_stop_loss_per_contract, structural_max_loss_per_contract,
-                                        apply_quality_multiplier, budget_quantity_caps,
+                                        apply_quality_multiplier, budget_quantity_caps, entry_ceiling_cap,
                                         size_to_risk_limits, classify_outcome, DecisionOutcome)
 from bot.portfolio.gap_stress import gap_stress_losses, gap_quantity_caps, gap_model_comparison
 from bot.portfolio import exposure
@@ -984,6 +984,15 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             decision_outcome_val = DecisionOutcome.BLOCKED_CREDIT_QUALITY.value
             _log_decision("credit_too_low", spot=spot, atr=atr, expiry=expiry, order=order)
             return state, "credit_too_low"
+        if tier == "low_credit_safety" and not deps.features.enable_low_credit_08_to_10:
+            # Advisor directive (botc.txt): the 0.08-0.10 exception lane is disabled for the first
+            # live release -- its quote-age and expected-move inputs are code-complete and unit-tested
+            # but NOT yet verified against real broker responses. A candidate in this band is simply
+            # rejected, exactly as it was before the lane existed. The regular 10%+ probe and
+            # full-size lanes are untouched.
+            decision_outcome_val = DecisionOutcome.BLOCKED_CREDIT_QUALITY.value
+            _log_decision("credit_too_low", spot=spot, atr=atr, expiry=expiry, order=order)
+            return state, "credit_too_low"
         if tier == "low_credit_safety":
             # Additional hard gate for the 0.08-0.10 band (spec §1). INPUT WIRING + availability
             # caveats (3 available, 2 derivable, 2 unplumbed) -- documented here so the approximations
@@ -1124,7 +1133,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # foreign SPY spreads at the broker must be stressed too (budget caps get foreign via
         # foreign_exposure=foreign; the gap book must carry foreign_position_list to match). Gap caps
         # are BS-only (spec §9: "Do not use intrinsic value alone" -- gap_quantity_caps always reprices
-        # via Black-Scholes; f.gap_stress_model is vestigial for ENFORCEMENT, both live bots run "bs").
+        # via Black-Scholes; the old f.gap_stress_model flag was RETIRED in advisor Step 2A).
         # Prime the batched, memoized real-greeks fetch once for the whole book -- but ONLY when a
         # positive quality qty is actually going to be sized (mirrors the old no-fetch-on-zero path, so
         # a candidate that rounds to 0 before any book budget is consulted still triggers no fetch).
@@ -1138,6 +1147,12 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                          deps.mark_position, req, deps.features, foreign_exposure=foreign)
                     + gap_quantity_caps(gap_book_open, candidate_view, spot, atr, deps.features, req,
                                         iv_fn=iv_fn, today=today))
+            # Advisor directive (botc.txt): the controlled-release per-entry contract ceiling, as one
+            # more cap. Being in the min() means it can only REDUCE -- it can never raise a zero into
+            # a forced one-contract trade, and it names itself in limiting_gate when it binds.
+            ceiling = entry_ceiling_cap(deps.features.max_entry_qty)
+            if ceiling is not None:
+                caps.append(ceiling)
         else:
             caps = []
         # Advisor Step 2B: during Bot B validation, also compute the INTRINSIC gap numbers and log
@@ -1179,7 +1194,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         order.qty = final_qty
         decision_outcome_val = classify_outcome(quality_qty, final_qty).value   # allowed_full/reduced
         # OPEN-row gap telemetry (spec §10): the ENFORCED gap-stress losses at the FINAL qty. Reuse
-        # gap_stress_losses (which respects f.gap_stress_model); under the default "bs" (both live bots)
+        # gap_stress_losses(model="black_scholes"), the same model gap_quantity_caps enforces, so
         # this equals the BS-enforced caps, so "logged == enforced" holds for the real configs. The
         # book mirrors the caps' book (own + foreign + proposed); iv_fn/today already primed above.
         gap_losses = gap_stress_losses(gap_book_open + [replace(order, credit=risk_credit)],

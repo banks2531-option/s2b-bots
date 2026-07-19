@@ -99,7 +99,13 @@ def full_size_threshold(prior_ratios, floor, ceiling, min_signals, p=40):
 
 
 def credit_tier(credit, wing_width, min_ratio, full_threshold, probe_mult):
-    """Return a size multiplier: 0.0 (reject), probe_mult, or 1.0."""
+    """Return a size multiplier: 0.0 (reject), probe_mult, or 1.0.
+
+    SUPERSEDED -- DO NOT CALL FROM NEW CODE (post-v2 refinement Task 2). classify_credit_quality
+    replaced this three-way split with four lanes and a maximum_quantity. This version has no
+    concept of the 0.08-0.10 low_credit_safety band, so it would reject candidates the current
+    classifier routes into that lane. No production caller remains; kept for its tests pending
+    removal."""
     ratio = credit / wing_width
     if ratio < min_ratio:
         return 0.0

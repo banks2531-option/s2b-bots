@@ -124,7 +124,14 @@ LIVE_FEATURES = S2bFeatures(
     # RiskGate already rejects a $5 wing at base_risk_pct=0.80) so the live pilot keeps producing
     # data at ~$842. RAISE THIS AS THE ACCOUNT FUNDS: 2000 is the point below which one spread is
     # an outsized bet; 4500 brings a single spread's structural loss to the ~10% the risk
-    # framework targets. NOTE: not yet enforced -- see the field's note in bot/features.py.
+    # framework targets. ENFORCED in run_entry_cycle as of Task 7b (2026-07-19).
+    #
+    # HEADROOM WARNING: at ~$785 equity this floor leaves ~$245, which is LESS than one $5 wing's
+    # ~$425 structural max loss. A single full-loss trade therefore drops the account below its own
+    # floor and Bot C stops opening new positions -- correct behaviour for a capital gate, but it
+    # means the pilot is roughly one bad trade from halting itself, and it halts QUIETLY (a
+    # "min_equity" decision-log line, no alert). Raise the account or lower the floor deliberately;
+    # do not discover this as an unexplained quiet session.
     min_equity_to_open=540.0,
     risk_classification="AGGRESSIVE_LIVE_PILOT",
 )

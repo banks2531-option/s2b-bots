@@ -102,11 +102,10 @@ class S2bFeatures:
                                           # decision. Off by default; on for Bot B.
 
     # ── Advisor nextsteps2 section 2: explicit capital gate ──────────────────────────────────
-    # NOT YET ENFORCED. The orchestrator check is deliberately deferred to a separate change
-    # (operator decision 2026-07-19) because it is the only edit in this release that can stop a
-    # live trade. Until then this field DECLARES a floor that nothing checks -- see
-    # test_min_equity_to_open_is_declared_but_not_yet_enforced, which fails the moment the
-    # orchestrator starts referencing it, as the prompt to replace it with an enforcement test.
+    # ENFORCED as of Task 7b (2026-07-19) in run_entry_cycle, which blocks new entries below this
+    # floor. The check reads risk_equity() -- min(allocated_equity, broker_equity) -- so a bot
+    # allocated a slice of a shared account is gated on its allocation, not a co-occupant's
+    # capital. Behaviour is pinned by bot/tests/test_min_equity_gate.py.
     min_equity_to_open: float = 0.0   # block NEW entries below this account equity. 0.0 = no gate
                                        # (Bot B sandbox). Today Bot C's floor is IMPLICIT -- it
                                        # emerges from base_risk_pct=0.80 against a ~$425 max loss,

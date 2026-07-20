@@ -1013,6 +1013,33 @@ def test_entry_unbalanced_legs_full_fill_records_covered_count_with_flag_OFF():
         "the broker filled is the untracked_at_broker fault")
 
 
+def test_entry_unbalanced_legs_with_ZERO_covered_records_no_position():
+    """Branch review finding 2. The covered-count override read `if covered_qty:`, and 0 is falsy,
+    so a fill covering NOTHING fell through to the sized order.qty and booked a complete spread
+    that does not exist -- in the one branch whose entire purpose is 'never invent a spread'.
+
+    Reachable: one short filled, the long leg unfilled, broker still reporting status "filled".
+    That is a NAKED SHORT PUT. Recording it as a covered spread would understate the position's
+    max loss by the entire width of the wing, and every downstream stop and risk budget would be
+    computed against collateral the account does not have."""
+    from bot.broker.spread_fill import normalize_spread_fill
+    from bot.tests.test_spread_fill import _open_order
+    normalized = normalize_spread_fill(_open_order(short_qty=1, long_qty=0))
+    assert normalized.contracts == 0 and normalized.balanced is False
+
+    state = BotState()
+    d = _deps(features=S2bFeatures(actual_fill_accounting=False),
+              open_spread=lambda payload: _er(status="filled", requested_qty=1, filled_qty=0,
+                                              avg_fill=normalized.net_price,
+                                              normalized_fill=normalized, legs_balanced=False))
+    state, info = run_entry_cycle(state, d, MONDAY)
+
+    assert state.open_positions == [], (
+        "zero covered contracts must record NO position -- booking order.qty here invents a "
+        "covered spread on top of a naked short")
+    assert state.halted is True and state.halt_reason == "unmatched legs"
+
+
 def test_entry_balanced_fill_never_halts_sandbox_regression():
     # Regression guard: normalize_spread_fill returns None for sandbox payloads (Bot B), which
     # wiring.py maps to legs_balanced=True by default -- confirm a normal balanced fill never trips

@@ -187,6 +187,14 @@ def _accumulate_realized(state: BotState, today: str, pnl: float) -> None:
     state.realized_today += pnl
 
 
+# Halt reasons run_reconcile_cycle OWNS: it may set, relabel and auto-clear these, because a later
+# clean reconcile genuinely resolves what caused them (a phantom close that had already filled at
+# the broker; transient drift from a stale positions read). Every OTHER reason belongs to the gate
+# that set it and is sticky until an operator calls clear_halt() -- notably "unmatched legs", where
+# the broker holds an uncovered short that no amount of re-reading the account will fix.
+_RECONCILE_OWNED = ("failed close", "reconcile drift")
+
+
 def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
     try:
         drift = reconcile(state.open_positions, deps.broker_positions(),
@@ -217,7 +225,7 @@ def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
         deps.alert_sink([Alert(Severity.WARN,
             f"reconciled-away (closed at broker) {p.ticker} {p.short_strike}/{p.long_strike}")
             for p in removed])
-        if state.halted and state.halt_reason in ("failed close", "reconcile drift"):
+        if state.halted and state.halt_reason in _RECONCILE_OWNED:
             state.clear_halt()                    # the phantom that caused the halt is gone
 
     # Halt only on drift the debounce does NOT resolve: an untracked broker position (strict mode),
@@ -230,7 +238,19 @@ def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
             f"missing={len(drift.missing_at_broker)} untracked={len(drift.untracked_at_broker)} "
             f"qty_mismatch={len(drift.qty_mismatch)}")])
         state.halted = True
-        state.halt_reason = "reconcile drift"
+        # Reconcile may only label a halt it can also RESOLVE. The two reasons in _RECONCILE_OWNED
+        # are the ones the auto-clear paths above (:220) and below recognise; anything else was set
+        # by a gate that reconcile cannot speak for, and overwriting it would launder a sticky halt
+        # into a self-clearing one.
+        #
+        # This is not hypothetical. An unmatched-leg fill halts with "unmatched legs" BECAUSE no
+        # clean reconcile resolves an uncovered short -- and that same uncovered leg is, by
+        # definition, reconcile drift (untracked_at_broker / qty_mismatch). So the unconditional
+        # overwrite fired on the very next tick, and the next clean reconcile auto-cleared the
+        # relabelled halt, resuming entries against a naked short no operator had acknowledged.
+        # The drift ALERT above still fires either way; only the label is withheld.
+        if state.halt_reason in ("",) or state.halt_reason in _RECONCILE_OWNED:
+            state.halt_reason = "reconcile drift"
     elif state.halted and state.halt_reason == "reconcile drift":
         state.clear_halt()        # transient drift resolved (broker re-synced) -> resume entries
     return state, True
@@ -1410,8 +1430,12 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # stay at the requested amount. credit/opening_fees keep the flag-gated convention.
         if not getattr(open_result, "legs_balanced", True):
             covered_qty = getattr(open_result, "filled_quantity", None)
-            if covered_qty:
-                qty = covered_qty
+            # `is not None`, NOT truthiness: a covered count of ZERO is the most dangerous value
+            # here, and falsy-0 silently fell through to order.qty. One short filled with its long
+            # leg unfilled is a NAKED SHORT PUT; booking a covered spread on top of it would
+            # understate max loss by the whole wing width, and every stop and risk budget
+            # downstream would be sized against collateral the account does not hold.
+            qty = covered_qty if covered_qty is not None else 0
         if deps.features.actual_fill_accounting:
             fill_price = getattr(open_result, "average_fill_price", None)
             if fill_price is not None:
@@ -1425,9 +1449,18 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # NOTE: credit_ratio_history is already (conditionally, per should_record_observation --
         # item 3 fix) appended for evaluated candidates, including rejects, in the credit-tiers
         # block above (partner review v2 §3) -- no separate append here.
-        _record_open(decision_reason="filled", order=order, expiry=expiry, status=status,
-                     qty=qty, credit=credit, opening_fees=opening_fees, gap_losses=gap_losses,
-                     spot=spot, atr=atr)
+        if qty <= 0:
+            # Unmatched legs covering NOTHING: there is no spread to record. The CRITICAL alert and
+            # the sticky "unmatched legs" halt were already set above, so the naked exposure is
+            # surfaced and entries are stopped -- but the book must not gain a position the broker
+            # never gave us. Only reachable on the unbalanced path (a balanced fill keeps
+            # order.qty), so the ordinary full-fill path is unchanged.
+            _log_decision("unmatched_legs_zero_covered", spot=spot, atr=atr, expiry=expiry,
+                          order=order)
+        else:
+            _record_open(decision_reason="filled", order=order, expiry=expiry, status=status,
+                         qty=qty, credit=credit, opening_fees=opening_fees, gap_losses=gap_losses,
+                         spot=spot, atr=atr)
     elif open_filled_qty > 0:
         # Task 2 PARTIAL FILL (advisor-mandated): the broker filled SOME but not all of the requested
         # contracts, and the submit layer has ALREADY cancelled/left the remainder (both the ladder

@@ -891,6 +891,26 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
     if deps.trend_gate_enabled and regime is not None and getattr(regime, "trend_regime", "unknown") == "risk_off":
         _log_decision("trend_paused")
         return state, "trend_paused"
+    # Advisor nextsteps2 §2 (Task 7b): explicit capital floor on NEW entries. Bot C's floor used to
+    # be IMPLICIT -- it fell out of base_risk_pct measured against the wing's max loss, so it moved
+    # silently whenever either was retuned. This makes it a stated number that can be raised as the
+    # account funds.
+    #
+    # Reads risk_equity() -- min(allocated_equity, broker_equity) -- the same number the aggregate
+    # sizing path uses below, so a bot allocated a slice of a shared account is gated on its
+    # allocation rather than on a co-occupant's capital. broker_equity() is only a fallback for
+    # hand-built Deps that omit risk_equity; the live wiring always supplies it.
+    #
+    # Placed AFTER the five cheap gates and the trend gate but BEFORE the first quote fetch:
+    # equity is a broker round-trip, and a cycle that was never going to trade shouldn't pay for
+    # one. `>=` admits an account sitting exactly on its floor -- the floor is the minimum equity
+    # at which we still open, not the first blocked value. Default 0.0 leaves every non-opted-in
+    # bot's path unchanged.
+    if deps.features.min_equity_to_open > 0.0:
+        _equity_fn = deps.risk_equity if deps.risk_equity is not None else deps.broker_equity
+        if _equity_fn() < deps.features.min_equity_to_open:
+            _log_decision("min_equity")
+            return state, "min_equity"
     spot = deps.get_spot("SPY")
     atr = deps.get_atr("SPY")
     expiry = deps.pick_expiry(today)

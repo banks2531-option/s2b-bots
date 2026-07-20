@@ -193,17 +193,26 @@ def test_bot_c_ladders_and_experimental_lanes_stay_off():
     assert LIVE_FEATURES.enable_five_wide_live is False
 
 
-def test_min_equity_to_open_is_declared_but_not_yet_enforced():
-    """Task 7 was SPLIT (operator decision 2026-07-19). The config field ships now; the
-    orchestrator early-return ships separately, because it is the only change in this release
-    that can stop a live trade.
+def test_min_equity_to_open_is_enforced_in_the_entry_path():
+    """Task 7b (landed 2026-07-19). This replaces the tripwire test that asserted the gate was
+    NOT yet wired -- the config field shipped one release ahead of its enforcement, and the
+    tripwire existed so that gap could not be forgotten.
 
-    This test exists so the gap cannot be forgotten. A config value that reads as a risk floor
-    but is checked nowhere is worse than no value -- it invites someone to believe they are
-    protected. WHEN THE GATE LANDS: delete this test and replace it with one asserting the
-    orchestrator actually rejects below the floor."""
+    A stated risk floor that is checked nowhere is worse than no floor: it invites a reader to
+    believe they are protected. The behavioural assertions live in test_min_equity_gate.py; this
+    one guards against the reference being deleted from the entry path during a refactor while
+    the config field survives, which would silently restore exactly that gap."""
     import inspect
     from bot.app import orchestrator
-    assert "min_equity_to_open" not in inspect.getsource(orchestrator), (
-        "min_equity_to_open is now referenced in the orchestrator -- the enforcement gate has "
-        "landed. Delete this test and assert the enforcement behaviour instead.")
+    assert "min_equity_to_open" in inspect.getsource(orchestrator.run_entry_cycle), (
+        "min_equity_to_open is no longer checked in run_entry_cycle -- Bot C's declared capital "
+        "floor is unenforced again. See bot/tests/test_min_equity_gate.py.")
+
+
+def test_bot_c_capital_floor_is_the_operator_set_value_not_the_advisor_default():
+    """The advisor recommends 2000. The operator set 540 on 2026-07-19 -- the account's existing
+    implicit floor -- so the live pilot keeps producing data at its current ~$842. This test is a
+    change-detector on purpose: raising the floor is a deliberate risk decision that should not
+    ride along inside an unrelated commit."""
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    assert LIVE_FEATURES.min_equity_to_open == 540.0

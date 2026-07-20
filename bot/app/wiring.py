@@ -202,6 +202,114 @@ import time
 import datetime as _datetime
 
 
+def build_execution_result(status, order, payload, features):
+    """Build an ExecutionResult (spec §8) from a terminal order status + the raw Tradier order.
+
+    PREFERS leg-level reconstruction (bot/broker/spread_fill.py) over the order-level
+    `exec_quantity`/`avg_fill_price` fields, which are unusable against the LIVE broker: it
+    reports a credit spread's price as NEGATIVE and its quantity as a LEG COUNT.
+
+    Module-level (rather than a closure inside build_deps) so the live fill path can be tested
+    directly against real broker-shaped payloads. build_deps' _to_execution_result is a thin
+    adapter over it.
+
+    THREE CASES, deliberately distinguished (branch review finding 4):
+
+      1. Readable leg array -> use the reconstruction. The live path.
+      2. NO leg array -> fall back to the order-level fields exactly as before. This is the
+         sandbox shape, and this branch is what keeps Bot B byte-identical.
+      3. Leg array PRESENT but unreadable -> record NOTHING and flag unbalanced. Only reachable
+         on live, and falling back here would silently re-enter the original incident: the
+         order-level fields sitting in that payload are the negative credit and the leg count
+         that caused a phantom STOP and ~150 rejected stop-closes. A number we cannot explain is
+         worse than no number, so this fails closed into the halt path instead.
+
+    Falls back to the requested/submitted values whenever the broker doesn't report an actual
+    fill, and synthesizes commissions when the broker reports none (sandbox never charges)."""
+    requested_qty = int(payload.get("quantity[0]", 0) or 0)
+    submitted_limit = payload.get("price")
+
+    normalized = normalize_spread_fill(order)
+    legs_present = isinstance(order, dict) and isinstance(order.get("leg"), list)
+    if normalized is not None:
+        filled_quantity = normalized.contracts
+        # net_price is a positive MAGNITUDE; cash_flow_type carries the direction. Callers
+        # account a credit as a positive number, which is the convention order.credit uses.
+        average_fill_price = normalized.net_price
+        legs_balanced = normalized.balanced
+    elif legs_present:
+        # Case 3. Do NOT read exec_quantity/avg_fill_price off this payload -- on live they are
+        # the leg count and the negated credit. Zero contracts plus legs_balanced=False routes
+        # into the orchestrator's unmatched-legs branch: CRITICAL alert, sticky halt, no position
+        # recorded. An operator reconciles against the broker statement by hand.
+        filled_quantity = 0
+        average_fill_price = submitted_limit
+        legs_balanced = False
+    else:
+        raw_filled_qty = order.get("exec_quantity") if isinstance(order, dict) else None
+        filled_quantity = (int(raw_filled_qty) if raw_filled_qty is not None
+                           else (requested_qty if status == "filled" else 0))
+        raw_fill_price = order.get("avg_fill_price") if isinstance(order, dict) else None
+        average_fill_price = (float(raw_fill_price) if raw_fill_price is not None
+                              else submitted_limit)
+        legs_balanced = True
+
+    raw_commission = order.get("commission") if isinstance(order, dict) else None
+    raw_reg_fees = order.get("regulatory_fees") if isinstance(order, dict) else None
+    if raw_commission is not None or raw_reg_fees is not None:  # broker reported at least one field
+        commissions = float(raw_commission or 0.0)
+        regulatory_fees = float(raw_reg_fees or 0.0)
+    else:                                             # sandbox reports none -> synthetic fallback
+        # one side (2 legs); the paired open+close orders sum to round_trip_commission_per_contract
+        commissions = one_side_commission_per_contract(features) * filled_quantity
+        regulatory_fees = 0.0
+    oid = order.get("id") if isinstance(order, dict) else None
+    if normalized is not None and normalized.contracts > 0:
+        # Advisor nextsteps2 section 1 validation ledger. Every field needed to reconcile ONE
+        # execution against the broker statement by hand, on one line, INCLUDING the two
+        # order-level numbers we deliberately ignored -- the side-by-side comparison is the
+        # whole point, because the claim under test is precisely that those two fields are
+        # wrong on the live broker. Five clean reconciliations is what gates flipping
+        # actual_fill_accounting back on.
+        #
+        # print() rather than a CSV record: adding a row type to the trade log widens its
+        # fieldnames against an on-disk header, which is exactly what made every telemetry row
+        # unparseable in 0cc635d. This is read by a human once, five times, then never again --
+        # it does not belong in a machine-parsed file whose header is load-bearing.
+        #
+        # Gated on contracts > 0 because a still-working ladder rung normalizes to a legitimate
+        # zero-fill. Bot C runs both ladders OFF (one call per order), but Bot B runs both ON
+        # and would otherwise emit 6-12 lines per order, nearly all derived_contracts=0. A
+        # ledger you have to filter noise out of is one nobody finishes reading.
+        print(f"FILL_RECONCILE order_id={normalized.source_order_id} status={status} "
+              f"requested_qty={requested_qty} "
+              f"short_leg_qty={normalized.short_leg_qty} "
+              f"long_leg_qty={normalized.long_leg_qty} "
+              f"short_leg_px={normalized.short_leg_price} "
+              f"long_leg_px={normalized.long_leg_price} "
+              f"derived_contracts={normalized.contracts} "
+              f"derived_net={normalized.net_price:.4f} "
+              f"cash_flow={normalized.cash_flow_type} balanced={normalized.balanced} "
+              f"ignored_order_level_qty={order.get('exec_quantity')} "
+              f"ignored_order_level_px={order.get('avg_fill_price')} "
+              f"submitted_limit={submitted_limit} commissions={commissions} "
+              f"reg_fees={regulatory_fees}")
+    elif legs_present and normalized is None:
+        # The fail-closed case is the one an operator most needs to see in the log.
+        print(f"FILL_UNREADABLE order_id={oid} status={status} requested_qty={requested_qty} "
+              f"leg_count={len(order.get('leg') or [])} "
+              f"ignored_order_level_qty={order.get('exec_quantity')} "
+              f"ignored_order_level_px={order.get('avg_fill_price')} "
+              f"-- leg array present but not normalizable; recording NO position and halting "
+              f"new entries pending manual reconciliation")
+    return ExecutionResult(status=status, requested_quantity=requested_qty,
+                           filled_quantity=filled_quantity, average_fill_price=average_fill_price,
+                           submitted_limit=submitted_limit, commissions=commissions,
+                           regulatory_fees=regulatory_fees,
+                           order_id=(str(oid) if oid is not None else None),
+                           normalized_fill=normalized, legs_balanced=legs_balanced)
+
+
 def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                entry_days=frozenset({0}), max_open=1, max_entries_per_day=1, shared_account=False,
                trade_log=(lambda record: None),
@@ -315,82 +423,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         return out
 
     def _to_execution_result(state, order, payload):
-        """Build an ExecutionResult (spec §8) from a terminal OrderState + the raw Tradier order.
-
-        PREFERS leg-level reconstruction (bot/broker/spread_fill.py) over the order-level
-        `exec_quantity`/`avg_fill_price` fields, which are unusable against the LIVE broker: it
-        reports a credit spread's price as NEGATIVE and its quantity as a LEG COUNT. When the
-        payload carries no readable leg array -- always true on the sandbox -- falls back to the
-        previous order-level behaviour, so Bot B's accounting is byte-identical to before.
-
-        Falls back to the requested/submitted values whenever the broker doesn't report an actual
-        fill, and synthesizes commissions when the broker reports none (sandbox never charges)."""
-        status = state.value
-        requested_qty = int(payload.get("quantity[0]", 0) or 0)
-        submitted_limit = payload.get("price")
-
-        normalized = normalize_spread_fill(order)
-        if normalized is not None:
-            filled_quantity = normalized.contracts
-            # net_price is a positive MAGNITUDE; cash_flow_type carries the direction. Callers
-            # account a credit as a positive number, which is the convention order.credit uses.
-            average_fill_price = normalized.net_price
-            legs_balanced = normalized.balanced
-        else:
-            raw_filled_qty = order.get("exec_quantity") if isinstance(order, dict) else None
-            filled_quantity = (int(raw_filled_qty) if raw_filled_qty is not None
-                               else (requested_qty if status == "filled" else 0))
-            raw_fill_price = order.get("avg_fill_price") if isinstance(order, dict) else None
-            average_fill_price = (float(raw_fill_price) if raw_fill_price is not None
-                                  else submitted_limit)
-            legs_balanced = True
-
-        raw_commission = order.get("commission") if isinstance(order, dict) else None
-        raw_reg_fees = order.get("regulatory_fees") if isinstance(order, dict) else None
-        if raw_commission is not None or raw_reg_fees is not None:  # broker reported at least one field
-            commissions = float(raw_commission or 0.0)
-            regulatory_fees = float(raw_reg_fees or 0.0)
-        else:                                             # sandbox reports none -> synthetic fallback
-            # one side (2 legs); the paired open+close orders sum to round_trip_commission_per_contract
-            commissions = one_side_commission_per_contract(features) * filled_quantity
-            regulatory_fees = 0.0
-        oid = order.get("id") if isinstance(order, dict) else None
-        if normalized is not None and normalized.contracts > 0:
-            # Advisor nextsteps2 section 1 validation ledger. Every field needed to reconcile ONE
-            # execution against the broker statement by hand, on one line, INCLUDING the two
-            # order-level numbers we deliberately ignored -- the side-by-side comparison is the
-            # whole point, because the claim under test is precisely that those two fields are
-            # wrong on the live broker. Five clean reconciliations is what gates flipping
-            # actual_fill_accounting back on.
-            #
-            # print() rather than a CSV record: adding a row type to the trade log widens its
-            # fieldnames against an on-disk header, which is exactly what made every telemetry row
-            # unparseable in 0cc635d. This is read by a human once, five times, then never again --
-            # it does not belong in a machine-parsed file whose header is load-bearing.
-            #
-            # Gated on contracts > 0 because a still-working ladder rung normalizes to a legitimate
-            # zero-fill. Bot C runs both ladders OFF (one call per order), but Bot B runs both ON
-            # and would otherwise emit 6-12 lines per order, nearly all derived_contracts=0. A
-            # ledger you have to filter noise out of is one nobody finishes reading.
-            print(f"FILL_RECONCILE order_id={normalized.source_order_id} status={status} "
-                  f"requested_qty={requested_qty} "
-                  f"short_leg_qty={normalized.short_leg_qty} "
-                  f"long_leg_qty={normalized.long_leg_qty} "
-                  f"short_leg_px={normalized.short_leg_price} "
-                  f"long_leg_px={normalized.long_leg_price} "
-                  f"derived_contracts={normalized.contracts} "
-                  f"derived_net={normalized.net_price:.4f} "
-                  f"cash_flow={normalized.cash_flow_type} balanced={normalized.balanced} "
-                  f"ignored_order_level_qty={order.get('exec_quantity')} "
-                  f"ignored_order_level_px={order.get('avg_fill_price')} "
-                  f"submitted_limit={submitted_limit} commissions={commissions} "
-                  f"reg_fees={regulatory_fees}")
-        return ExecutionResult(status=status, requested_quantity=requested_qty,
-                               filled_quantity=filled_quantity, average_fill_price=average_fill_price,
-                               submitted_limit=submitted_limit, commissions=commissions,
-                               regulatory_fees=regulatory_fees,
-                               order_id=(str(oid) if oid is not None else None),
-                               normalized_fill=normalized, legs_balanced=legs_balanced)
+        return build_execution_result(state.value, order, payload, features)
 
     def _open_spread_ladder(payload):
         """Midpoint->natural entry limit ladder (partner spec §6): start at the package midpoint,

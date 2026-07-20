@@ -216,3 +216,29 @@ def test_bot_c_capital_floor_is_the_operator_set_value_not_the_advisor_default()
     ride along inside an unrelated commit."""
     from bot.app.run_s2b_live import LIVE_FEATURES
     assert LIVE_FEATURES.min_equity_to_open == 540.0
+
+
+def test_bot_b_gap_budget_recalibrated_for_black_scholes():
+    """Bot B's gap budget was RAISED 0.06 -> 0.20 on 2026-07-20.
+
+    0.06 was calibrated when gap stress was computed INTRINSICALLY. The post-v2 deploy switched
+    enforcement to Black-Scholes, which prices the same book ~3.3x higher, so 0.06 under the new
+    model is not the same rule -- it is a ~3.3x tightening nobody chose. Measured live on
+    2026-07-20: one $10-wide spread carries $3,760 of 1.5-ATR gap stress (5.2% of equity), so the
+    old budget admitted exactly ONE contract and Bot B logged 189 total_stop rejections in a
+    single session without opening anything.
+
+    0.20 restores the pre-switch strictness (0.06 x 3.3) and permits ~3-4 concurrent positions,
+    which is the concurrency the sandbox exists to exercise."""
+    from bot.app.run_s2b_alldays import ALLDAYS_FEATURES
+    assert ALLDAYS_FEATURES.max_gap_stress_loss_pct == 0.20
+
+
+def test_bot_c_gap_budget_untouched_by_bot_b_recalibration():
+    """Bot C sets its own 0.50 explicitly and must not move when Bot B is retuned. The shared
+    DEFAULT also stays 0.06 -- Bot B's value is set on its own config, not by editing the default
+    out from under every other caller."""
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    from bot.features import S2bFeatures
+    assert LIVE_FEATURES.max_gap_stress_loss_pct == 0.50
+    assert S2bFeatures().max_gap_stress_loss_pct == 0.06

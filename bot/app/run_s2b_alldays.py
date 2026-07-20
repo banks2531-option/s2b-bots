@@ -34,6 +34,30 @@ ALLDAYS_FEATURES = S2bFeatures(
     # to their own flag -> keep them ON for Bot B
     markout_tracking=True,
     decision_logging=True,
+    # ── gap budget RECALIBRATED 0.06 -> 0.20 on 2026-07-20 ───────────────────────────────────────
+    # 0.06 (the shared default) was calibrated when gap stress was computed INTRINSICALLY. The
+    # post-v2 deploy switched enforcement to Black-Scholes, which prices the same book ~3.3x
+    # higher, so leaving 0.06 in place was not "the same rule" -- it was a ~3.3x tightening that
+    # nobody chose and that only took effect when the model changed underneath it.
+    #
+    # MEASURED LIVE 2026-07-20: one $10-wide spread carries $3,760 of 1.5-ATR gap stress, or 5.2%
+    # of the $72,000 allocation. Against a $4,320 budget that admits exactly ONE contract, so Bot B
+    # logged 189 total_stop rejections in a single session and opened nothing. A sandbox that
+    # cannot open a position produces no validation data, which is its entire purpose.
+    #
+    # 0.20 is where two independent derivations meet: it restores the pre-switch strictness
+    # (0.06 x 3.3) and it permits ~3-4 concurrent $10-wide positions (3 x 5.2% = 15.7%), which is
+    # the concurrency the quantity-cap system exists to exercise.
+    #
+    # DELIBERATELY NOT ENOUGH to trade alongside the current 8-lot: that book alone carries $30,080
+    # of gap stress (41.8% of equity) and would need a budget of 0.47. Bot B therefore stays
+    # blocked until 743/733 closes at TIME_EXIT (1 DTE). That is the correct outcome -- under the
+    # better model that position IS oversized, and raising the budget to accommodate it would be
+    # fitting the limit to the mistake.
+    #
+    # Set HERE rather than by editing the S2bFeatures default, so Bot C (explicit 0.50) and every
+    # other caller keep their own values.
+    max_gap_stress_loss_pct=0.20,
 )
 
 

@@ -5,8 +5,13 @@ real-money account (~$842, account 6YB71948):
   - $5 WING (widened from $1 on 2026-07-16): max loss ~$425/contract. The $1 wing collected
     ~$0.17, whose 50% take-profit (~$8.50) did not clear ~4x the round-trip cost (~$34.40), so
     transaction_cost_gate rejected nearly every trade. See the WING_WIDTH note below.
-  - ONE CONTRACT MAXIMUM (max_entry_qty=1), one open position, one entry per day. This is a
-    CONTROLLED LIVE PILOT, not a production sizing.
+  - ONE CONTRACT MAXIMUM (max_entry_qty=1). This is a CONTROLLED LIVE PILOT, not a production
+    sizing. NOTE the declared wrapper ceilings are max_open=3 / max_entries_per_day=3, NOT 1/1:
+    tightening them to 1/1 was prepared (d041788) and then DEFERRED by operator decision on
+    2026-07-20, to keep this release limited to the fill-accounting fix. In practice the
+    aggregate risk budget still permits only ~1 $5-wing at a time (max_total_structural_risk_pct
+    0.50 against a ~49%-of-account structural loss), so the effective ceiling is 1 -- but the
+    DECLARED number disagrees with the intended one until 1/1 lands.
   - ALL weekdays (Mon-Fri). risk caps KEPT INTACT; base_risk_pct is raised only so the
     indivisible 1-contract minimum isn't auto-blocked. Every structural guard still applies:
     total-risk cap, max_concurrent, settled-cash, ATR cushion, daily-loss halt.
@@ -152,14 +157,10 @@ def main(argv=None):
     # refusing to start beats trading on a misunderstood risk setting.
     validate_live_config(LIVE_FEATURES, live=True,
                          expected_structural_pct=BOT_C_STRUCTURAL_PCT)
-    # CONTROLLED LIVE PILOT (advisor nextsteps2 section 2): one open position, one entry per day.
-    # Previously 3/3, inherited from the $1-wing era when three ~$85 spreads fit a $400 account.
-    # A $5 wing is ~50% of this account, so three is not a reachable state -- the aggregate risk
-    # budget already blocks the second. Declaring 1/1 makes the intended ceiling match the
-    # enforced one instead of relying on a risk cap to contradict the wrapper.
+    # LIVE: all weekdays, up to 3 concurrent, narrow wing, small-account sizing. Caps intact.
     return build_and_run(args.ticks, args.poll_seconds,
-                         entry_days=frozenset({0, 1, 2, 3, 4}), max_open=1, label="LIVE",
-                         shared_account=args.shared_account, max_entries_per_day=1,
+                         entry_days=frozenset({0, 1, 2, 3, 4}), max_open=3, label="LIVE",
+                         shared_account=args.shared_account, max_entries_per_day=3,
                          s2b_cfg=S2bConfig(wing_width=WING_WIDTH), base_risk_pct=BASE_RISK_PCT,
                          features=LIVE_FEATURES)
 

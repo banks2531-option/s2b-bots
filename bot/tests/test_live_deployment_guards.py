@@ -188,15 +188,3 @@ def test_disabling_the_low_credit_lane_leaves_the_normal_probe_and_full_lanes_in
              OptionQuote(550.0, 0.18, 0.50, 0.60, exchange_timestamp=NOW, iv=0.12)]
     state, info = run_entry_cycle(BotState(), _deps(f, get_chain=lambda s, e: chain), NOW)
     assert info == "filled"
-
-
-def test_bot_c_declares_one_position_and_one_entry_per_day():
-    """Advisor nextsteps2 section 2: Bot C's controlled pilot is ONE spread, ONE entry per day.
-    The aggregate risk budget blocks a second position anyway, but the declared ceiling must not
-    disagree with the intended one -- a reader (or a future risk-cap recalibration) would take
-    max_open=3 at face value."""
-    import inspect
-    from bot.app import run_s2b_live
-    src = inspect.getsource(run_s2b_live.main)
-    assert "max_open=1" in src, "Bot C must declare max_open=1"
-    assert "max_entries_per_day=1" in src, "Bot C must declare max_entries_per_day=1"

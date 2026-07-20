@@ -195,7 +195,11 @@ def _accumulate_realized(state: BotState, today: str, pnl: float) -> None:
 _RECONCILE_OWNED = ("failed close", "reconcile drift")
 
 
-def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
+def run_reconcile_cycle(state: BotState, deps: Deps, today: str = None) -> tuple:
+    """`today` is optional ONLY for back-compat with two-argument callers (older tests). Production
+    goes through tick(), which always supplies it. Without a date there is no day to accumulate a
+    reconciled-away position's P&L into, so that path degrades to the previous alert-only
+    behaviour rather than guessing a risk_day."""
     try:
         drift = reconcile(state.open_positions, deps.broker_positions(),
                           deps.bot_equity(), deps.broker_equity(),
@@ -225,6 +229,47 @@ def run_reconcile_cycle(state: BotState, deps: Deps) -> tuple:
         deps.alert_sink([Alert(Severity.WARN,
             f"reconciled-away (closed at broker) {p.ticker} {p.short_strike}/{p.long_strike}")
             for p in removed])
+        # A reconciled-away position still had P&L; booking nothing silently deletes it from the
+        # record. Observed live 2026-07-20: a co-occupant of Bot B's --shared-account sandbox closed
+        # 743/733 x8 in an order Bot B never placed, and ~-$1,104 left the books with
+        # realized_today stuck at 0.0.
+        #
+        # This is not only bookkeeping. realized_today feeds the DAILY-LOSS HALT, so an unbooked
+        # loss cannot trip it and the bot keeps sizing new trades as if the day were flat. The
+        # silent direction is the dangerous one.
+        #
+        # We never see the fill -- someone else placed the order -- so the exit price is unknowable
+        # and the last mark is the best available ESTIMATE. Booking a good estimate beats booking a
+        # zero we know to be wrong. When the mark is unavailable we refuse to fabricate one and
+        # escalate instead; that case is common, because a data outage is frequently WHY the
+        # position looked missing (the live drift alerts carried equity=0.0).
+        if today is not None:
+            for p in removed:
+                try:
+                    mark = deps.mark_position(p)
+                except Exception:
+                    mark = None
+                if mark is None:
+                    deps.alert_sink([Alert(Severity.CRITICAL,
+                        f"P&L UNBOOKED for reconciled-away {p.ticker} "
+                        f"{p.short_strike}/{p.long_strike} x{p.qty} (credit {p.credit}): position "
+                        f"left the broker but could not be marked, so its realized P&L is NOT in "
+                        f"realized_today and NOT in the daily-loss gate. Reconcile by hand.")])
+                    continue
+                pnl = round((p.credit - mark) * 100 * p.qty, 2)
+                if deps.features.actual_fill_accounting:
+                    # Mirror the close path's convention: net of the opening fees already paid.
+                    # There are no CLOSING fees to subtract -- we never observed a close fill.
+                    pnl = round(pnl - (p.opening_fees or 0.0), 2)
+                _accumulate_realized(state, today, pnl)
+                deps.trade_log({
+                    "event": "CLOSE", "date": today, "ticker": p.ticker,
+                    "short": p.short_strike, "long": p.long_strike, "expiry": p.expiry,
+                    "qty": p.qty, "credit": p.credit,
+                    # `status` (not action) carries the provenance so a reader can tell this exit
+                    # was RECONSTRUCTED from a mark, not observed from a fill the bot placed.
+                    "action": "reconciled_away", "exit_value": mark,
+                    "pnl": pnl, "status": "reconciled_away"})
         if state.halted and state.halt_reason in _RECONCILE_OWNED:
             state.clear_halt()                    # the phantom that caused the halt is gone
 
@@ -1509,7 +1554,7 @@ def tick(state: BotState, deps: Deps, now) -> BotState:
         except Exception as exc:
             deps.alert_sink([Alert(Severity.INFO, f"regime unavailable: {exc}")])
             regime = None
-    state, reconcile_ok = run_reconcile_cycle(state, deps)
+    state, reconcile_ok = run_reconcile_cycle(state, deps, today)
     state, _ = run_management_cycle(state, deps, today)   # ALWAYS runs (stops must fire)
     state, _ = run_degross_cycle(state, deps, today, regime)  # PHASE 1.5: ALWAYS runs (risk reduction)
     state, _ = run_flow_degross_cycle(state, deps, today, regime)  # flow-flip de-gross (gated, off by default)

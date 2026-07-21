@@ -4,3 +4,9 @@ dashboard/dashboard.html
 # Python bytecode (never belongs in the repo; swept in accidentally by a git add -A)
 __pycache__/
 *.pyc
+
+# Synced Codex-review data: refreshed 5x/trading day from the droplet, transient. A reviewer
+# dedups via reports/latest/manifest.json (sha16 per file), so this need not be version-controlled.
+reports/latest/
+# Codex's own review outputs are kept locally, not committed by default (uncomment to track):
+# reports/reviews/

@@ -92,6 +92,30 @@ def test_credit_floors_are_pinned():
     validate_live_config(_live_like(), live=True)
 
 
+def test_startup_refuses_to_start_if_a_credit_floor_has_drifted(monkeypatch):
+    """Advisor checklist: `assert ABSOLUTE_CREDIT_FLOOR == 0.08` / `== 0.115` at STARTUP, not only
+    in the test suite. The droplet does not run pytest, so a floor edited directly on the server
+    would go uncaught by test_credit_floors_are_pinned. validate_live_config must refuse to start.
+
+    Applies to BOTH bots (the floors are shared and must not loosen), so it fires with live=False
+    too."""
+    import bot.strategy.credit_quality as cq
+    validate_live_config(_live_like(), live=True)          # correct floors -> starts
+    validate_live_config(_live_like(), live=False)         # and for Bot B
+    monkeypatch.setattr(cq, "ABSOLUTE_CREDIT_FLOOR", 0.05)
+    with pytest.raises(ConfigurationError, match="credit floor"):
+        validate_live_config(_live_like(), live=True)
+    with pytest.raises(ConfigurationError, match="credit floor"):
+        validate_live_config(_live_like(), live=False)
+
+
+def test_startup_refuses_a_drifted_full_size_floor(monkeypatch):
+    import bot.strategy.credit_quality as cq
+    monkeypatch.setattr(cq, "FULL_SIZE_CREDIT_FLOOR", 0.10)
+    with pytest.raises(ConfigurationError, match="credit floor"):
+        validate_live_config(_live_like(), live=True)
+
+
 def test_structural_limit_is_checked_against_bot_cs_own_calibration_not_the_default():
     """DEVIATION from the directive's `assert MAX_TOTAL_STRUCTURAL_RISK_PCT == 0.15`.
 

@@ -168,6 +168,18 @@ def validate_live_config(f, *, live: bool, expected_structural_pct: float = None
     would refuse to start Bot C. The directive's INTENT is "this deployment must not loosen risk
     limits", so the caller passes the value Bot C already runs and any drift from it fails."""
     validate_gap_stress_config(f)
+    # Advisor checklist: pin the credit floors at STARTUP, not only in the test suite. The droplet
+    # runs no tests, so a floor edited directly on the server would otherwise go uncaught. Local
+    # import keeps features.py free of a module-load dependency on credit_quality. Applies to BOTH
+    # bots -- the floors are shared and this deployment must not loosen them.
+    from bot.strategy.credit_quality import (ABSOLUTE_CREDIT_FLOOR, STANDARD_PROBE_FLOOR,
+                                             FULL_SIZE_CREDIT_FLOOR)
+    if (ABSOLUTE_CREDIT_FLOOR, STANDARD_PROBE_FLOOR, FULL_SIZE_CREDIT_FLOOR) != (0.08, 0.10, 0.115):
+        raise ConfigurationError(
+            "a credit floor drifted from the advisor-pinned values "
+            f"(absolute={ABSOLUTE_CREDIT_FLOOR}, probe={STANDARD_PROBE_FLOOR}, "
+            f"full_size={FULL_SIZE_CREDIT_FLOOR}; expected 0.08 / 0.10 / 0.115). "
+            "This deployment must not loosen entry-quality thresholds.")
     if f.bearish_module:
         raise ConfigurationError("bearish module must stay off (advisor directive): bearish_module")
     if getattr(f, "enable_five_wide_live", False):

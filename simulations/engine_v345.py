@@ -106,7 +106,7 @@ ROLL_NEW_MAX_DTE = 14           # New expiry max 14 days out
 ROLL_ENABLED_DEFAULT = True     # Can be disabled with --no-rolling
 
 # v3.4.1: iVolatility config
-IVOL_API_KEY = os.environ.get('IVOL_API_KEY', 'REDACTED_IVOL_KEY')
+IVOL_API_KEY = os.environ.get('IVOL_API_KEY', '')
 IVOL_BASE_URL = "https://restapi.ivolatility.com"
 IVOL_RATE_LIMIT = 1.1           # seconds between requests
 

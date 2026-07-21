@@ -11,6 +11,18 @@ reports/latest/
 # Codex's own review outputs are kept locally, not committed by default (uncomment to track):
 # reports/reviews/
 
+# ── Large research data: stripped from history 2026-07-21 (exceeded GitHub's 100 MB limit) ─────
+# These are regenerable caches/flow dumps, not source. Kept on disk locally, never in git.
+simulations/api_cache_overlay_batch.db
+simulations/api_cache_overlay_batch.db-shm
+simulations/api_cache_overlay_batch.db-wal
+simulations/api_cache_overlay.db*
+simulations/whalestream_flow_*.csv
+simulations/whalestream_flow_*.csv.gz
+# Any large data that would trip GitHub's limits again:
+*.parquet
+research/**/*.parquet
+
 # ── Secrets: NEVER commit (defense-in-depth before pushing to the private remote) ──────────────
 .env
 *.env

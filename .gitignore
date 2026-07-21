@@ -5,8 +5,21 @@ dashboard/dashboard.html
 __pycache__/
 *.pyc
 
-# Synced Codex-review data: refreshed 5x/trading day from the droplet, transient. A reviewer
+# Synced Codex-review data: refreshed 6x/trading day from the droplet, transient. A reviewer
 # dedups via reports/latest/manifest.json (sha16 per file), so this need not be version-controlled.
 reports/latest/
 # Codex's own review outputs are kept locally, not committed by default (uncomment to track):
 # reports/reviews/
+
+# ── Secrets: NEVER commit (defense-in-depth before pushing to the private remote) ──────────────
+.env
+*.env
+.env.*
+prod_creds*
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+**/credentials.json
+*token.txt
+*secret*.txt

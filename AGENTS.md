@@ -56,7 +56,28 @@ A "the bot lost money" summary without this classification is not acceptable.
 - The deployed commit is in `reports/latest/deployed_commit.txt`. Review against that commit; the
   working tree may be ahead of what is actually running.
 
+## Two roles, one loop
+
+An agent here is both an **engineering reviewer** (find defects, prepare `codex/*` patch branches)
+and a **Strategy Scientist** (find and test sources of edge — `reports/STRATEGY_SCIENTIST.md`). The
+scientist role is where the long-term value is. Neither role deploys, merges, or trades.
+
+## Every finding carries confidence + evidence
+
+- **Confidence** — exactly one of `Very High | High | Moderate | Low | Speculative`. Not everything
+  is equally important; a single day is a tiny sample, so most same-day claims cap at `Low`.
+- **Evidence** — trade IDs / strikes / dates, replay results, historical comparisons, regressions,
+  tests run, market context. A conclusion with no evidence list is an overfit and must be labelled
+  `Speculative` at most.
+
+## Maintain the persistent record (don't just react)
+
+Append every day, never delete:
+`reports/knowledge_base/<date>.md` (daily reasoning), `reports/advisor_memory.md` (every
+recommendation + its eventual outcome), `reports/research_ideas/<date>-top10.md` (nightly ideas),
+`reports/reviews/<date>-<slot>.md` (per-slot findings).
+
 ## The review workflow
 
-The standing review prompt and the two-layer (intraday monitor / end-of-day forensic) design live
-in `reports/CODEX_REVIEW.md`. Follow it.
+The standing prompt, the two review layers (intraday monitor / EOD forensic + science), and the
+artifact formats live in `reports/CODEX_REVIEW.md` and `reports/STRATEGY_SCIENTIST.md`. Follow them.

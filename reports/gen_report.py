@@ -12,7 +12,7 @@ Mon-Fri). One data-collection pass produces:
 READ-ONLY. This never touches broker orders, bot state, config, or the running services. Every
 section is wrapped so a data/API hiccup degrades that section rather than crashing the run.
 """
-import os, sys, json, csv, html, hashlib, glob, urllib.request, urllib.parse, collections, traceback
+import os, sys, json, csv, html, hashlib, glob, math, urllib.request, urllib.parse, collections, traceback
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
@@ -30,7 +30,7 @@ BASE12 = ["event", "date", "ticker", "short", "long", "expiry", "qty", "credit",
           "action", "exit_value", "pnl", "status"]
 
 # The 5 advisor review slots, in ET minutes-since-midnight. The last one is the EOD full session.
-SLOTS = {600: "10:00-open", 720: "12:00-midday", 840: "14:00-afternoon",
+SLOTS = {580: "09:40-postopen", 600: "10:00-open", 720: "12:00-midday", 840: "14:00-afternoon",
          945: "15:45-preclose", 975: "16:15-EOD"}
 
 BOTS = [
@@ -121,6 +121,19 @@ def read_today_decisions(bot):
     return [r for r in rows if r.get("date") == TODAY and r.get("event") == "DECISION"]
 
 
+
+def markout_index(bot):
+    """Map (short,long,expiry) -> the markout row, for MFE/MAE on open positions. Zero API cost."""
+    idx = {}
+    try:
+        for r in csv.DictReader(open(BASE + "/" + bot["markouts"])):
+            key = (f(r.get("short_strike")), f(r.get("long_strike")), r.get("expiry"))
+            idx[key] = r        # last one wins (most recent tracking of that spread)
+    except Exception:
+        pass
+    return idx
+
+
 # ---------------- structured collection (one pass) ----------------
 def collect_market():
     m = {"generated_et": NOW_ET.isoformat(), "generated_utc": NOW_UTC.isoformat(),
@@ -160,6 +173,39 @@ def collect_market():
                            "volume": b.get("volume")} for b in (data or [])]
     except Exception as e:
         m["bars_error"] = str(e)
+    # ── quant context (advisor Q5): realized vol, expected move, VWAP deviation, opening range ──
+    try:
+        closes = [d["close"] for d in h[-21:]]
+        rets = [math.log(closes[i] / closes[i-1]) for i in range(1, len(closes))]
+        mu = sum(rets) / len(rets)
+        var = sum((r - mu) ** 2 for r in rets) / max(1, len(rets) - 1)
+        m["realized_vol_annual_pct"] = round(math.sqrt(var * 252) * 100, 2)
+    except Exception:
+        pass
+    try:
+        vix = float(m.get("vix"))
+        m["expected_move_1d_pct"] = round(vix / (252 ** 0.5), 2)          # VIX is annualized %
+        if m.get("spot"):
+            m["expected_move_1d_pts"] = round(m["spot"] * (vix / 100) / (252 ** 0.5), 2)
+    except Exception:
+        pass
+    try:
+        bars = m.get("bars_5min") or []
+        if bars:
+            last = bars[-1]
+            m["vwap_now"] = last.get("vwap")
+            if last.get("close") is not None and last.get("vwap") is not None:
+                m["price_vs_vwap_pts"] = round(last["close"] - last["vwap"], 2)
+            orb = bars[:6]                                                # first 30 min = 6 x 5-min
+            if orb:
+                hi = max(b["high"] for b in orb if b.get("high") is not None)
+                lo = min(b["low"] for b in orb if b.get("low") is not None)
+                c = last.get("close")
+                m["opening_range"] = {"high": hi, "low": lo,
+                                      "broken_up": bool(c is not None and c > hi),
+                                      "broken_down": bool(c is not None and c < lo)}
+    except Exception:
+        pass
     return m
 
 
@@ -220,6 +266,7 @@ def collect_bot(bot, mkt, broker):
         get = None
     unreal = 0.0
     plist = []
+    mo_idx = markout_index(bot)
     for p in positions:
         s, l, q, cr, exp = p.get("short_strike"), p.get("long_strike"), p.get("qty"), p.get("credit"), p.get("expiry")
         mark = None
@@ -236,9 +283,12 @@ def collect_bot(bot, mkt, broker):
             unreal += pnl
         dist = round(spot - s, 2) if spot else None
         distatr = round(dist / atr, 2) if (dist is not None and atr) else None
+        mo = mo_idx.get((f(s), f(l), exp)) or {}
         plist.append({"short": s, "long": l, "qty": q, "credit": cr, "mark": mark, "unrealized": pnl,
                       "dist_to_short_pts": dist, "dist_to_short_atr": distatr, "stop_at": round(cr * 3, 2),
-                      "expiry": exp, "at_the_money": bool(distatr is not None and distatr <= 0.10)})
+                      "expiry": exp, "at_the_money": bool(distatr is not None and distatr <= 0.10),
+                      "mfe": f(mo.get("mfe")), "mae": f(mo.get("mae")),
+                      "entry_delta": f(mo.get("entry_delta")), "entry_iv": f(mo.get("entry_iv"))})
     data["positions"] = plist
     data["unrealized"] = round(unreal, 2)
     # today's captured trades

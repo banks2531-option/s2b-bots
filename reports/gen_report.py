@@ -188,6 +188,30 @@ def label_broker_legs(legs, own_positions):
     return labeled, summary
 
 
+def vwap_fields(bars):
+    """Robust intraday VWAP. Tradier's per-bar `vwap` field is unreliable -- values fall outside the
+    bar's own [low,high] (it appears to return a cumulative SESSION vwap, which drifts below price on
+    an up day), so using bars[-1]['vwap'] directly for vwap_now/price_vs_vwap_pts is wrong. Instead
+    self-compute the session VWAP from typical-price*volume, and report how many raw per-bar vwaps
+    were out of range so a reviewer can gauge feed quality. Returns {} when volume is unavailable."""
+    out_of_range = num = den = 0
+    for b in (bars or []):
+        h, l, c, v, w = b.get("high"), b.get("low"), b.get("close"), b.get("volume"), b.get("vwap")
+        if None not in (h, l, w) and not (l <= w <= h):
+            out_of_range += 1
+        if None not in (h, l, c) and v:
+            num += ((h + l + c) / 3.0) * v
+            den += v
+    res = {"vwap_bars_out_of_range": out_of_range}
+    if den:
+        session_vwap = round(num / den, 2)
+        res["session_vwap"] = res["vwap_now"] = session_vwap
+        lc = bars[-1].get("close")
+        if lc is not None:
+            res["price_vs_vwap_pts"] = round(lc - session_vwap, 2)
+    return res
+
+
 def read_trades(bot):
     rows, seen = [], set()
     files = [BASE + "/" + bot["trades"]] + sorted(glob.glob(BASE + "/" + bot["trades"] + ".superseded-*"))
@@ -287,9 +311,7 @@ def collect_market():
         bars = m.get("bars_5min") or []
         if bars:
             last = bars[-1]
-            m["vwap_now"] = last.get("vwap")
-            if last.get("close") is not None and last.get("vwap") is not None:
-                m["price_vs_vwap_pts"] = round(last["close"] - last["vwap"], 2)
+            m.update(vwap_fields(bars))     # self-computed session VWAP; Tradier's per-bar vwap is unreliable
             orb = bars[:6]                                                # first 30 min = 6 x 5-min
             if orb:
                 hi = max(b["high"] for b in orb if b.get("high") is not None)

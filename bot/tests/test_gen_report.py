@@ -119,3 +119,24 @@ def test_a_short_leg_matched_only_when_side_agrees():
     labeled, summary = gen_report.label_broker_legs(legs, own)
     assert labeled[0]["ownership"] == "foreign"
     assert summary["foreign_legs"] == 1
+
+
+# ---------------- blocker 2: VWAP integrity (Tradier per-bar vwap is unreliable) ----------------
+def test_vwap_uses_self_computed_session_vwap_not_bad_feed_values():
+    # bar 1's Tradier vwap (90) is impossible -- outside its own [99,100]. The derived vwap_now must
+    # come from the self-computed session VWAP (typical*vol), which stays inside the day's range.
+    bars = [
+        {"high": 100.0, "low": 99.0, "close": 99.5, "volume": 100, "vwap": 90.0},
+        {"high": 101.0, "low": 100.0, "close": 100.5, "volume": 300, "vwap": 100.4},
+    ]
+    r = gen_report.vwap_fields(bars)
+    assert r["vwap_bars_out_of_range"] == 1
+    assert r["session_vwap"] == 100.25          # ((99.5*100)+(100.5*300))/400
+    assert r["vwap_now"] == r["session_vwap"]    # no longer bars[-1]["vwap"]
+    assert r["price_vs_vwap_pts"] == 0.25        # 100.5 - 100.25
+
+
+def test_vwap_fields_without_volume_reports_only_the_quality_count():
+    r = gen_report.vwap_fields([{"high": 100.0, "low": 99.0, "close": 99.5, "volume": 0, "vwap": 99.5}])
+    assert r["vwap_bars_out_of_range"] == 0
+    assert "session_vwap" not in r and "vwap_now" not in r

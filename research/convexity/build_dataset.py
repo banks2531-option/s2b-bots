@@ -11,7 +11,7 @@ import json, os, urllib.request
 from datetime import timedelta, datetime
 import yfinance as yf
 
-KEY = "REDACTED_POLYGON_KEY"
+KEY = os.environ.get("POLYGON_API_KEY", "")
 TICKERS = ["AAPL", "NVDA", "TSLA", "AMZN", "META", "AMD", "NFLX", "GOOGL", "MSFT",
            "MU", "AVGO", "CRM", "COIN", "PLTR", "DIS", "QCOM", "INTC", "ORCL", "ADBE",
            "UBER", "SHOP", "SMCI", "MRVL", "SNOW", "NOW", "PYPL", "BA", "JPM", "GS",

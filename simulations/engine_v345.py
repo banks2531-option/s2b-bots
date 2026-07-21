@@ -50,11 +50,11 @@ from disk_cache import get_disk_cache
 # CONFIGURATION — Mirrors v16.5 exactly
 # ============================================================
 
-TRADIER_API_KEY = "REDACTED_TRADIER_KEY"
+TRADIER_API_KEY = os.environ.get("TRADIER_API_KEY", "")
 TRADIER_BASE_URL = "https://sandbox.tradier.com/v1"
 
 # v3.3: Polygon/Massive API
-POLYGON_API_KEY = "REDACTED_POLYGON_KEY"
+POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY", "")
 POLYGON_BASE_URL = "https://api.massive.com"
 
 # Signal detection (v16.5)

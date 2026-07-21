@@ -35,3 +35,28 @@ id_rsa*
 **/credentials.json
 *token.txt
 *secret*.txt
+
+# ── Transient analysis outputs, dumps & scratch (item 7, 2026-07-21): kept local, never in git /
+#    never swept into a Codex patch branch. Source .py under research/ & simulations/ is NOT ignored
+#    here — those stay classifiable/committable; only their DATA outputs and scratch are ignored. ──
+droplet_data/
+scratch_*.py
+cboe_tmp.html
+*.zip
+*.docx
+# Large / regenerable research + flow data (keep under GitHub's limits and out of review diffs)
+research/**/*.csv.gz
+research/**/*.log
+research/convexity/cards/
+research/convexity/events.csv
+research/convexity/outcomes.json
+research/skew/
+research/llm_gate_backtest/
+research/slice_table_for_report.csv
+research/tradier_truth_outcomes.csv
+# simulations: DATA outputs only (the *.py backtest sources remain trackable)
+simulations/*.csv
+simulations/*_results.json
+simulations/flow_degross_events.json
+simulations/flow_degross_run.log
+simulations/_barth_check.txt

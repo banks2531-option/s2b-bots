@@ -94,6 +94,86 @@ def f(v, d=None):
         return d
 
 
+def sha16(data):
+    """SHA-256, first 16 hex chars, of raw bytes. The single hashing path for EVERY manifest file."""
+    return hashlib.sha256(data).hexdigest()[:16]
+
+
+def manifest_of_dir(reports_dir, names):
+    """Per-file sha16 of each file's ACTUAL on-disk bytes -- identical treatment for every payload,
+    including deployed_commit.txt (previously special-cased to the commit-string prefix, so its
+    manifest value was not a byte hash like the others)."""
+    out = {}
+    for n in names:
+        with open(os.path.join(reports_dir, n), "rb") as fh:
+            out[n] = sha16(fh.read())
+    return out
+
+
+def realized_fields(state, report_date, closes_today, lifetime=None):
+    """Honest realized-P&L fields so a prior risk-day's P&L is never presented as today's.
+
+    A bot's realized_today counter resets on the bot's OWN risk-day rollover, which can lag the
+    report's calendar date (e.g. Bot C idle since its last trade shows -14.6 from risk_day
+    2026-07-17 on a 2026-07-21 report). Presenting that counter as "today" is the bug. Fields:
+      report_date          -- the report's ET calendar date (authoritative "today")
+      risk_day             -- the bot's internal risk-day (may lag report_date)
+      realized_risk_day    -- the bot's realized_today counter, valid for risk_day, NOT today
+      realized_report_date -- P&L actually booked on report_date, summed from today's CLOSE rows
+      lifetime_realized    -- total realized across all closed trades
+      realized_is_stale    -- True when risk_day != report_date (the counter predates today)
+    """
+    risk_day = state.get("risk_day")
+    realized_report_date = round(sum(f(t.get("pnl"), 0.0) for t in (closes_today or [])), 2)
+    return {"report_date": report_date, "risk_day": risk_day,
+            "realized_risk_day": f(state.get("realized_today")),
+            "realized_report_date": realized_report_date,
+            "lifetime_realized": (round(lifetime, 2) if lifetime is not None else None),
+            "realized_is_stale": bool(risk_day and risk_day != report_date)}
+
+
+def pnl_accounting_fields(config):
+    """Replace the ambiguous actual_fill_accounting boolean with explicit provenance a reviewer can
+    trust. ON  -> P&L is booked from actual broker fills (Bot B sandbox; unaudited vs a statement).
+             OFF -> P&L is SYNTHETIC (credit-mark); live-broker fill accounting is disabled (Bot C:
+                    negative-credit sign + leg-count qty bug, pending the 5-execution ledger)."""
+    on = bool((config or {}).get("actual_fill_accounting"))
+    return {"pnl_source": "actual_fill" if on else "synthetic_mark",
+            "pnl_validation_status": "sandbox_unaudited" if on else "live_fill_accounting_disabled"}
+
+
+def label_broker_legs(legs, own_positions):
+    """Tag each shared-account broker leg owned/foreign. Bot B runs --shared-account, so the broker
+    positions endpoint returns co-occupants' legs too; those are EXPECTED, not reconciliation drift.
+    A leg is 'owned' when its OCC put symbol AND side match a leg the bot's own book implies (short
+    strike -> qty<0, long strike -> qty>0 at the position's expiry). Returns (labeled_legs, summary).
+    Heuristic: if a co-occupant holds the same strike/side the counts merge; the split still tells a
+    reviewer the extra legs are shared-account, not missing from the book."""
+    own = {}
+    for p in (own_positions or []):
+        exp = p.get("expiry")
+        s, l = p.get("short_strike"), p.get("long_strike")
+        if exp and s is not None:
+            own[occ(exp, s)] = -1
+        if exp and l is not None:
+            own[occ(exp, l)] = 1
+    labeled, owned, foreign = [], 0, 0
+    for L in (legs or []):
+        q = L.get("quantity")
+        side = -1 if (q is not None and q < 0) else 1
+        is_own = own.get(L.get("symbol")) == side
+        owned += int(is_own)
+        foreign += int(not is_own)
+        d = dict(L)
+        d["ownership"] = "owned" if is_own else "foreign"
+        labeled.append(d)
+    summary = {"own_book_positions": len(own_positions or []), "owned_legs": owned,
+               "foreign_legs": foreign,
+               "note": "foreign legs belong to co-occupants of the shared sandbox account "
+                       "(Bot B runs --shared-account); they are expected and are NOT drift."}
+    return labeled, summary
+
+
 def read_trades(bot):
     rows, seen = [], set()
     files = [BASE + "/" + bot["trades"]] + sorted(glob.glob(BASE + "/" + bot["trades"] + ".superseded-*"))
@@ -251,8 +331,7 @@ def collect_bot(bot, mkt, broker):
     spot, atr = mkt.get("spot"), (mkt.get("atr14") or 0)
     data = {"bot": bot["label"], "kind": bot["kind"], "generated_et": NOW_ET.isoformat(),
             "review_slot": mkt.get("review_slot"), "deployed_commit": deployed_commit(),
-            "equity": f(broker.get("equity")), "realized_today": f(st.get("realized_today")),
-            "risk_day": st.get("risk_day"), "halted": bool(st.get("halted")),
+            "equity": f(broker.get("equity")), "halted": bool(st.get("halted")),
             "halt_reason": st.get("halt_reason") or None,
             "entries_today": st.get("entries_today"),
             "funnel": {k: st.get(k) for k in ("entry_cycles_started", "raw_candidate_evaluations",
@@ -315,6 +394,11 @@ def collect_bot(bot, mkt, broker):
     data["config"] = read_config(bot)
     # history summary
     data["history"] = history_summary(bot)
+    # honest realized-P&L fields (report_date vs the bot's lagging risk_day counter) + P&L provenance
+    data.update(realized_fields(st, TODAY, data["closes_today"],
+                                lifetime=(data["history"] or {}).get("total_realized")))
+    data["realized_today"] = data["realized_report_date"]   # exec column now shows P&L booked TODAY
+    data.update(pnl_accounting_fields(data["config"]))
     return data
 
 
@@ -364,26 +448,22 @@ def deployed_commit():
 # ---------------- Codex standardized files ----------------
 def write_codex_files(mkt, bots_data, brokers):
     os.makedirs(REPORTS, exist_ok=True)
-    written = {}
+    names = []
 
     def dump_json(name, obj):
-        path = os.path.join(REPORTS, name)
-        txt = json.dumps(obj, indent=1, default=str)
-        with open(path, "w") as fh:
-            fh.write(txt)
-        written[name] = hashlib.sha256(txt.encode()).hexdigest()[:16]
+        with open(os.path.join(REPORTS, name), "w") as fh:
+            fh.write(json.dumps(obj, indent=1, default=str))
+        names.append(name)
 
     def dump_csv(name, header, rows):
-        path = os.path.join(REPORTS, name)
         import io
         buf = io.StringIO()
         w = csv.writer(buf)
         w.writerow(header)
         w.writerows(rows)
-        txt = buf.getvalue()
-        with open(path, "w", newline="") as fh:
-            fh.write(txt)
-        written[name] = hashlib.sha256(txt.encode()).hexdigest()[:16]
+        with open(os.path.join(REPORTS, name), "w", newline="") as fh:
+            fh.write(buf.getvalue())
+        names.append(name)
 
     dump_json("market_context.json", mkt)
     for b in BOTS:
@@ -402,12 +482,16 @@ def write_codex_files(mkt, bots_data, brokers):
 
     with open(os.path.join(REPORTS, "deployed_commit.txt"), "w") as fh:
         fh.write(deployed_commit() + "\n")
-    written["deployed_commit.txt"] = deployed_commit()[:16]
+    names.append("deployed_commit.txt")
 
+    # Uniform byte-sha16 for EVERY payload -- deployed_commit.txt is hashed from its bytes exactly
+    # like the JSON/CSV files, no special-casing (previously it recorded the commit-string prefix).
+    written = manifest_of_dir(REPORTS, names)
     manifest = {"generated_et": NOW_ET.isoformat(), "generated_utc": NOW_UTC.isoformat(),
                 "review_slot": mkt.get("review_slot"), "market": mkt.get("market"),
                 "deployed_commit": deployed_commit(), "files": written,
-                "note": "sha16 per file lets a reviewer skip files unchanged since the previous run."}
+                "note": "sha16 = first16(sha256(file bytes)) per file; lets a reviewer skip files "
+                        "unchanged since the previous run."}
     with open(os.path.join(REPORTS, "manifest.json"), "w") as fh:
         json.dump(manifest, fh, indent=1)
     return manifest
@@ -476,11 +560,19 @@ def render_html(mkt, bots_data):
     for b in BOTS:
         d = bots_data[b["key"]]
         P.append("<div class='botcard'><h2>%s &mdash; %s</h2>" % (esc(d["bot"]), esc(d["kind"])))
+        stale = (" <span class='neg'>(STALE &mdash; counter from %s)</span>" % esc(d.get("risk_day"))
+                 if d.get("realized_is_stale") else "")
         P.append("<table class='kv'><tr><th>Equity</th><td>%s</td><th>Realized today</th><td>%s</td></tr>"
-                 "<tr><th>Unrealized</th><td>%s</td><th>Halted</th><td>%s</td></tr></table>"
+                 "<tr><th>Unrealized</th><td>%s</td><th>Halted</th><td>%s</td></tr>"
+                 "<tr><th>Report date</th><td>%s</td><th>Risk day</th><td>%s%s</td></tr>"
+                 "<tr><th>Realized (risk-day counter)</th><td>%s</td><th>Lifetime</th><td>%s</td></tr>"
+                 "<tr><th>P&amp;L source</th><td>%s</td><th>Validation</th><td>%s</td></tr></table>"
                  % (("${:,.2f}".format(d["equity"]) if d.get("equity") is not None else "&mdash;"),
                     money(d["realized_today"]), money(d["unrealized"]),
-                    ("<span class='neg'>YES: %s</span>" % esc(d["halt_reason"]) if d["halted"] else "no")))
+                    ("<span class='neg'>YES: %s</span>" % esc(d["halt_reason"]) if d["halted"] else "no"),
+                    esc(d.get("report_date")), esc(d.get("risk_day")), stale,
+                    money(d.get("realized_risk_day")), money(d.get("lifetime_realized")),
+                    esc(d.get("pnl_source")), esc(d.get("pnl_validation_status"))))
         P.append("<h3>Open positions</h3>")
         if d["positions"]:
             P.append("<table><tr><th>Spread</th><th>Qty</th><th>Credit</th><th>Mark</th><th>Unreal</th><th>Dist→short</th><th>ATR</th><th>Stop@</th><th>Exp</th></tr>")
@@ -534,10 +626,13 @@ def render_html(mkt, bots_data):
                  "<tr><th>Best/Worst</th><td>%s / %s</td><td></td><td></td></tr></table>"
                  % (money(h["total_realized"]), h["closed_trades"], h["wins"], h["losses"],
                     h.get("win_rate_pct"), h.get("profit_factor"), money(h["best"]), money(h["worst"])))
-    P.append("<footer>Data: live Tradier balances/quotes + on-droplet logs. P&amp;L is SYNTHETIC "
-             "(actual_fill_accounting OFF both bots) = (credit&minus;mark)&times;100&times;qty. Bot B history "
-             "before 2026-07-20 carries the sandbox leg-corruption. Mark-out window is 60 min. Stop = 3&times; credit. "
-             "Standardized machine-readable copies in reports/latest/ for automated review.</footer></body></html>")
+    prov = "; ".join("%s: %s / %s" % (esc(bots_data[b["key"]]["bot"]), esc(bots_data[b["key"]].get("pnl_source")),
+                                      esc(bots_data[b["key"]].get("pnl_validation_status"))) for b in BOTS)
+    P.append("<footer>Data: live Tradier balances/quotes + on-droplet logs. P&amp;L provenance &mdash; %s. "
+             "Synthetic = (credit&minus;mark)&times;100&times;qty. Bot B history before 2026-07-20 carries the "
+             "sandbox leg-corruption. Mark-out window is 60 min. Stop = 3&times; credit. Broker snapshots tag each "
+             "leg owned/foreign (Bot B shares its sandbox account). Machine-readable copies in "
+             "reports/latest/ for automated review.</footer></body></html>" % prov)
     doc = "\n".join(P)
     tmp = OUT_HTML + ".tmp"
     open(tmp, "w").write(doc)
@@ -548,6 +643,14 @@ def build():
     mkt = collect_market()
     brokers = {b["key"]: collect_broker(b) for b in BOTS}
     bots_data = {b["key"]: collect_bot(b, mkt, brokers[b["key"]]) for b in BOTS}
+    # Tag shared-account broker legs owned/foreign so a reviewer sees the reconciliation is clean
+    # (Bot B runs --shared-account; co-occupant legs are expected, not drift). Uses each bot's book.
+    for b in BOTS:
+        k = b["key"]
+        own = [{"short_strike": p["short"], "long_strike": p["long"], "expiry": p["expiry"]}
+               for p in bots_data[k].get("positions", [])]
+        if isinstance(brokers[k].get("legs"), list):
+            brokers[k]["legs"], brokers[k]["reconciliation"] = label_broker_legs(brokers[k]["legs"], own)
     render_html(mkt, bots_data)
     manifest = write_codex_files(mkt, bots_data, brokers)
     json.dump({"generated_utc": NOW_UTC.isoformat(), "generated_et": NOW_ET.isoformat(),

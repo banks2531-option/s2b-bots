@@ -35,6 +35,10 @@ id_rsa*
 **/credentials.json
 *token.txt
 *secret*.txt
+newtradierkey.txt
+*tradierkey*
+*apikey*.txt
+*.key.txt
 
 # ── Transient analysis outputs, dumps & scratch (item 7, 2026-07-21): kept local, never in git /
 #    never swept into a Codex patch branch. Source .py under research/ & simulations/ is NOT ignored

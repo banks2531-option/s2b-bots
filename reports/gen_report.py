@@ -59,6 +59,20 @@ def review_slot(dt):
     return "adhoc"
 
 
+def due_now(dt, tol=2):
+    """True when dt (ET) is inside the generate window AND within tol minutes of a defined slot.
+
+    Cron polls this every 5 minutes over a wide UTC window; the script self-selects the exact ET
+    slots here. That makes the schedule DST-safe via Python's zoneinfo -- necessary because this
+    droplet's Debian cron (3.0pl1) does NOT honor CRON_TZ (empirically verified 2026-07-21: an ET
+    test job under CRON_TZ never fired). Every slot minute is a multiple of 5, so a */5 poll lands
+    on each slot exactly once; tol=2 admits that tick and excludes the adjacent (5-min-away) ticks."""
+    if not should_generate(dt):
+        return False
+    mins = dt.hour * 60 + dt.minute
+    return any(abs(mins - m) <= tol for m in SLOTS)
+
+
 def load_env(path):
     e = {}
     try:
@@ -664,7 +678,7 @@ def build():
 
 
 if __name__ == "__main__":
-    if not FORCE and not should_generate(NOW_ET):
+    if not FORCE and not due_now(NOW_ET):
         sys.exit(0)
     try:
         slot, man = build()

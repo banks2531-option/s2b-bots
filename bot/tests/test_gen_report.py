@@ -9,6 +9,7 @@ Imported by file path because reports/ is not a package. These lock in the Codex
 import hashlib
 import importlib.util
 import os
+from datetime import datetime
 
 _PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "reports", "gen_report.py"))
 _spec = importlib.util.spec_from_file_location("gen_report", _PATH)
@@ -65,6 +66,25 @@ def test_pnl_provenance_actual_vs_synthetic():
     assert on["pnl_source"] == "actual_fill"
     assert off["pnl_source"] == "synthetic_mark"
     assert on["pnl_validation_status"] != off["pnl_validation_status"]
+
+
+# ---------------- item 3: DST-safe slot gating (cron does not honor CRON_TZ) ----------------
+def _et(h, m, day=21):
+    # 2026-07-21 is a Tuesday; 2026-07-25 is a Saturday.
+    return datetime(2026, 7, day, h, m, tzinfo=gen_report.ET)
+
+
+def test_due_now_fires_exactly_at_each_slot_and_skips_between():
+    for h, m in [(9, 40), (10, 0), (12, 0), (14, 0), (15, 45), (16, 15)]:
+        assert gen_report.due_now(_et(h, m)) is True, (h, m)
+    assert gen_report.due_now(_et(10, 1)) is True      # within tol of 10:00
+    assert gen_report.due_now(_et(10, 5)) is False     # the next */5 tick, 5 min off -> excluded
+    assert gen_report.due_now(_et(11, 0)) is False     # not a slot
+    assert gen_report.due_now(_et(13, 0)) is False     # after hours (no slot)
+
+
+def test_due_now_skips_weekends():
+    assert gen_report.due_now(_et(10, 0, day=25)) is False   # Saturday
 
 
 # ---------------- item 1: shared-account leg labeling ----------------

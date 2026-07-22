@@ -140,3 +140,30 @@ def test_vwap_fields_without_volume_reports_only_the_quality_count():
     r = gen_report.vwap_fields([{"high": 100.0, "low": 99.0, "close": 99.5, "volume": 0, "vwap": 99.5}])
     assert r["vwap_bars_out_of_range"] == 0
     assert "session_vwap" not in r and "vwap_now" not in r
+
+
+# ---------------- decision telemetry: export active quantity-cap fields, not blank legacy ----------
+def test_decision_cols_use_active_telemetry_not_blank_legacy_columns():
+    cols = gen_report.DECISION_COLS
+    for active in ("requested_qty", "final_qty", "risk_current_exposure", "risk_limit",
+                   "risk_remaining_capacity", "risk_incremental_per_contract"):
+        assert active in cols, active
+    # the superseded columns the orchestrator leaves blank must NOT be exported
+    for legacy in ("risk_budget_proposed_qty", "risk_budget_permitted_qty", "risk_budget_headroom"):
+        assert legacy not in cols, legacy
+
+
+def test_decision_projection_is_nonblank_for_a_real_blocked_row():
+    # a real Bot C gap_1atr block (2026-07-22): capacity exhausted, final_qty 0 -- but fully populated.
+    raw = {"date": "2026-07-22", "decision": "risk_budget:gap_1atr", "limiting_gate": "gap_1atr",
+           "requested_qty": "1", "quality_adjusted_qty": "1", "final_qty": "0",
+           "risk_current_exposure": "0", "risk_limit": "89.97", "risk_remaining_capacity": "89.97",
+           "risk_incremental_per_contract": "300.91",
+           # legacy columns present-but-blank in the source, as the orchestrator leaves them:
+           "risk_budget_proposed_qty": "", "risk_budget_permitted_qty": "", "risk_budget_headroom": ""}
+    row = {c: raw.get(c, "") for c in gen_report.DECISION_COLS}
+    for f in ("requested_qty", "final_qty", "risk_limit", "risk_remaining_capacity",
+              "risk_incremental_per_contract"):
+        assert row[f] != "", f
+    assert row["final_qty"] == "0"
+    assert row["risk_incremental_per_contract"] == "300.91"

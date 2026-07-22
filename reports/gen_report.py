@@ -29,6 +29,20 @@ FORCE = "--force" in sys.argv
 BASE12 = ["event", "date", "ticker", "short", "long", "expiry", "qty", "credit",
           "action", "exit_value", "pnl", "status"]
 
+# Standardized decision-telemetry columns. The orchestrator populates the ACTIVE quantity-cap fields
+# below; the legacy risk_budget_proposed_qty / permitted_qty / headroom columns it superseded are
+# left BLANK in the trade log, so exporting them (as this report used to) yielded 0/N usable rows.
+# Candidate identity/timestamp/strikes are NOT yet emitted on rejected decision rows (bot-side gap;
+# see the follow-up recommendation) -- obs_candidate_key is carried so it flows through once logged.
+DECISION_COLS = [
+    "date", "decision", "limiting_gate",
+    "requested_qty", "quality_adjusted_qty", "final_qty",
+    "risk_current_exposure", "risk_limit", "risk_remaining_capacity", "risk_incremental_per_contract",
+    "expected_executable_credit", "credit_ratio", "credit_threshold",
+    "agg_structural", "agg_remaining_stop",
+    "obs_candidate_key",
+]
+
 # The 5 advisor review slots, in ET minutes-since-midnight. The last one is the EOD full session.
 SLOTS = {580: "09:40-postopen", 600: "10:00-open", 720: "12:00-midday", 840: "14:00-afternoon",
          945: "15:45-preclose", 975: "16:15-EOD"}
@@ -511,10 +525,8 @@ def write_codex_files(mkt, bots_data, brokers):
         dump_csv("bot_%s_trades.csv" % k, BASE12, [[t[c] for c in BASE12] for t in tr])
         # decisions: today's DECISION rows, key telemetry columns
         dec = read_today_decisions(b)
-        cols = ["date", "decision", "limiting_gate", "expected_executable_credit", "credit_ratio",
-                "credit_threshold", "agg_gap_stress_1_5", "agg_remaining_stop", "agg_structural",
-                "risk_budget_proposed_qty", "risk_budget_permitted_qty", "risk_budget_headroom"]
-        dump_csv("bot_%s_decisions.csv" % k, cols, [[r.get(c, "") for c in cols] for r in dec])
+        dump_csv("bot_%s_decisions.csv" % k, DECISION_COLS,
+                 [[r.get(c, "") for c in DECISION_COLS] for r in dec])
 
     with open(os.path.join(REPORTS, "deployed_commit.txt"), "w") as fh:
         fh.write(deployed_commit() + "\n")

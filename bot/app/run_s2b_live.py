@@ -84,6 +84,19 @@ LIVE_FEATURES = S2bFeatures(
     # bad day.
     aggregate_risk_budget=True,
     max_gap_stress_loss_pct=0.50,       # (0.06) ~$421: permits 1 $5-wing (~$410 stress) from flat, blocks a 2nd
+    # ── 2026-07-22 OPERATOR OVERRIDE: raise the 1.0-ATR and 2.0-ATR gap tiers 0.10/0.04 -> 0.50 ──
+    # DELIBERATE LOOSENING. Revert when the account is funded to ~$2,000+. The 1.5-ATR tier was
+    # calibrated to 0.50 on 2026-07-17 to "permit one $5-wing," but the 1.0-ATR (default 0.10) and
+    # 2.0-ATR (default 0.04) tiers were left at the big-account defaults -- so THEY, not the
+    # calibrated 1.5-ATR, were the binding gates and blocked every live entry (2026-07-22: 234
+    # gap_1atr blocks, one contract's 1-ATR stressed loss ~$301 vs a ~$90 budget). Aligning all
+    # three gap tiers to 0.50 permits EXACTLY ONE $5-wing (worst-case ~$425 2-ATR loss < 0.50 x
+    # equity) and still blocks a second. HONEST RISK: one $5-wing on ~$900 is ~33% of the account at
+    # a typical 1-ATR gap and ~47% (its max loss) at a severe gap -- a single bad gap can take ~half
+    # the account. This REVERSES the advisor's "do not loosen gap budgets" for Bot C ONLY, by
+    # explicit owner decision, as a stopgap until the account is funded.
+    gap_1atr_limit_pct=0.50,
+    gap_2atr_limit_pct=0.50,
     daily_pnl_halt_pct=0.25,            # (0.02) ~$210: halt new entries after ~one bad trade
     max_total_stop_risk_pct=0.30,       # (0.04) ~$253: total book stop risk ~1 position
     max_entry_stop_risk_pct=0.25,       # (0.0075) ~$210: sizes the ~$190-stop $5-wing to 1 contract

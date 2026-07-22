@@ -242,3 +242,19 @@ def test_bot_c_gap_budget_untouched_by_bot_b_recalibration():
     from bot.features import S2bFeatures
     assert LIVE_FEATURES.max_gap_stress_loss_pct == 0.50
     assert S2bFeatures().max_gap_stress_loss_pct == 0.06
+
+
+def test_bot_c_all_three_gap_tiers_aligned_to_permit_one_five_wing():
+    """2026-07-22 operator override (stopgap until the account is funded): the 1.0-ATR and 2.0-ATR
+    gap tiers were left at the big-account defaults (0.10 / 0.04) while only the 1.5-ATR was
+    calibrated to 0.50, so the under-calibrated tiers blocked every live $5-wing entry. All three
+    are now aligned to 0.50 to permit exactly one $5-wing (worst-case ~47%-of-account loss) and
+    still block a second. The shared DEFAULTS must stay put -- this is a Bot-C-only loosening."""
+    from bot.app.run_s2b_live import LIVE_FEATURES
+    from bot.features import S2bFeatures
+    assert LIVE_FEATURES.gap_1atr_limit_pct == 0.50
+    assert LIVE_FEATURES.gap_2atr_limit_pct == 0.50
+    assert LIVE_FEATURES.max_gap_stress_loss_pct == 0.50
+    # defaults unchanged -- Bot C set its own values, did not edit them out from under other callers
+    assert S2bFeatures().gap_1atr_limit_pct == 0.10
+    assert S2bFeatures().gap_2atr_limit_pct == 0.04

@@ -28,16 +28,29 @@ Codex's recommendations, and read a detailed historical daily P&L (including 202
 - `reports/advisor_memory.md` — Codex recommendation ledger (the Recommendations tab).
 - `reports/reviews/<latest>.md` — Codex's executive conclusion (qualitative "why" enrichment).
 
-## Delivery
+## Delivery — separate site on the existing monarch VPS (NOT joined to the finance app)
 
-- New `dashboard/build_dashboard.py` (full rewrite) reads the sources above and writes a single
-  self-contained `dashboard.html` (inlined CSS/JS, no external requests). Runs on the droplet.
-- Hooked into the existing `gen_report` cron so it rebuilds on every 6×/day data pass → always ≤1
-  slot stale.
-- Served by **Caddy** at an obscure path behind **basic-auth (bcrypt) over HTTPS**. Cert: a free
-  DuckDNS (or similar) hostname for a real Let's Encrypt cert (no browser warning); self-signed
-  fallback if no hostname. `fail2ban` on the auth endpoint. Bookmark the URL; view from any device.
-- Bind Caddy to serve ONLY the dashboard file; the bot services and SSH are untouched.
+The S2b dashboard is its OWN website on its OWN subdomain with its OWN password. It reuses the
+monarch VPS + Caddy install but is otherwise fully independent of the finance app: no route added to
+the FastAPI app, no code in the monarch repo, no nav links, no shared login/session.
+
+- **Build (bot droplet):** new `dashboard/build_dashboard.py` (in the fable-options repo, full
+  rewrite) reads the sources above on the bot droplet and writes a single self-contained
+  `dashboard.html` (inlined CSS/JS, no external requests) to
+  `/root/s2b-bot/reports/latest/dashboard.html`. Hooked into the existing `gen_report` cron so it
+  rebuilds on every 6×/day data pass.
+- **Transport (pull):** a systemd timer on the monarch VPS `scp`s `dashboard.html` from the bot
+  droplet into a served dir (e.g. `/var/www/s2b/dashboard.html`), mirroring the `monarch-refresh-*`
+  timers. Uses a read-only SSH key from the monarch VPS → bot droplet (restricted to the reports
+  dir). VPS-side; user-run.
+- **Serve (Caddy on the monarch VPS):** a NEW, separate Caddy site block for a distinct obscure
+  subdomain (e.g. `s2b-<rand>.<domain>`), `basic_auth` with its OWN password (`caddy hash-password`),
+  `file_server` on `/var/www/s2b/`, auto-HTTPS via the existing Let's Encrypt setup. The finance
+  subdomain/site block is untouched.
+- **Result:** a second bookmarked URL + second password, always current on the cron+pull cadence,
+  any device; entirely separate from the finance site.
+- VPS-side steps (Caddy block, pull timer, SSH key) ship as a runbook + config files in the
+  fable-options repo's `deploy/`; the user runs them on the VPS (like the monarch SETUP.md).
 
 ## Content — three tabs
 
@@ -84,5 +97,9 @@ narrative** synthesizing:
 
 ## Security
 
-- Read-only; no secrets in the page. Behind HTTPS + basic-auth. Account numbers stay masked as in
-  the source JSON. Caddy endpoint locked down (auth, fail2ban); bot/SSH surface unchanged.
+- Read-only static page; no secrets in the HTML. Its own obscure subdomain behind HTTPS +
+  Caddy `basic_auth` (its OWN password), fully separate from the finance site — no shared login,
+  session, subdomain, or nav. Account numbers stay masked as in the source JSON.
+- The monarch VPS pulls over SSH with a read-only key restricted to the bot droplet's reports dir.
+  The bot services/config are untouched. The monarch finance app, repo, and secrets are neither
+  modified nor read by anything S2b.

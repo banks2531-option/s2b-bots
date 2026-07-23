@@ -1,402 +1,411 @@
 #!/usr/bin/env python3
-"""S2b A/B dashboard generator.
+"""S2b dashboard builder. Reads the Codex report files and writes a self-contained dashboard.html.
 
-Self-contained generator (modeled on the legacy trading-bot dashboard) that SSHes the droplet,
-pulls live state + trade logs + Tradier sandbox marks for BOTH S2b bots (Bot A Monday-only and
-Bot B all-days), and writes a single auto-refreshing dashboard.html.
-
-  python build_dashboard.py --once                 # generate once and exit
-  python build_dashboard.py --watch                # regenerate every 60s
-  python build_dashboard.py --watch --interval 30  # custom interval
-
-Then open dashboard/dashboard.html in a browser (it self-refreshes every `interval` seconds).
-
-Data sources (on the droplet, /root/s2b-bot):
-  state_monday.json / state_alldays.json   - per-bot persisted state (open positions, halt, entries)
-  trades_monday.csv / trades_alldays.csv   - per-bot trade/P&L log (the A/B record)
-  s2b.env                                  - Tradier token + sandbox base url (read on droplet only)
-  systemctl is-active s2b-{monday,alldays} - process health
-Tradier sandbox is queried ON the droplet for live equity + option marks (keys never leave it).
+Runs on the bot droplet (hooked into the gen_report cron). Pure Python stdlib; no external
+requests, no external URLs in the output. Two bots only: Bot B (sandbox) and Bot C (LIVE).
 """
-import argparse
-import html
+import os
 import json
-import subprocess
-import sys
-import time
-from datetime import datetime, timezone
-from pathlib import Path
+import html
+from datetime import datetime
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-SSH_KEY = str(Path.home() / ".ssh" / "id_ed25519_do")
-DROPLET = "root@159.89.45.162"
-OUT_HTML = SCRIPT_DIR / "dashboard.html"
+# Bot B history before this date is sandbox-corrupted (negative-credit / leg-count corruption;
+# see gen_report footer + memory sandbox-does-send-leg-arrays). Excluded from clean series.
+BOT_B_CLEAN_FROM = "2026-07-20"
 
-# ── Droplet-side data collection: read both bots' files, query Tradier, emit one JSON blob ──
-DROPLET_QUERY = r'''
-import json, csv, os, subprocess, urllib.request
-from datetime import datetime, timezone
+_REC_FIELDS = ["date", "recommendation", "reason", "confidence", "status", "implemented", "outcome"]
 
-APP = "/root/s2b-bot"
-# each bot: state, trade log, service, and the env file holding ITS creds (sandbox vs production)
-BOTS = {"MONDAY":  ("state_monday.json",  "trades_monday.csv",  "s2b-monday.service",  "s2b.env"),
-        "ALLDAYS": ("state_alldays.json", "trades_alldays.csv", "s2b-alldays.service", "s2b.env"),
-        "LIVE":    ("state_live.json",    "trades_live.csv",    "s2b-live.service",    "s2b-live.env")}
 
-def load_env(fn):
-    e, p = {}, os.path.join(APP, fn)
-    if os.path.exists(p):
-        for line in open(p):
-            line = line.strip()
-            if "=" in line and not line.startswith("#"):
-                k, v = line.split("=", 1); e[k] = v
-    return e
-
-_ctx = {}
-def ctx(env_file):
-    """Per-env Tradier context (sandbox bots share s2b.env; LIVE uses s2b-live.env / production)."""
-    if env_file in _ctx:
-        return _ctx[env_file]
-    e = load_env(env_file)
-    tok = e.get("TRADIER_TOKEN", ""); base = e.get("TRADIER_BASE_URL", "https://sandbox.tradier.com/v1")
-    acct = e.get("TRADIER_ACCOUNT_ID", "")
-    def api(path):
-        req = urllib.request.Request(base + path,
-            headers={"Authorization": "Bearer " + tok, "Accept": "application/json"})
-        return json.load(urllib.request.urlopen(req, timeout=15))
-    def quotes(symbols):
-        if not symbols:
-            return {}
-        try:
-            d = api("/markets/quotes?symbols=" + ",".join(symbols))["quotes"]["quote"]
-            d = d if isinstance(d, list) else [d]
-            return {x["symbol"]: x for x in d}
-        except Exception:
-            return {}
+def _load_json(path):
     try:
-        equity = float(api("/accounts/%s/balances" % acct)["balances"]["total_equity"])
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
     except Exception:
-        equity = None
-    c = {"api": api, "quotes": quotes, "equity": equity, "live": "sandbox" not in base}
-    _ctx[env_file] = c
-    return c
+        return {}
 
-def occ(strike, expiry):
-    return "SPY%sP%08d" % (expiry[2:].replace("-", ""), int(strike * 1000))
 
-def is_active(svc):
+def load_reports(reports_dir, advisor_memory_path):
+    out = {"market": _load_json(os.path.join(reports_dir, "market_context.json"))}
+    for k in ("b", "c"):
+        out[k] = {"perf": _load_json(os.path.join(reports_dir, "bot_%s_performance.json" % k)),
+                  "broker": _load_json(os.path.join(reports_dir, "broker_snapshot_%s.json" % k))}
     try:
-        return subprocess.run(["systemctl", "is-active", svc], capture_output=True, text=True
-                              ).stdout.strip() == "active"
+        with open(advisor_memory_path, encoding="utf-8") as fh:
+            out["recommendations"] = parse_recommendations(fh.read())
     except Exception:
-        return False
-
-today = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d")
-out = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"), "bots": {}}
-
-# market context (SPY/VIX) from the sandbox feed
-mq = ctx("s2b.env")["quotes"](["SPY", "VIX"])
-spy = mq.get("SPY", {}); vix = mq.get("VIX", {})
-out["market"] = {
-    "SPY": {"last": spy.get("last"), "chg": spy.get("change_percentage"),
-            "low": spy.get("low"), "high": spy.get("high")},
-    "VIX": {"last": vix.get("last"), "chg": vix.get("change_percentage")},
-}
-
-for tag, (sf, cf, svc, envf) in BOTS.items():
-    c = ctx(envf)
-    sp = os.path.join(APP, sf)
-    st = json.load(open(sp)) if os.path.exists(sp) else {"open_positions": []}
-    legs = []
-    for pos in st.get("open_positions", []):
-        legs.append(occ(pos["short_strike"], pos["expiry"])); legs.append(occ(pos["long_strike"], pos["expiry"]))
-    qmap = c["quotes"](sorted(set(legs)))
-    def mid(sym, _qmap=qmap):
-        o = _qmap.get(sym)
-        if not o or o.get("bid") is None or o.get("ask") is None:
-            return None
-        return (o["bid"] + o["ask"]) / 2.0
-    open_live = []
-    unreal = 0.0
-    for pos in st.get("open_positions", []):
-        smid, lmid = mid(occ(pos["short_strike"], pos["expiry"])), mid(occ(pos["long_strike"], pos["expiry"]))
-        val = (smid - lmid) if (smid is not None and lmid is not None) else None
-        pnl = None
-        if val is not None:
-            pnl = round((pos["credit"] - val) * 100 * pos["qty"], 2)
-            unreal += pnl
-        cushion = None
-        if spy.get("last") is not None:
-            cushion = round(spy["last"] - pos["short_strike"], 1)
-        open_live.append({"short": pos["short_strike"], "long": pos["long_strike"],
-                          "credit": pos["credit"], "qty": pos["qty"], "expiry": pos["expiry"],
-                          "mid": round(val, 2) if val is not None else None,
-                          "unreal": pnl, "cushion": cushion})
-    # trade log: realized closes (filled only) + today's activity + rejected count
-    cf_path = os.path.join(APP, cf)
-    closed, today_rows, realized_today, realized_all, rejected = [], [], 0.0, 0.0, 0
-    if os.path.exists(cf_path):
-        rows = list(csv.DictReader(open(cf_path)))
-        for r in rows:
-            status = (r.get("status") or "").lower()
-            if r.get("event") == "CLOSE" and status not in ("filled",):
-                rejected += 1
-            if r.get("date") == today:
-                today_rows.append(r)
-            if r.get("event") == "CLOSE" and status == "filled":
-                pnl = float(r["pnl"]) if r.get("pnl") not in (None, "") else 0.0
-                realized_all += pnl
-                if r.get("date") == today:
-                    realized_today += pnl
-                closed.append(r)
-    out["bots"][tag] = {
-        "running": is_active(svc), "live": c["live"],
-        "halted": st.get("halted", False), "halt_reason": st.get("halt_reason", ""),
-        "entries_today": st.get("entries_today"), "last_entry": st.get("last_entry_date"),
-        "equity": c["equity"], "open_live": open_live, "unrealized": round(unreal, 2),
-        "realized_today": round(realized_today, 2), "realized_all": round(realized_all, 2),
-        "closed": closed, "today_rows": today_rows, "rejected": rejected,
-    }
-
-print(json.dumps(out))
-'''
+        out["recommendations"] = []
+    return out
 
 
-def ssh_run(payload):
-    """Run the droplet-side python payload over SSH and parse its JSON stdout."""
-    cmd = ["ssh", "-i", SSH_KEY, "-o", "BatchMode=yes", "-o", "ConnectTimeout=15",
-           DROPLET, "python3 - <<'PYEOF'\n" + payload + "\nPYEOF"]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
-    if r.returncode != 0:
-        raise RuntimeError("ssh failed: " + (r.stderr or "")[-500:])
-    return json.loads(r.stdout)
+def daily_pnl_series(perf, bot_key):
+    by_day = ((perf or {}).get("history") or {}).get("by_day") or {}
+    items = sorted(by_day.items())
+    if bot_key == "b":
+        items = [(d, v) for d, v in items if d >= BOT_B_CLEAN_FROM]
+    out, cum = [], 0.0
+    for d, v in items:
+        cum += float(v)
+        out.append({"date": d, "realized": round(float(v), 2), "cumulative": round(cum, 2)})
+    return out
 
 
-# ───────────────────────────── rendering ─────────────────────────────
-CSS = """
-:root{color-scheme:dark}
+def _top_gate(perf):
+    gb = (perf or {}).get("gate_breakdown") or {}
+    blocks = {k: v for k, v in gb.items() if k not in ("filled", "off_hours")}
+    return max(blocks, key=blocks.get) if blocks else None
+
+
+def health_verdict(perf, bot_key):
+    series = daily_pnl_series(perf, bot_key)
+    hist = (perf or {}).get("history") or {}
+    wr = hist.get("win_rate_pct")
+    synth = (perf or {}).get("pnl_source") == "synthetic_mark"
+    if not series:
+        return {"status": "Insufficient data",
+                "narrative": "Not enough clean trading days yet to judge the strategy."
+                             + (" P&L is synthetic (live-fill accounting off)." if synth else "")}
+    recent = series[-5:]
+    recent_sum = round(sum(r["realized"] for r in recent), 2)
+    top = _top_gate(perf)
+    if (perf.get("entries_today") == 0 and not (perf.get("positions") or [])
+            and top and top.startswith("risk_budget")):
+        status = "Stalled"
+        why = ("Not opening trades — the risk budget (%s) is capping every candidate." % top)
+    elif recent_sum > 0 and (wr or 0) >= 60:
+        status = "Improving"
+        why = ("Up over the last %d trading days (%+.0f) with a %.0f%% win rate." % (len(recent), recent_sum, wr or 0))
+    elif recent_sum < 0 or (wr is not None and wr < 45):
+        status = "Under pressure"
+        why = ("Down over the last %d trading days (%+.0f); win rate %.0f%%." % (len(recent), recent_sum, wr or 0))
+    else:
+        status = "Steady"
+        why = ("Roughly flat over the last %d trading days (%+.0f)." % (len(recent), recent_sum))
+    caveat = (" Edge note: Monday-only is the validated schedule; all-days is diluted."
+              " Small sample — treat as directional.")
+    if synth:
+        caveat += " Bot C P&L is synthetic until live-fill accounting is validated."
+    return {"status": status, "narrative": why + caveat}
+
+
+def parse_recommendations(md_text):
+    rows = []
+    for line in (md_text or "").splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) < 7:
+            continue
+        if (cells[0].lower() in ("date", ":---", "---")
+                or cells[0].startswith("_example_")
+                or set(cells[0]) <= {"-", ":"}):
+            continue
+        rows.append(dict(zip(_REC_FIELDS, cells[:7])))
+    return rows
+
+
+def why_line(perf):
+    opens = len((perf or {}).get("opens_today") or [])
+    closes = len((perf or {}).get("closes_today") or [])
+    top = _top_gate(perf)
+    if opens or closes:
+        return "Traded today: opened %d, closed %d." % (opens, closes) + (
+            " Main limiter on new entries: %s." % top if top else "")
+    if top and top.startswith("risk_budget"):
+        return "No new trades — risk budget (%s) blocked every candidate." % top
+    if top:
+        return "No new trades — top blocker was %s." % top
+    return "No new trades today."
+
+
+# ---------------------------------------------------------------------------
+# Rendering — one self-contained HTML page (inline CSS + inline JS, no external refs).
+# ---------------------------------------------------------------------------
+
+esc = html.escape
+
+_CSS = """
+:root{--bg:#0f141b;--panel:#171f2b;--panel2:#1e2836;--edge:#2a3646;--txt:#e6ecf3;
+--muted:#93a1b3;--pos:#3fd07a;--neg:#ff6b6b;--accent:#5aa9ff;--warn:#ffcc66;}
 *{box-sizing:border-box}
-body{margin:0;background:#0d1117;color:#c9d1d9;font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
-a{color:#58a6ff}
-.wrap{max-width:1100px;margin:0 auto;padding:18px}
-h1{font-size:20px;margin:0 0 2px}
-.sub{color:#8b949e;font-size:12px;margin-bottom:14px}
-.tabs{display:flex;gap:8px;margin:14px 0}
-.tab{padding:7px 14px;border:1px solid #30363d;border-radius:6px;cursor:pointer;color:#c9d1d9;background:#161b22}
-.tab.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
-.panel{display:none}.panel.active{display:block}
-.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px;margin-bottom:14px}
-.card h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:10px}
-.kpis{display:flex;flex-wrap:wrap;gap:14px;margin:6px 0 10px}
-.kpi{min-width:120px}.kpi .v{font-size:18px;font-weight:600}.kpi .l{color:#8b949e;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
-.pill{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600}
-.pill-up{background:#1a3326;color:#3fb950;border:1px solid #2ea04326}
-.pill-down{background:#3a1a1a;color:#f85149;border:1px solid #f8514926}
-.pill-warn{background:#3a2f17;color:#d29922;border:1px solid #d2992226}
-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
-th,td{text-align:right;padding:6px 8px;border-bottom:1px solid #21262d}
-th:first-child,td:first-child{text-align:left}
-th{color:#8b949e;font-weight:600;font-size:11px;text-transform:uppercase;cursor:pointer;user-select:none}
-.pos{color:#3fb950}.neg{color:#f85149}.flat{color:#8b949e}
-.market{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}
-.market b{color:#fff}
-.muted{color:#8b949e;font-size:12px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+body{margin:0;background:var(--bg);color:var(--txt);
+font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+.wrap{max-width:1040px;margin:0 auto;padding:16px;}
+h1{font-size:20px;margin:0 0 2px;}
+h2{font-size:16px;margin:18px 0 8px;}
+h3{font-size:14px;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.sub{color:var(--muted);font-size:12px;margin:0 0 14px;}
+.strip{display:flex;flex-wrap:wrap;gap:14px;background:var(--panel);border:1px solid var(--edge);
+border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+.strip .m{font-size:13px;}
+.strip .m b{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;font-weight:600;}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.tabs button{background:var(--panel);color:var(--muted);border:1px solid var(--edge);
+border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer;}
+.tabs button.active{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:600;}
+.tab{display:none;}
+.tab.active{display:block;}
+.cards{display:grid;grid-template-columns:1fr;gap:14px;}
+@media(min-width:760px){.cards{grid-template-columns:1fr 1fr;}}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:14px;}
+.card h2{margin-top:0;}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;
+border:1px solid var(--edge);}
+.b-improving{background:rgba(63,208,122,.15);color:var(--pos);border-color:var(--pos);}
+.b-steady{background:rgba(90,169,255,.15);color:var(--accent);border-color:var(--accent);}
+.b-pressure{background:rgba(255,107,107,.15);color:var(--neg);border-color:var(--neg);}
+.b-stalled{background:rgba(255,204,102,.15);color:var(--warn);border-color:var(--warn);}
+.b-info{background:var(--panel2);color:var(--muted);}
+.b-synth{background:rgba(255,204,102,.12);color:var(--warn);border-color:var(--warn);}
+.b-actual{background:rgba(63,208,122,.12);color:var(--pos);border-color:var(--pos);}
+.narr{font-size:13px;color:var(--txt);margin:8px 0;}
+.why{font-size:13px;color:var(--muted);margin:6px 0 10px;font-style:italic;}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;}
+.kpi{background:var(--panel2);border-radius:8px;padding:8px 10px;}
+.kpi b{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;font-weight:600;}
+.kpi span{font-size:16px;font-weight:600;}
+.pos{color:var(--pos);}.neg{color:var(--neg);}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 12px;}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--edge);}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em;}
+td.num{text-align:right;font-variant-numeric:tabular-nums;}
+.spark{display:block;margin:4px 0;}
+.note{color:var(--muted);font-size:12px;}
+.foot{color:var(--muted);font-size:11px;margin-top:20px;border-top:1px solid var(--edge);padding-top:10px;}
 """
 
-SORT_JS = """
-function cell(td){var v=td.getAttribute('data-v');if(v!==null)return v;return td.textContent.trim();}
-function sortTable(t,i,type,asc){
- var rows=Array.prototype.slice.call(t.tBodies[0].rows);
- rows.sort(function(a,b){var x=cell(a.cells[i]),y=cell(b.cells[i]);
-  if(type==='num'){x=parseFloat(x)||0;y=parseFloat(y)||0;return asc?x-y:y-x;}
-  return asc?(''+x).localeCompare(y):(''+y).localeCompare(x);});
- rows.forEach(function(r){t.tBodies[0].appendChild(r);});
-}
-document.querySelectorAll('table.sortable thead th').forEach(function(th){
- th.addEventListener('click',function(){
-  var t=th.closest('table'),i=Array.prototype.indexOf.call(th.parentNode.children,th);
-  var type=th.getAttribute('data-type')||'text';var asc=th.getAttribute('data-asc')!=='1';
-  th.setAttribute('data-asc',asc?'1':'0');sortTable(t,i,type,asc);});
-});
-function showTab(id){
- document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
- document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
- document.getElementById('tab-'+id).classList.add('active');
- document.getElementById('panel-'+id).classList.add('active');
+_JS = """
+function showTab(id,btn){
+  var t=document.getElementsByClassName('tab');
+  for(var i=0;i<t.length;i++){t[i].className='tab';}
+  var b=document.querySelectorAll('.tabs button');
+  for(var j=0;j<b.length;j++){b[j].className='';}
+  document.getElementById(id).className='tab active';
+  btn.className='active';
 }
 """
 
-
-def money(v, plus=False):
-    if v is None:
-        return "<span class='flat'>—</span>"
-    cls = "pos" if v > 0 else ("neg" if v < 0 else "flat")
-    s = ("%+.0f" if plus else "%.0f") % v
-    return "<span class='%s'>$%s</span>" % (cls, s)
+_STATUS_CLASS = {
+    "Improving": "b-improving", "Steady": "b-steady", "Under pressure": "b-pressure",
+    "Stalled": "b-stalled", "Insufficient data": "b-info",
+}
 
 
-def pill(ok, up_txt, down_txt):
-    return ("<span class='pill pill-up'>%s</span>" % up_txt) if ok else \
-           ("<span class='pill pill-down'>%s</span>" % down_txt)
+def _money(v):
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return '<span class="note">-</span>'
+    cls = "pos" if v > 0 else ("neg" if v < 0 else "")
+    return '<span class="%s">%s$%s</span>' % (cls, "+" if v > 0 else "", "{:,.0f}".format(v))
 
 
-def render_market(m):
-    spy, vix = m.get("SPY", {}), m.get("VIX", {})
-    def fmt(d, sym):
-        last = d.get("last")
-        chg = d.get("chg")
-        if last is None:
-            return "%s <span class='muted'>n/a</span>" % sym
-        c = "pos" if (chg or 0) > 0 else ("neg" if (chg or 0) < 0 else "flat")
-        return "<b>%s</b> $%.2f <span class='%s'>%+.2f%%</span>" % (sym, last, c, chg or 0)
-    rng = ""
-    if spy.get("low") is not None:
-        rng = " <span class='muted'>range $%.2f–$%.2f</span>" % (spy["low"], spy["high"])
-    return "<div class='market'>%s%s<span>%s</span></div>" % (fmt(spy, "SPY"), rng, fmt(vix, "VIX"))
+def _num(v, fmt="{:,.2f}"):
+    try:
+        return fmt.format(float(v))
+    except (TypeError, ValueError):
+        return "-"
 
 
-BOT_LABEL = {"MONDAY": "Bot A · Monday-only (sandbox)",
-             "ALLDAYS": "Bot B · all-days (sandbox)",
-             "LIVE": "Bot C · LIVE $1-wing all-days (REAL MONEY)"}
+def _spark(series, key="cumulative", width=260, height=44):
+    pts = [r[key] for r in series]
+    if len(pts) < 2:
+        return '<span class="note">not enough data</span>'
+    lo, hi = min(pts), max(pts)
+    span = (hi - lo) or 1.0
+    n = len(pts)
+    coords = []
+    for i, y in enumerate(pts):
+        x = (i / (n - 1)) * (width - 4) + 2
+        yy = height - 2 - ((y - lo) / span) * (height - 4)
+        coords.append("%.1f,%.1f" % (x, yy))
+    last_up = pts[-1] >= pts[0]
+    color = "#3fd07a" if last_up else "#ff6b6b"
+    return ('<svg class="spark" width="%d" height="%d" viewBox="0 0 %d %d">'
+            '<polyline fill="none" stroke="%s" stroke-width="2" points="%s"/></svg>'
+            % (width, height, width, height, color, " ".join(coords)))
 
 
-def render_bot_overview(tag, b):
-    status = pill(b["running"] and not b["halted"], "RUNNING", "HALTED" if b["halted"] else "STOPPED")
-    if b.get("live"):
-        status += " <span class='pill pill-down'>● REAL MONEY</span>"
-    if b["halted"]:
-        status += " <span class='pill pill-warn'>halt: %s</span>" % html.escape(b.get("halt_reason") or "")
-    net = (b.get("realized_today") or 0) + (b.get("unrealized") or 0)
-    kpis = "".join("<div class='kpi'><div class='v'>%s</div><div class='l'>%s</div></div>" % (v, l)
-        for v, l in [
-            (money(b.get("equity")), "Equity"),
-            (money(b.get("realized_today"), True), "Realized today"),
-            (money(b.get("unrealized"), True), "Unrealized"),
-            (money(net, True), "Net day"),
-            (money(b.get("realized_all"), True), "Realized all-time"),
-            ("%s/%s" % (b.get("entries_today"), len(b.get("open_live") or [])), "Entries today / open"),
-        ])
-    # open positions
-    if b["open_live"]:
-        body = "".join(
-            "<tr><td>%d/%d</td><td>%s</td><td data-v='%.2f'>%.2f</td><td data-v='%.2f'>%.2f</td>"
-            "<td data-v='%s'>%s</td><td data-v='%s'>%s</td></tr>" % (
-                p["short"], p["long"], html.escape(p["expiry"]), p["credit"], p["credit"],
-                (p["mid"] or 0), (p["mid"] if p["mid"] is not None else 0),
-                (p["unreal"] if p["unreal"] is not None else 0), money(p["unreal"], True),
-                (p["cushion"] if p["cushion"] is not None else 0),
-                ("%.1f pt" % p["cushion"]) if p["cushion"] is not None else "—")
-            for p in b["open_live"])
-        postbl = ("<table class='sortable'><thead><tr><th>Spread</th><th>Exp</th>"
-                  "<th data-type='num'>Credit</th><th data-type='num'>Mid</th>"
-                  "<th data-type='num'>Unreal</th><th data-type='num'>Cushion</th></tr></thead>"
-                  "<tbody>%s</tbody></table>" % body)
-    else:
-        postbl = "<div class='muted'>flat — no open positions</div>"
-    # today's activity
-    tt = ""
-    if b["today_rows"]:
-        trows = "".join(
-            "<tr><td>%s</td><td>%s</td><td>%s/%s</td><td>%s</td><td data-v='%s'>%s</td></tr>" % (
-                html.escape(r.get("event", "")), html.escape(r.get("action") or "—"),
-                r.get("short", ""), r.get("long", ""), html.escape(r.get("status") or ""),
-                (r.get("pnl") or 0), money(float(r["pnl"]) if r.get("pnl") not in (None, "") else None, True))
-            for r in b["today_rows"] if (r.get("status") or "").lower() in ("filled",))
-        if trows:
-            tt = ("<div class='muted' style='margin-top:8px'>Today</div>"
-                  "<table><thead><tr><th>Event</th><th>Action</th><th>Spread</th>"
-                  "<th>Status</th><th>P&L</th></tr></thead><tbody>%s</tbody></table>" % trows)
-    rej = ""
-    if b["rejected"]:
-        rej = "<div class='muted' style='margin-top:6px'>⚠ %d rejected/errored close attempt(s) in log (historical)</div>" % b["rejected"]
-    return ("<div class='card'><h2>%s %s</h2>%s<div class='kpis'>%s</div>%s%s%s</div>" % (
-        BOT_LABEL[tag], status, "", kpis, postbl, tt, rej))
+def _bot_card(key, bot):
+    perf = bot.get("perf") or {}
+    name = perf.get("bot") or ("Bot %s" % key.upper())
+    hv = health_verdict(perf, key)
+    scls = _STATUS_CLASS.get(hv["status"], "b-info")
+    synth = perf.get("pnl_source") == "synthetic_mark"
+    src_badge = ('<span class="badge b-synth">synthetic P&amp;L</span>' if synth
+                 else '<span class="badge b-actual">actual fill</span>')
+    hist = perf.get("history") or {}
+    series = daily_pnl_series(perf, key)
+    kpis = [
+        ("Equity", "$" + _num(perf.get("equity"), "{:,.0f}")),
+        ("Today realized" + (" (synthetic)" if synth else ""), _money(perf.get("realized_report_date"))),
+        ("Lifetime realized", _money(perf.get("lifetime_realized"))),
+        ("Win rate", (_num(hist.get("win_rate_pct"), "{:.1f}") + "%") if hist.get("win_rate_pct") is not None else "-"),
+        ("Open positions", str(len(perf.get("positions") or []))),
+        ("Opened / Closed today",
+         "%d / %d" % (len(perf.get("opens_today") or []), len(perf.get("closes_today") or []))),
+    ]
+    kh = "".join('<div class="kpi"><b>%s</b><span>%s</span></div>' % (esc(t), v) for t, v in kpis)
+    return (
+        '<div class="card">'
+        '<h2>%s <span class="badge %s">%s</span> %s</h2>'
+        '<div class="narr">%s</div>'
+        '<div class="why">%s</div>'
+        '<div class="kpis">%s</div>'
+        '<h3>Daily P&amp;L (cumulative, clean days)</h3>%s'
+        '</div>'
+        % (esc(name), scls, esc(hv["status"]), src_badge,
+           esc(hv["narrative"]), esc(why_line(perf)), kh, _spark(series))
+    )
 
 
-def render_history(tag, b):
-    closed = b["closed"]
-    n = len(closed)
-    wins = sum(1 for r in closed if float(r.get("pnl") or 0) > 0)
-    net = sum(float(r.get("pnl") or 0) for r in closed)
-    wr = (wins / n * 100) if n else 0
-    avg = (net / n) if n else 0
-    kpis = "".join("<div class='kpi'><div class='v'>%s</div><div class='l'>%s</div></div>" % (v, l)
-        for v, l in [
-            (str(n), "Closed trades"),
-            ("%.0f%%" % wr, "Win rate"),
-            (money(net, True), "Net realized"),
-            (money(avg, True), "Avg / trade"),
-        ])
-    rows = ""
-    for r in sorted(closed, key=lambda x: (x.get("date", ""), x.get("short", "")), reverse=True):
-        pnl = float(r.get("pnl") or 0)
-        rows += ("<tr><td>%s</td><td>%s/%s</td><td>%s</td><td>%s</td>"
-                 "<td data-v='%s'>%s</td><td data-v='%s'>%s</td></tr>" % (
-            html.escape(r.get("date", "")), r.get("short", ""), r.get("long", ""),
-            html.escape(r.get("expiry", "")), html.escape(r.get("action") or ""),
-            r.get("credit", ""), r.get("credit", ""), pnl, money(pnl, True)))
+def _pnl_table(series):
+    if not series:
+        return '<p class="note">No clean trading days yet.</p>'
+    rows = "".join(
+        '<tr><td>%s</td><td class="num">%s</td><td class="num">%s</td></tr>'
+        % (esc(r["date"]), _money(r["realized"]), _money(r["cumulative"]))
+        for r in series)
+    return ('<table><tr><th>Date</th><th>Realized</th><th>Cumulative</th></tr>%s</table>' % rows)
+
+
+def _kv_table(d, kh="Key", vh="Value"):
+    if not d:
+        return '<p class="note">none</p>'
+    rows = "".join('<tr><td>%s</td><td class="num">%s</td></tr>' % (esc(str(k)), esc(str(v)))
+                   for k, v in d.items())
+    return '<table><tr><th>%s</th><th>%s</th></tr>%s</table>' % (esc(kh), esc(vh), rows)
+
+
+def _bot_perf_section(key, bot):
+    perf = bot.get("perf") or {}
+    broker = bot.get("broker") or {}
+    name = perf.get("bot") or ("Bot %s" % key.upper())
+    hist = perf.get("history") or {}
+    series = daily_pnl_series(perf, key)
+    funnel = perf.get("funnel") or {}
+    gates = perf.get("gate_breakdown") or {}
+    recon = broker.get("reconciliation") or {}
+    stats = {
+        "Closed trades": hist.get("closed_trades", "-"),
+        "Wins / Losses": "%s / %s" % (hist.get("wins", "-"), hist.get("losses", "-")),
+        "Win rate %": hist.get("win_rate_pct", "-"),
+        "Profit factor": hist.get("profit_factor", "-"),
+        "Best day": hist.get("best", "-"),
+        "Worst day": hist.get("worst", "-"),
+    }
+    recon_d = {
+        "Owned legs": recon.get("owned_legs", "-"),
+        "Foreign legs": recon.get("foreign_legs", "-"),
+    }
+    return (
+        '<h2>%s</h2>'
+        '<h3>Historical daily P&amp;L</h3>%s%s'
+        '<h3>Win / loss</h3>%s'
+        '<h3>Entry funnel</h3>%s'
+        '<h3>Gate breakdown (why blocked / filled)</h3>%s'
+        '<h3>Risk-config snapshot</h3>%s'
+        '<h3>Broker reconciliation</h3>%s'
+        % (esc(name), _pnl_table(series), _spark(series, width=520, height=90),
+           _kv_table(stats), _kv_table(funnel, "Stage", "Count"),
+           _kv_table(gates, "Gate", "Count"), _kv_table(perf.get("config") or {}, "Setting", "Value"),
+           _kv_table(recon_d))
+    )
+
+
+def _recs_table(rows):
     if not rows:
-        rows = "<tr><td colspan='6' class='muted'>no closed trades yet</td></tr>"
-    tbl = ("<table class='sortable'><thead><tr><th>Close date</th><th>Spread</th><th>Exp</th>"
-           "<th>Exit</th><th data-type='num'>Credit</th><th data-type='num'>P&L</th></tr></thead>"
-           "<tbody>%s</tbody></table>" % rows)
-    return "<div class='card'><h2>%s</h2><div class='kpis'>%s</div>%s</div>" % (
-        BOT_LABEL[tag], kpis, tbl)
+        return '<p class="note">none</p>'
+    body = "".join(
+        '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>'
+        % (esc(r.get("date", "")), esc(r.get("recommendation", "")), esc(r.get("reason", "")),
+           esc(r.get("confidence", "")), esc(r.get("implemented", "")), esc(r.get("outcome", "")))
+        for r in rows)
+    return ('<table><tr><th>Date</th><th>Recommendation</th><th>Reason</th>'
+            '<th>Confidence</th><th>Implemented</th><th>Outcome</th></tr>%s</table>' % body)
 
 
-def render_html(data, refresh):
-    bots = data["bots"]
-    order = ("LIVE", "ALLDAYS", "MONDAY")   # show the real-money bot first
-    overview = "".join(render_bot_overview(t, bots[t]) for t in order if t in bots)
-    history = "".join(render_history(t, bots[t]) for t in order if t in bots)
-    return """<!doctype html><html><head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width,initial-scale=1'>
-<meta http-equiv='refresh' content='%d'>
-<title>S2b A/B Dashboard</title><style>%s</style></head><body><div class='wrap'>
-<h1>S2b A/B Dashboard</h1>
-<div class='sub'>Bot A (Monday-only) vs Bot B (all-days) · SPY bull put spreads · Tradier sandbox ·
-generated %s · auto-refresh %ds</div>
-<div class='card' style='padding:10px 14px'>%s</div>
-<div class='tabs'>
- <div class='tab active' id='tab-ov' onclick="showTab('ov')">Overview</div>
- <div class='tab' id='tab-hist' onclick="showTab('hist')">Trade History</div>
-</div>
-<div class='panel active' id='panel-ov'>%s</div>
-<div class='panel' id='panel-hist'>%s</div>
-</div><script>%s</script></body></html>""" % (
-        refresh, CSS, html.escape(data.get("generated", "")), refresh,
-        render_market(data.get("market", {})), overview, history, SORT_JS)
+def render_html(data, generated_at):
+    market = data.get("market") or {}
+    daily = market.get("daily") or {}
+    close = daily.get("close")
+    op = daily.get("open")
+    pct = ""
+    try:
+        if op:
+            pct = " (%+.2f%%)" % ((float(close) - float(op)) / float(op) * 100.0)
+    except (TypeError, ValueError, ZeroDivisionError):
+        pct = ""
+    pvw = market.get("price_vs_vwap_pts")
+    try:
+        regime = "quiet" if float(market.get("vix") or 0) < 20 else "elevated"
+    except (TypeError, ValueError):
+        regime = "unknown"
+    try:
+        regime += ", closed below VWAP" if float(pvw) < 0 else ", closed above VWAP"
+    except (TypeError, ValueError):
+        pass
+
+    strip = (
+        '<div class="strip">'
+        '<div class="m"><b>SPY close</b>%s%s</div>'
+        '<div class="m"><b>VIX</b>%s</div>'
+        '<div class="m"><b>Session VWAP</b>%s</div>'
+        '<div class="m"><b>Price vs VWAP</b>%s pts</div>'
+        '<div class="m"><b>Regime</b>%s</div>'
+        '</div>'
+        % (esc(_num(close, "{:,.2f}")), esc(pct), esc(_num(market.get("vix"), "{:.2f}")),
+           esc(_num(market.get("session_vwap"), "{:,.2f}")), esc(_num(pvw, "{:+.2f}")), esc(regime))
+    )
+
+    overview = ('<div id="overview" class="tab active">%s<div class="cards">%s%s</div></div>'
+                % (strip, _bot_card("b", data.get("b") or {}), _bot_card("c", data.get("c") or {})))
+
+    perf_tab = ('<div id="performance" class="tab">%s%s</div>'
+                % (_bot_perf_section("b", data.get("b") or {}),
+                   _bot_perf_section("c", data.get("c") or {})))
+
+    recs = data.get("recommendations") or []
+    pending = [r for r in recs if r.get("status", "").lower() != "implemented"]
+    implemented = [r for r in recs if r.get("status", "").lower() == "implemented"]
+    recs_tab = ('<div id="recs" class="tab">'
+                '<h2>Pending</h2>%s<h2>Implemented</h2>%s</div>'
+                % (_recs_table(pending), _recs_table(implemented)))
+
+    return (
+        "<!doctype html>\n"
+        '<html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<title>S2b Dashboard — Bot B &amp; Bot C</title>'
+        "<style>%s</style></head><body><div class=\"wrap\">"
+        "<h1>S2b Dashboard</h1>"
+        '<p class="sub">Bot B (sandbox) &amp; Bot C (LIVE) — generated %s ET. Read-only.</p>'
+        '<div class="tabs">'
+        '<button class="active" onclick="showTab(\'overview\',this)">Overview</button>'
+        '<button onclick="showTab(\'performance\',this)">Performance</button>'
+        '<button onclick="showTab(\'recs\',this)">Recommendations</button>'
+        '</div>'
+        "%s%s%s"
+        '<div class="foot">Self-contained static page. P&amp;L marked synthetic for Bot C is '
+        'un-audited; Bot B history before %s is excluded as sandbox-corrupted. '
+        'Edge caveat: Monday-only is the validated schedule; all-days is diluted.</div>'
+        "<script>%s</script></div></body></html>"
+        % (_CSS, esc(generated_at), overview, perf_tab, recs_tab, BOT_B_CLEAN_FROM, _JS)
+    )
 
 
-def generate_once(refresh):
-    data = ssh_run(DROPLET_QUERY)
-    OUT_HTML.write_text(render_html(data, refresh), encoding="utf-8")
-    b = data["bots"]
-    print("[%s] wrote %s | Bot A net $%.0f | Bot B net $%.0f" % (
-        data.get("generated"), OUT_HTML,
-        (b.get("MONDAY", {}).get("realized_all") or 0) + (b.get("MONDAY", {}).get("unrealized") or 0),
-        (b.get("ALLDAYS", {}).get("realized_all") or 0) + (b.get("ALLDAYS", {}).get("unrealized") or 0)))
-
-
-def main(argv=None):
-    ap = argparse.ArgumentParser(description="Build the S2b A/B dashboard.")
-    ap.add_argument("--once", action="store_true", help="generate once and exit")
-    ap.add_argument("--watch", action="store_true", help="regenerate on a loop")
-    ap.add_argument("--interval", type=int, default=300, help="seconds between regenerations (watch); default 5 min")
-    args = ap.parse_args(argv)
-    if args.watch:
-        print("watching — regenerating every %ds (Ctrl-C to stop)" % args.interval)
-        while True:
-            try:
-                generate_once(args.interval)
-            except Exception as exc:
-                print("error: %s" % exc, file=sys.stderr)
-            time.sleep(args.interval)
-    else:
-        generate_once(args.interval)
+def build(reports_dir, advisor_memory_path, out_path):
+    data = load_reports(reports_dir, advisor_memory_path)
+    generated_at = datetime.now().strftime("%Y-%m-%dT%H:%M")
+    doc = render_html(data, generated_at=generated_at)
+    tmp = out_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(doc)
+    os.replace(tmp, out_path)
 
 
 if __name__ == "__main__":
-    main()
+    BASE = "/root/s2b-bot"
+    build(BASE + "/reports/latest", BASE + "/reports/advisor_memory.md",
+          BASE + "/reports/latest/dashboard.html")
+    print("wrote dashboard.html")

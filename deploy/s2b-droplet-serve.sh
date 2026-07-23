@@ -42,9 +42,13 @@ chmod 644 /var/www/s2b/index.html
 # 3) Password hash (bcrypt). The plaintext is used once here and never stored.
 HASH="$(caddy hash-password --plaintext "$PW")"
 
-# 4) Caddyfile: self-signed HTTPS on the IP, basic-auth, static file only.
+# 4) Caddyfile: HTTPS on a real hostname (via nip.io wildcard DNS -> this IP), basic-auth, static
+#    file only. A hostname is required so TLS SNI works; a bare IP fails the handshake (no SNI).
+#    `tls internal` = self-signed (one-time browser warning), no external dependency. To get a
+#    warning-free Let's Encrypt cert instead, delete the `tls internal` line (needs 80/443 open).
+HOST="${IP}.nip.io"
 cat > /etc/caddy/Caddyfile <<CADDY
-https://${IP} {
+https://${HOST} {
     tls internal
     basic_auth {
         s2b ${HASH}
@@ -68,12 +72,12 @@ systemctl enable caddy >/dev/null 2>&1 || true
 systemctl restart caddy
 sleep 2
 echo ">> local test:"
-curl -sk -u "s2b:${PW}" "https://127.0.0.1/" | grep -o '<title>[^<]*</title>' \
+curl -sk -u "s2b:${PW}" --resolve "${HOST}:443:127.0.0.1" "https://${HOST}/" | grep -o '<title>[^<]*</title>' \
   || echo "   (local check inconclusive — see: journalctl -u caddy -n 20 --no-pager)"
 
 echo
 echo "======================================================================"
-echo "DONE.  Open from any device:   https://${IP}/"
+echo "DONE.  Open from any device:   https://${HOST}/"
 echo "       username: s2b     password: (the one you passed)"
 echo "One-time 'not secure' browser warning (self-signed cert) — click through to proceed."
 echo "If it will not load remotely, open TCP 443 in your DigitalOcean cloud-firewall panel."

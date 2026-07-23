@@ -1,0 +1,16 @@
+# S2b dashboard — a SEPARATE site from the finance app. Add this as its own site block on the
+# monarch VPS (e.g. import it from the main Caddyfile, or append it). It shares nothing with the
+# finance subdomain: different host, different password, no links.
+#
+# Before use, replace:
+#   s2b-CHANGEME.example.com   -> your own obscure subdomain (add a DNS A record -> the VPS IP)
+#   REPLACE_WITH_HASH          -> output of:  caddy hash-password   (choose a strong password)
+#
+s2b-CHANGEME.example.com {
+    basic_auth {
+        s2b REPLACE_WITH_HASH
+    }
+    root * /var/www/s2b
+    file_server
+    encode gzip
+}

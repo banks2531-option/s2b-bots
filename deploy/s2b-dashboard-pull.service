@@ -1,0 +1,11 @@
+[Unit]
+Description=Pull the S2b dashboard.html from the bot droplet into the served dir
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Read-only pull of a single static file. The key is restricted on the bot droplet side to only
+# this path (see S2B-DASHBOARD-SETUP.md). Adjust the user/paths if your VPS layout differs.
+User=monarch
+ExecStart=/usr/bin/scp -o BatchMode=yes -o ConnectTimeout=20 -i /home/monarch/.ssh/s2b_pull root@159.89.45.162:/root/s2b-bot/reports/latest/dashboard.html /var/www/s2b/dashboard.html

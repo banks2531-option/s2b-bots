@@ -27,7 +27,18 @@ def _load_json(path):
 def load_reports(reports_dir, advisor_memory_path):
     out = {"market": _load_json(os.path.join(reports_dir, "market_context.json"))}
     for k in ("b", "c"):
-        out[k] = {"perf": _load_json(os.path.join(reports_dir, "bot_%s_performance.json" % k)),
+        perf = _load_json(os.path.join(reports_dir, "bot_%s_performance.json" % k))
+        # Overlay the 30s live pull (equity + marks) when present, so these numbers move between the
+        # 6x/day review-pipeline passes. live_pull.py writes reports/latest/live_{k}.json.
+        live = _load_json(os.path.join(reports_dir, "live_%s.json" % k))
+        if live.get("equity") is not None:
+            perf["equity"] = live["equity"]
+            if live.get("unrealized") is not None:
+                perf["unrealized"] = live["unrealized"]
+            if live.get("positions") is not None:
+                perf["positions"] = live["positions"]
+            perf["live_as_of"] = (live.get("generated_et") or "")[11:19]   # HH:MM:SS ET
+        out[k] = {"perf": perf,
                   "broker": _load_json(os.path.join(reports_dir, "broker_snapshot_%s.json" % k))}
     try:
         with open(advisor_memory_path, encoding="utf-8") as fh:
@@ -257,16 +268,19 @@ def _bot_card(key, bot):
          "%d / %d" % (len(perf.get("opens_today") or []), len(perf.get("closes_today") or []))),
     ]
     kh = "".join('<div class="kpi"><b>%s</b><span>%s</span></div>' % (esc(t), v) for t, v in kpis)
+    live_note = ('<div class="note">&#9679; live equity/marks as of %s ET (updates every 30s)</div>'
+                 % esc(perf["live_as_of"])) if perf.get("live_as_of") else ""
     return (
         '<div class="card">'
         '<h2>%s <span class="badge %s">%s</span> %s</h2>'
         '<div class="narr">%s</div>'
         '<div class="why">%s</div>'
+        '%s'
         '<div class="kpis">%s</div>'
         '<h3>Daily P&amp;L (cumulative, clean days)</h3>%s'
         '</div>'
         % (esc(name), scls, esc(hv["status"]), src_badge,
-           esc(hv["narrative"]), esc(why_line(perf)), kh, _spark(series))
+           esc(hv["narrative"]), esc(why_line(perf)), live_note, kh, _spark(series))
     )
 
 

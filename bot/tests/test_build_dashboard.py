@@ -66,6 +66,21 @@ def test_load_reports_pulls_both_bots_and_market(tmp_path):
     assert d["b"]["broker"]["reconciliation"]["foreign_legs"] == 2
 
 
+# ---------------- live overlay (30s pull) ----------------
+def test_load_reports_overlays_live_pull_when_present(tmp_path):
+    latest, am = _write_fixture(tmp_path)
+    (tmp_path / "latest" / "live_c.json").write_text(json.dumps({
+        "equity": 951.23, "unrealized": -12.0,
+        "positions": [{"short": 739, "long": 734, "qty": 1}],
+        "generated_et": "2026-07-23T09:31:05-04:00"}))
+    d = bd.load_reports(latest, am)
+    assert d["c"]["perf"]["equity"] == 951.23          # live overrides the 6x/day value (was 900)
+    assert d["c"]["perf"]["unrealized"] == -12.0
+    assert d["c"]["perf"]["live_as_of"] == "09:31:05"
+    assert len(d["c"]["perf"]["positions"]) == 1
+    assert d["b"]["perf"]["equity"] == 74000.0          # Bot B has no live file -> unchanged
+
+
 # ---------------- Task 2: daily_pnl_series ----------------
 def test_daily_pnl_series_cumulative_and_sorted():
     perf = {"history": {"by_day": {"2026-07-22": 138.8, "2026-07-21": 293.6, "2026-07-02": -2289.0}}}

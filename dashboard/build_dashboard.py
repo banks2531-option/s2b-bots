@@ -396,7 +396,10 @@ def render_html(data, generated_at):
 
 def build(reports_dir, advisor_memory_path, out_path):
     data = load_reports(reports_dir, advisor_memory_path)
-    generated_at = datetime.now().strftime("%Y-%m-%dT%H:%M")
+    # Prefer the report's own ET timestamp (gen_report writes proper ET via zoneinfo); the droplet
+    # runs in UTC, so datetime.now() would mislabel the hour as ET. Fall back to local time.
+    gen_et = ((data.get("market") or {}).get("generated_et") or "")[:16].replace("T", " ")
+    generated_at = gen_et or datetime.now().strftime("%Y-%m-%d %H:%M")
     doc = render_html(data, generated_at=generated_at)
     tmp = out_path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:

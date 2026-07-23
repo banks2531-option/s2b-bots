@@ -197,7 +197,8 @@ def _money(v):
     except (TypeError, ValueError):
         return '<span class="note">-</span>'
     cls = "pos" if v > 0 else ("neg" if v < 0 else "")
-    return '<span class="%s">%s$%s</span>' % (cls, "+" if v > 0 else "", "{:,.0f}".format(v))
+    sign = "+" if v > 0 else ("-" if v < 0 else "")
+    return '<span class="%s">%s$%s</span>' % (cls, sign, "{:,.0f}".format(abs(v)))
 
 
 def _num(v, fmt="{:,.2f}"):
@@ -239,6 +240,7 @@ def _bot_card(key, bot):
     kpis = [
         ("Equity", "$" + _num(perf.get("equity"), "{:,.0f}")),
         ("Today realized" + (" (synthetic)" if synth else ""), _money(perf.get("realized_report_date"))),
+        ("Unrealized" + (" (synthetic)" if synth else ""), _money(perf.get("unrealized"))),
         ("Lifetime realized", _money(perf.get("lifetime_realized"))),
         ("Win rate", (_num(hist.get("win_rate_pct"), "{:.1f}") + "%") if hist.get("win_rate_pct") is not None else "-"),
         ("Open positions", str(len(perf.get("positions") or []))),

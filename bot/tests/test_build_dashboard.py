@@ -148,6 +148,19 @@ def test_render_html_two_bots_no_bot_a_and_has_tabs(tmp_path):
     assert "http://" not in doc and "https://" not in doc   # self-contained, no external refs
 
 
+# ---------------- Overview card: unrealized P&L ----------------
+def test_overview_card_shows_unrealized_gain_loss():
+    card = bd._bot_card("b", {"perf": {"bot": "Bot B", "unrealized": 25, "positions": [{}],
+                                       "pnl_source": "actual_fill", "history": {}}})
+    assert "Unrealized" in card
+    assert "+$25" in card
+    # Bot C's unrealized is mark-based/synthetic -> flagged
+    card_c = bd._bot_card("c", {"perf": {"bot": "Bot C", "unrealized": -3,
+                                         "pnl_source": "synthetic_mark", "history": {}}})
+    assert "Unrealized (synthetic)" in card_c
+    assert "-$3" in card_c
+
+
 # ---------------- Task 7: build() ----------------
 def test_build_writes_html_file(tmp_path):
     latest, am = _write_fixture(tmp_path)

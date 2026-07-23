@@ -182,7 +182,16 @@ function showTab(id,btn){
   for(var j=0;j<b.length;j++){b[j].className='';}
   document.getElementById(id).className='tab active';
   btn.className='active';
+  try{sessionStorage.setItem('s2btab',id);}catch(e){}
 }
+// restore the active tab after the 30s auto-refresh so it doesn't jump back to Overview
+window.addEventListener('DOMContentLoaded',function(){
+  var id=null;try{id=sessionStorage.getItem('s2btab');}catch(e){}
+  if(!id)return;
+  var el=document.getElementById(id);
+  var btn=document.querySelector('.tabs button[data-tab="'+id+'"]');
+  if(el&&btn){showTab(id,btn);}
+});
 """
 
 _STATUS_CLASS = {
@@ -378,14 +387,15 @@ def render_html(data, generated_at):
         "<!doctype html>\n"
         '<html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<meta http-equiv="refresh" content="30">'
         '<title>S2b Dashboard — Bot B &amp; Bot C</title>'
         "<style>%s</style></head><body><div class=\"wrap\">"
         "<h1>S2b Dashboard</h1>"
         '<p class="sub">Bot B (sandbox) &amp; Bot C (LIVE) — generated %s ET. Read-only.</p>'
         '<div class="tabs">'
-        '<button class="active" onclick="showTab(\'overview\',this)">Overview</button>'
-        '<button onclick="showTab(\'performance\',this)">Performance</button>'
-        '<button onclick="showTab(\'recs\',this)">Recommendations</button>'
+        '<button class="active" data-tab="overview" onclick="showTab(\'overview\',this)">Overview</button>'
+        '<button data-tab="performance" onclick="showTab(\'performance\',this)">Performance</button>'
+        '<button data-tab="recs" onclick="showTab(\'recs\',this)">Recommendations</button>'
         '</div>'
         "%s%s%s"
         '<div class="foot">Self-contained static page. P&amp;L marked synthetic for Bot C is '

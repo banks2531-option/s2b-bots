@@ -28,8 +28,15 @@ if (-not (Test-Path $Dest)) { New-Item -ItemType Directory -Force -Path $Dest | 
 $Scp = "C:\Program Files\Git\usr\bin\scp.exe"
 if (-not (Test-Path $Scp)) { $Scp = "scp" }
 
-& $Scp -q -o BatchMode=yes -o ConnectTimeout=20 -i $Key "${Host_}:$Src" $Dest
-if ($LASTEXITCODE -ne 0) { Write-Error "scp failed (exit $LASTEXITCODE)"; exit 1 }
+# Retry a few times so a transient network/scp blip at a review slot doesn't leave Codex on stale
+# data. Each attempt re-pulls the current droplet files; nothing is lost on a retry.
+$ok = $false
+for ($try = 1; $try -le 3; $try++) {
+    & $Scp -q -o BatchMode=yes -o ConnectTimeout=20 -i $Key "${Host_}:$Src" $Dest
+    if ($LASTEXITCODE -eq 0) { $ok = $true; break }
+    Start-Sleep -Seconds 5
+}
+if (-not $ok) { Write-Error "scp failed after 3 attempts"; exit 1 }
 
 $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $manifest = Join-Path $Dest "manifest.json"

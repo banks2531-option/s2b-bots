@@ -52,6 +52,15 @@ A "the bot lost money" summary without this classification is not acceptable.
 
 - `reports/latest/manifest.json` carries a sha16 per file — **skip files unchanged since your last
   run** (compare against your previous manifest).
+- **Verify freshness before you trust any number.** Every payload + `manifest.json` carry
+  `generated_et`. Confirm it is from the CURRENT review slot (within ~15 min of now). If it is
+  stale, the droplet→local sync lagged or failed — say so and treat the numbers as stale rather
+  than analyzing an old snapshot as if it were live.
+- **Unrealized P&L is now broker-real, not synthetic.** Each position carries `pnl_basis` and the
+  bot carries `unrealized_basis` (`broker` = computed from real broker cost-basis + live marks,
+  matching the broker app; `synthetic`/`mixed` = fell back to credit−mark because broker data was
+  missing — flag those). This is separate from *realized* P&L, which stays synthetic on Bot C
+  (`pnl_source: synthetic_mark`).
 - P&L provenance is **per-bot**, carried in each report's `pnl_source` / `pnl_validation_status`
   fields — not a single boolean. **Bot C (live)** is `synthetic_mark` / `live_fill_accounting_disabled`:
   `(credit − mark) × 100 × qty`, not observed fills (live-broker fill accounting is off — negative

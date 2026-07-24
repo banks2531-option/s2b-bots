@@ -11,9 +11,12 @@ from bot.strategy.s2b import OptionQuote, S2bConfig
 from bot.risk_gate import AccountState
 
 from bot.app.replay_capture import snapshot_chain
-from replays.replay_deps import build_replay_deps, chain_from_snapshot, ReplayOrderAttempt
+from bot.strategy.manage import ManagedPosition
+from bot.features import S2bFeatures as _Feat
+from replays.replay_deps import (build_replay_deps, chain_from_snapshot, ReplayOrderAttempt,
+                                  snapshot_iv_resolver)
 from replays.replay_runner import (replay_record, replay_capture_file, load_capture,
-                                    carry_forward_chains)
+                                    carry_forward_chains, replay_day)
 
 
 # ---- shared scenario: the same one the orchestrator/capture tests use (opens short 568 on Monday) ----
@@ -115,6 +118,49 @@ def test_a_reject_scenario_reproduces_as_the_same_reject():
 
 
 # ---------------- file level: carry-forward + summary ----------------
+
+# ---------------- stateful whole-day replay ----------------
+
+def test_snapshot_iv_resolver_maps_strike_to_iv():
+    snap = [{"strike": 568.0, "iv": 0.21}, {"strike": 558.0, "iv": 0.24}, {"strike": 560.0, "iv": None}]
+    fn = snapshot_iv_resolver(snap, "2026-06-19")
+    from bot.strategy.s2b import _occ
+    sym = _occ("SPY", "2026-06-19", "P", 568.0)
+    assert fn([sym]) == {sym: 0.21}
+    assert snapshot_iv_resolver([{"strike": 1, "iv": None}], "2026-06-19") is None   # no usable IV
+
+
+def test_replay_day_threads_state_and_opens_position():
+    rec = _capture_one_record()                       # a filled 568/558 entry
+    out = replay_day([rec], equity=20_000.0, features=_Feat(), base_risk_pct=0.10,
+                     entry_days=frozenset({0}), max_open=5)
+    assert out["total"] == 1 and out["matched"] == 1
+    # the fill THREADED into state -> the position is now on the book
+    assert len(out["final_positions"]) == 1
+    assert out["final_positions"][0][0] == 568.0     # short strike
+
+
+def test_replay_day_book_dependent_gate_responds_to_seed():
+    # THE stateful proof: the identical record that FILLS from a flat book must be BLOCKED when the
+    # book is seeded to the position cap. Independent replay can't show this; stateful replay can.
+    rec = _capture_one_record()
+    flat = replay_day([rec], equity=20_000.0, features=_Feat(), base_risk_pct=0.10,
+                      entry_days=frozenset({0}), max_open=1)
+    assert flat["results"][0]["replayed_decision"] == "filled"
+    seeded = replay_day([rec], equity=20_000.0, features=_Feat(), base_risk_pct=0.10,
+                        entry_days=frozenset({0}), max_open=1,
+                        day_open_positions=[ManagedPosition("SPY", 560.0, 550.0, credit=1.0, qty=1,
+                                                            expiry="2026-06-19")])
+    assert seeded["results"][0]["replayed_decision"] == "max_open"   # the book changed the decision
+    assert seeded["matched"] is False or seeded["results"][0]["matched"] is False
+
+
+def test_replay_day_is_deterministic():
+    rec = _capture_one_record()
+    a = replay_day([rec], equity=20_000.0, features=_Feat(), base_risk_pct=0.10, entry_days=frozenset({0}))
+    b = replay_day([rec], equity=20_000.0, features=_Feat(), base_risk_pct=0.10, entry_days=frozenset({0}))
+    assert a["results"] == b["results"] and a["final_positions"] == b["final_positions"]
+
 
 def test_replay_capture_file_carries_chain_forward(tmp_path):
     rec = _capture_one_record()

@@ -22,13 +22,34 @@ possible.
   bad leg quote. The replay sees the bucket's (valid) snapshot, not the transient bad quote. **→
   Refinement (concrete):** also snapshot the chain on `quote_invalid`/`quote_wide` decisions, since
   those are exactly the instants where the raw quote is the whole point.
-- **The 319 `risk_budget:gap_2atr` records did NOT reproduce (0/319) — as expected, not a defect.**
-  A gap-budget reject is a function of the accumulated open book; independent single-record replay
-  starts from an empty book, so it cannot reconstruct the exposure that caused the reject. This
-  **confirms the design's stated next step: a stateful whole-day replay mode** (accumulate positions
-  across the day) is required to validate book-dependent gates. Until then, gap-budget counterfactuals
-  are out of scope.
-- **Limitations:** quote timestamps aren't carried (v1); book-dependent gates need stateful replay.
+- **The 319 `risk_budget:gap_2atr` records did NOT reproduce under INDEPENDENT replay (0/319) — as
+  expected, not a defect.** A gap-budget reject is a function of the accumulated open book; independent
+  single-record replay starts from an empty book. This motivated the **stateful whole-day replay mode
+  (now built — Finding 0b).**
+- **Limitations:** quote timestamps aren't carried (v1); book-dependent gates need stateful replay +
+  multi-expiry IV (Finding 0b).
+
+## Finding 0b — stateful whole-day replay BUILT; gap_2atr baseline still gated on multi-expiry IV
+
+- **Classification:** tooling. **Confidence: High** (mechanism proven by unit tests; the 7/24
+  shortfall is precisely diagnosed).
+- **What was built:** `replay_day()` threads ONE `BotState` chronologically through the day's records,
+  seeded with the day-open book, so book-dependent gates respond to the accumulated positions.
+  Unit-tested: the *identical* record that FILLS from a flat book is BLOCKED (`max concurrent
+  positions reached`) when the book is seeded to the cap — proving the gate now reads the threaded
+  state. A snapshot-backed IV resolver feeds captured per-leg IV into the BS gap-stress reprice.
+- **7/24 result (seeded with the real day-open book 740/730, 741/731, 729/719):** gap_2atr STILL did
+  not reproduce — the replay instead **admitted trades and hit `max concurrent positions reached`
+  (299 records)**. Precisely diagnosed: the capture snapshots only the *candidate's* expiry chain
+  (7/31), so the **held positions' expiries (7/29, 7/27) fall back to `gap_fallback_iv`=0.20**, which
+  UNDER-estimates their 2-ATR gap stress → the aggregate gap budget looks looser than live → the
+  candidate passes the gap cap and fills → the book grows to `max_open`. Live's real per-leg IV made
+  gap_2atr bind; the replay's fallback IV did not.
+- **→ Concrete next capture refinement:** Phase A must snapshot the chains for **every expiry present
+  in the open book**, not just the candidate's expiry. That is the missing input for a deployment-grade
+  gap_2atr baseline (advisor's "baseline must reproduce before counterfactuals are trusted").
+- **Honest status:** the stateful ENGINE is validated; the 7/24 gap_2atr BASELINE is NOT yet met, so
+  no gap_2atr counterfactual is drawn. We now know exactly what to capture to close it.
 
 ## Finding 1 — Q F: `gap_2atr` gates a narrow near-money band; the bot re-proposes it all day
 
@@ -76,14 +97,15 @@ possible.
 
 ## Prioritized next steps (what the data says to build/run next)
 
-1. **Stateful whole-day replay mode** — accumulate the open book across a day so book-dependent gates
-   (`gap_2atr`, aggregate risk budgets) reproduce. This unblocks Q A/B/C/F counterfactuals. (Highest
-   value; the 0/319 result above is the direct signal for it.)
-2. **Capture the chain on `quote_invalid`/`quote_wide`** too (not just once per bucket) — closes the
+1. **DONE: stateful whole-day replay mode** (`replay_day()`). Engine validated; see Finding 0b.
+2. **Multi-expiry chain capture** — Phase A must snapshot chains for every expiry in the open book,
+   not just the candidate's. This is the ONE input still blocking a deployment-grade gap_2atr baseline
+   (Finding 0b). Highest value next.
+3. **Capture the chain on `quote_invalid`/`quote_wide`** too (not just once per bucket) — closes the
    quote-fidelity gap (Finding 0).
-3. **Accumulate the historical batch** — let Phase-A capture run across 20–30+ sessions and multiple
+4. **Accumulate the historical batch** — let Phase-A capture run across 20–30+ sessions and multiple
    regimes before any A–F conclusion is trusted.
-4. Then run experiments A (distance), B (adjacency spacing), F (gap_2atr) on the batch with the
+5. Then run experiments A (distance), B (adjacency spacing), F (gap_2atr) on the batch with the
    stateful replay.
 
 No production strategy or risk change is recommended from one session. All findings above are inputs

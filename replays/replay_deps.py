@@ -8,7 +8,7 @@ order and returns a deterministic synthetic fill (no network). A strict no-trade
 can never silently 'trade' during replay.
 """
 from bot.app.orchestrator import Deps
-from bot.strategy.s2b import OptionQuote, S2bConfig
+from bot.strategy.s2b import OptionQuote, S2bConfig, _occ
 from bot.risk_gate import AccountState
 from bot.broker.order_state import ExecutionResult
 
@@ -29,10 +29,31 @@ def chain_from_snapshot(snap):
     return out
 
 
+def snapshot_iv_resolver(snapshot, expiry):
+    """Build an option_greeks_iv(occ_symbols) -> {occ: iv} callable from a captured chain snapshot,
+    so the BS gap-stress reprice uses the IV the bot actually saw instead of the flat fallback. Covers
+    same-expiry legs (the snapshot is one expiry); legs at other expiries simply aren't in the map, so
+    iv_fn degrades to features.gap_fallback_iv for them -- exactly the live behavior when greeks are
+    missing. Returns None if the snapshot has no usable IV (caller then leaves greeks unwired)."""
+    m = {}
+    for r in (snapshot or []):
+        iv = r.get("iv")
+        if iv is not None and r.get("strike") is not None:
+            try:
+                m[_occ("SPY", expiry, "P", r["strike"])] = float(iv)
+            except Exception:
+                continue
+    if not m:
+        return None
+    def option_greeks_iv(symbols):
+        return {s: m[s] for s in symbols if s in m}
+    return option_greeks_iv
+
+
 def build_replay_deps(*, chain, spot, atr, expiry, equity, features, base_risk_pct,
                       s2b_cfg=None, entry_days=frozenset(range(5)), max_open=1,
                       max_entries_per_day=1, vix_regime=(0.5, 0.0), orders=None,
-                      allow_fills=True):
+                      allow_fills=True, option_greeks_iv=None):
     """A `Deps` whose market data is the archived snapshot and whose order path is a local simulator.
 
     `orders` (a list) collects every simulated order payload -- the replay's record of what the bot
@@ -78,8 +99,10 @@ def build_replay_deps(*, chain, spot, atr, expiry, equity, features, base_risk_p
         s2b_cfg=s2b_cfg, base_risk_pct=base_risk_pct,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,
         features=features,
-        # Safe, self-consistent defaults for the aggregate-risk-budget deps so a richer feature set
-        # (e.g. Bot B's) does not crash; a full Bot B replay wires real archived exposure later.
+        # Snapshot-backed IV for the BS gap-stress reprice (None -> flat fallback = live behavior when
+        # greeks are missing). Own-book gap exposure comes from state.open_positions (threaded by the
+        # stateful replay); foreign exposure is empty (no shared account in replay).
+        option_greeks_iv=option_greeks_iv,
         risk_equity=lambda: equity,
         account_spy_exposure=lambda: {"structural": 0.0, "stop": 0.0},
         account_spy_spreads=lambda: [],

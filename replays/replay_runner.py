@@ -12,7 +12,7 @@ from dataclasses import replace
 from datetime import datetime
 
 from bot.app.orchestrator import BotState, run_entry_cycle
-from replays.replay_deps import build_replay_deps, chain_from_snapshot
+from replays.replay_deps import build_replay_deps, chain_from_snapshot, snapshot_iv_resolver
 
 
 def load_capture(path):
@@ -72,6 +72,56 @@ def replay_record(record, chain_snapshot, *, equity, features, base_risk_pct, s2
         "state": st,
         "info": info,
     }
+
+
+def replay_day(records, *, equity, features, base_risk_pct, day_open_positions=None, s2b_cfg=None,
+               entry_days=frozenset(range(5)), max_open=5, max_entries_per_day=5,
+               use_snapshot_iv=True):
+    """STATEFUL whole-day replay: thread ONE BotState through the day's captured records IN ORDER, so
+    book-dependent gates (gap_2atr, the aggregate risk budgets) reproduce as the open book accumulates.
+
+    This is what independent single-record replay (`replay_capture_file`) structurally cannot do -- a
+    gap-budget reject is a function of the accumulated book. Seed `day_open_positions` (the ManagedPosition
+    list carried into the day) for a faithful match to a specific live session; leave it None to replay
+    from a flat book. Each record still supplies its own chain/spot/atr; only the STATE persists.
+
+    Returns {total, matched, match_rate, mismatches, results, final_positions}. Determinism holds:
+    same records + same seed + same config -> identical stream (no wall-clock/network/RNG)."""
+    from dataclasses import replace
+    from datetime import datetime
+    from bot.strategy.manage import ManagedPosition   # local import: keep module load light
+
+    feats = replace(features, replay_capture=True)     # read the reproduced decision from the sink
+    state = BotState(open_positions=list(day_open_positions or []))
+    pairs = carry_forward_chains(records)
+    results = []
+    for rec, snap in pairs:
+        chain = chain_from_snapshot(snap)
+        expiry = rec.get("expiry")
+        iv_fn = snapshot_iv_resolver(snap, expiry) if (use_snapshot_iv and expiry) else None
+        sink = []
+        deps = build_replay_deps(chain=chain, spot=rec.get("spot"), atr=rec.get("atr"),
+                                 expiry=expiry, equity=equity, features=feats,
+                                 base_risk_pct=base_risk_pct, s2b_cfg=s2b_cfg, entry_days=entry_days,
+                                 max_open=max_open, max_entries_per_day=max_entries_per_day,
+                                 option_greeks_iv=iv_fn)
+        deps.replay_log = sink.append
+        ts = rec.get("ts_et")
+        try:
+            state, _ = run_entry_cycle(state, deps, datetime.fromisoformat(ts))
+            replayed = sink[-1]["decision"] if sink else None
+        except Exception as exc:
+            replayed = f"EXC:{type(exc).__name__}"
+        results.append({"ts_et": ts, "captured_decision": rec.get("decision"),
+                        "replayed_decision": replayed,
+                        "matched": replayed == rec.get("decision")})
+    matched = sum(1 for r in results if r["matched"])
+    return {"total": len(results), "matched": matched,
+            "match_rate": (matched / len(results) if results else None),
+            "mismatches": [r for r in results if not r["matched"]],
+            "results": results,
+            "final_positions": [(p.short_strike, p.long_strike, p.qty, p.expiry)
+                                for p in state.open_positions]}
 
 
 def replay_capture_file(path, *, equity, features, base_risk_pct, **kw):

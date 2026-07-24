@@ -19,7 +19,17 @@ import sys
 from collections import Counter, defaultdict
 
 from bot.app.run_s2b_alldays import ALLDAYS_FEATURES
-from replays.replay_runner import load_capture, carry_forward_chains, replay_record
+from bot.strategy.manage import ManagedPosition
+from bot.strategy.s2b import S2bConfig
+from replays.replay_runner import load_capture, carry_forward_chains, replay_record, replay_day
+
+# Bot B day-open book carried into 2026-07-24 (reconstructed from the trade log: OPENs before today
+# minus CLOSEs before today). Seeds the STATEFUL replay so book-dependent gates can reproduce.
+DAY_OPEN_20260724 = [
+    ManagedPosition("SPY", 740.0, 730.0, credit=1.71, qty=1, expiry="2026-07-29"),
+    ManagedPosition("SPY", 741.0, 731.0, credit=1.61, qty=1, expiry="2026-07-29"),
+    ManagedPosition("SPY", 729.0, 719.0, credit=1.31, qty=1, expiry="2026-07-27"),
+]
 
 
 def part1_baseline(capture_path):
@@ -61,6 +71,31 @@ def part1_baseline(capture_path):
             if dec and dec.startswith("risk_budget") else ""
         print(f"  {m:3d}/{t:<3d}  {dec}{tag}")
     return recs
+
+
+def part1b_stateful(recs):
+    print("\n" + "=" * 70)
+    print("PART 1B — STATEFUL whole-day replay (seeded with the day-open book)")
+    print("=" * 70)
+    out = replay_day(recs, equity=ALLDAYS_FEATURES.allocated_equity, features=ALLDAYS_FEATURES,
+                     base_risk_pct=0.10, day_open_positions=DAY_OPEN_20260724,
+                     s2b_cfg=S2bConfig(wing_width=10.0), entry_days=frozenset(range(5)),
+                     max_open=5, max_entries_per_day=5)
+    from collections import defaultdict
+    per = defaultdict(lambda: [0, 0])
+    for r in out["results"]:
+        per[r["captured_decision"]][1] += 1
+        if r["matched"]:
+            per[r["captured_decision"]][0] += 1
+    print(f"stateful exact-match: {out['matched']}/{out['total']} = {out['match_rate']:.1%}")
+    print("per-decision reproduction (matched/total):")
+    for dec, (m, t) in sorted(per.items(), key=lambda x: -x[1][1]):
+        print(f"  {m:3d}/{t:<3d}  {dec}")
+    print("final book after replay:", out["final_positions"])
+    print("  NOTE: seeded book legs are exp 7/27 & 7/29, but chain snapshots are 7/31 -> their IV")
+    print("  falls back to gap_fallback_iv (same as the live bot when greeks are missing). gap_2atr")
+    print("  reproduction here is DIRECTIONAL; exact match needs multi-expiry chain capture.")
+    return out
 
 
 def part2_gap2atr(recs):
@@ -136,6 +171,7 @@ def main():
         print("usage: python research/replay_20260724_analysis.py <capture.jsonl> <markouts.csv>")
         return
     recs = part1_baseline(cap)
+    part1b_stateful(recs)
     part2_gap2atr(recs)
     if mk:
         part2_markouts(mk)

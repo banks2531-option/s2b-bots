@@ -64,27 +64,46 @@ def pull_bot(bot):
         st = json.load(open(BASE + "/" + bot["state"]))
     except Exception:
         st = {}
-    plist, unreal, priced = [], 0.0, False
-    for p in (st.get("open_positions") or []):
-        s, l, q, cr, exp = (p.get("short_strike"), p.get("long_strike"), p.get("qty"),
-                            p.get("credit"), p.get("expiry"))
-        mark = None
-        try:
-            qq = _get(env, "/markets/quotes", symbols=occ(exp, s) + "," + occ(exp, l)) \
-                .get("quotes", {}).get("quote", [])
+    own = st.get("open_positions") or []
+    # Own leg OCC symbols. Bot B runs --shared-account, so the broker returns co-occupants' legs
+    # too; restrict the P&L calc to legs the bot's own book implies.
+    own_syms = set()
+    for p in own:
+        exp = p.get("expiry")
+        for k in (p.get("short_strike"), p.get("long_strike")):
+            if exp and k is not None:
+                own_syms.add(occ(exp, k))
+    # REAL unrealized straight from the broker: sum(mark*100*qty - cost_basis) over the owned legs.
+    # This matches the broker app exactly (avoids the bot's recorded-credit vs actual-fill mismatch).
+    unreal = None
+    try:
+        pr = _get(env, "/accounts/%s/positions" % acct).get("positions")
+        blegs = [] if pr in (None, "null") else (pr.get("position") if isinstance(pr, dict) else pr)
+        blegs = [blegs] if isinstance(blegs, dict) else (blegs or [])
+        legs = [L for L in blegs if L.get("symbol") in own_syms]
+        if legs:
+            syms = ",".join(L["symbol"] for L in legs)
+            qq = _get(env, "/markets/quotes", symbols=syms).get("quotes", {}).get("quote", [])
             qq = [qq] if isinstance(qq, dict) else qq
-            mm = {x["symbol"]: ((x.get("bid") or 0) + (x.get("ask") or 0)) / 2 for x in qq}
-            mark = round(mm.get(occ(exp, s), 0) - mm.get(occ(exp, l), 0), 2)
-        except Exception:
-            mark = None
-        pnl = round((cr - mark) * 100 * q, 2) if mark is not None else None
-        if pnl is not None:
-            unreal += pnl
-            priced = True
-        plist.append({"short": s, "long": l, "qty": q, "credit": cr, "mark": mark,
-                      "unrealized": pnl, "expiry": exp})
-    out["positions"] = plist
-    out["unrealized"] = round(unreal, 2) if priced or not plist else None
+            mark = {x["symbol"]: ((x.get("bid") or 0) + (x.get("ask") or 0)) / 2 for x in qq}
+            u = 0.0
+            for L in legs:
+                m = mark.get(L["symbol"])
+                if m is None:
+                    raise ValueError("missing quote for " + str(L.get("symbol")))
+                u += m * 100 * float(L["quantity"]) - float(L.get("cost_basis") or 0)
+            unreal = round(u, 2)
+        elif not own:
+            unreal = 0.0
+    except Exception:
+        traceback.print_exc()
+        unreal = None
+    out["unrealized"] = unreal
+    # positions kept from the bot's own state book (clean spread structure + count for the dashboard)
+    out["positions"] = [{"short": p.get("short_strike"), "long": p.get("long_strike"),
+                         "qty": p.get("qty"), "credit": p.get("credit"), "expiry": p.get("expiry")}
+                        for p in own]
+    out["realized_today"] = st.get("realized_today")
     return out
 
 

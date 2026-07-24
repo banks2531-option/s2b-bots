@@ -260,7 +260,7 @@ def _bot_card(key, bot):
     kpis = [
         ("Equity", "$" + _num(perf.get("equity"), "{:,.0f}")),
         ("Today realized" + (" (synthetic)" if synth else ""), _money(perf.get("realized_report_date"))),
-        ("Unrealized" + (" (synthetic)" if synth else ""), _money(perf.get("unrealized"))),
+        ("Unrealized", _money(perf.get("unrealized"))),   # live overlay = real broker mark-to-market
         ("Lifetime realized", _money(perf.get("lifetime_realized"))),
         ("Win rate", (_num(hist.get("win_rate_pct"), "{:.1f}") + "%") if hist.get("win_rate_pct") is not None else "-"),
         ("Open positions", str(len(perf.get("positions") or []))),

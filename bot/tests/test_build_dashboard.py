@@ -169,10 +169,10 @@ def test_overview_card_shows_unrealized_gain_loss():
                                        "pnl_source": "actual_fill", "history": {}}})
     assert "Unrealized" in card
     assert "+$25" in card
-    # Bot C's unrealized is mark-based/synthetic -> flagged
+    # Bot C unrealized (from the live overlay = real broker mark-to-market)
     card_c = bd._bot_card("c", {"perf": {"bot": "Bot C", "unrealized": -3,
                                          "pnl_source": "synthetic_mark", "history": {}}})
-    assert "Unrealized (synthetic)" in card_c
+    assert "Unrealized" in card_c
     assert "-$3" in card_c
 
 

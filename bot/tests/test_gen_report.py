@@ -27,6 +27,16 @@ def test_spread_broker_pnl_matches_the_broker():
     assert gen_report.spread_broker_pnl(3.76, 2.77, 1, None, 396) is None
 
 
+def test_spread_broker_credit_is_the_actual_fill():
+    # Same Bot C 729/724: short cost_basis -517 (=$5.17 received), long 396 (=$3.96 paid)
+    # actual net entry credit = (517 - 396)/100 = $1.21 -- NOT the bot's recorded 0.74.
+    # This reconciles: entry 1.21 - mark 1.00 = +$21, matching spread_broker_pnl above.
+    assert gen_report.spread_broker_credit(-517, 396, 1) == 1.21
+    # missing cost basis or zero qty -> None (caller keeps showing the recorded credit)
+    assert gen_report.spread_broker_credit(None, 396, 1) is None
+    assert gen_report.spread_broker_credit(-517, 396, 0) is None
+
+
 # ---------------- item 4: uniform manifest byte-SHA ----------------
 def test_sha16_is_first16_of_sha256():
     assert gen_report.sha16(b"abc") == hashlib.sha256(b"abc").hexdigest()[:16]

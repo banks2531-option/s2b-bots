@@ -76,11 +76,13 @@ def pull_bot(bot):
     # REAL unrealized straight from the broker: sum(mark*100*qty - cost_basis) over the owned legs.
     # This matches the broker app exactly (avoids the bot's recorded-credit vs actual-fill mismatch).
     unreal = None
+    cbmap = {}   # OCC symbol -> broker cost_basis, for the actual-fill entry credit below
     try:
         pr = _get(env, "/accounts/%s/positions" % acct).get("positions")
         blegs = [] if pr in (None, "null") else (pr.get("position") if isinstance(pr, dict) else pr)
         blegs = [blegs] if isinstance(blegs, dict) else (blegs or [])
         legs = [L for L in blegs if L.get("symbol") in own_syms]
+        cbmap = {L.get("symbol"): L.get("cost_basis") for L in legs}
         if legs:
             syms = ",".join(L["symbol"] for L in legs)
             qq = _get(env, "/markets/quotes", symbols=syms).get("quotes", {}).get("quote", [])
@@ -99,10 +101,22 @@ def pull_bot(bot):
         traceback.print_exc()
         unreal = None
     out["unrealized"] = unreal
-    # positions kept from the bot's own state book (clean spread structure + count for the dashboard)
-    out["positions"] = [{"short": p.get("short_strike"), "long": p.get("long_strike"),
-                         "qty": p.get("qty"), "credit": p.get("credit"), "expiry": p.get("expiry")}
-                        for p in own]
+    # positions kept from the bot's own state book (clean spread structure + count for the dashboard).
+    # broker_credit = actual net entry fill from the leg cost bases; it reconciles with mark+unrealized,
+    # unlike the bot's RECORDED credit when live-fill accounting is off (Bot C).
+    plist = []
+    for p in own:
+        exp, s, l, q = p.get("expiry"), p.get("short_strike"), p.get("long_strike"), p.get("qty")
+        bc = None
+        if exp is not None and s is not None and l is not None and q:
+            cbs, cbl = cbmap.get(occ(exp, s)), cbmap.get(occ(exp, l))
+            if cbs is not None and cbl is not None:
+                bc = round(-(float(cbs) + float(cbl)) / 100.0 / q, 2)
+        cr = p.get("credit")
+        plist.append({"short": s, "long": l, "qty": q, "credit": cr, "broker_credit": bc,
+                      "credit_mismatch": bool(bc is not None and cr is not None and abs(bc - cr) >= 0.05),
+                      "expiry": exp})
+    out["positions"] = plist
     out["realized_today"] = st.get("realized_today")
     return out
 

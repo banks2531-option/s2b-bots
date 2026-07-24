@@ -135,6 +135,16 @@ def spread_broker_pnl(short_mark, long_mark, qty, short_cost_basis, long_cost_ba
     return round(short_pnl + long_pnl, 2)
 
 
+def spread_broker_credit(short_cost_basis, long_cost_basis, qty):
+    """Actual net entry credit per spread from the broker's leg cost bases (short cb is negative =
+    cash received, long cb positive = cash paid): net_credit = -(short_cb + long_cb)/100/qty. This
+    is the REAL fill, which differs from the bot's RECORDED credit when live-fill accounting is off
+    (Bot C) -- surfacing it lets credit/mark/unrealized reconcile. Returns None if inputs missing."""
+    if None in (short_cost_basis, long_cost_basis, qty) or not qty:
+        return None
+    return round(-(float(short_cost_basis) + float(long_cost_basis)) / 100.0 / qty, 2)
+
+
 def sha16(data):
     """SHA-256, first 16 hex chars, of raw bytes. The single hashing path for EVERY manifest file."""
     return hashlib.sha256(data).hexdigest()[:16]
@@ -431,10 +441,16 @@ def collect_bot(bot, mkt, broker):
             all_broker = False
         if pnl is not None:
             unreal += pnl
+        # Actual net entry credit from the broker's leg cost bases. This is the fill that reconciles
+        # with mark + unrealized. It differs from the bot's RECORDED credit (`cr`) when live-fill
+        # accounting is off (Bot C): cr feeds the bot's stop, broker_credit is the true entry price.
+        broker_credit = spread_broker_credit(cost_basis.get(occ(exp, s)), cost_basis.get(occ(exp, l)), q)
+        credit_mismatch = bool(broker_credit is not None and cr is not None and abs(broker_credit - cr) >= 0.05)
         dist = round(spot - s, 2) if spot else None
         distatr = round(dist / atr, 2) if (dist is not None and atr) else None
         mo = mo_idx.get((f(s), f(l), exp)) or {}
-        plist.append({"short": s, "long": l, "qty": q, "credit": cr, "mark": mark, "unrealized": pnl,
+        plist.append({"short": s, "long": l, "qty": q, "credit": cr, "broker_credit": broker_credit,
+                      "credit_mismatch": credit_mismatch, "mark": mark, "unrealized": pnl,
                       "pnl_basis": "broker" if real_pnl is not None else "synthetic",
                       "dist_to_short_pts": dist, "dist_to_short_atr": distatr, "stop_at": round(cr * 3, 2),
                       "expiry": exp, "at_the_money": bool(distatr is not None and distatr <= 0.10),
@@ -646,11 +662,18 @@ def render_html(mkt, bots_data):
                     esc(d.get("pnl_source")), esc(d.get("pnl_validation_status"))))
         P.append("<h3>Open positions</h3>")
         if d["positions"]:
-            P.append("<table><tr><th>Spread</th><th>Qty</th><th>Credit</th><th>Mark</th><th>Unreal</th><th>Dist→short</th><th>ATR</th><th>Stop@</th><th>Exp</th></tr>")
+            P.append("<table><tr><th>Spread</th><th>Qty</th><th>Entry credit</th><th>Mark</th><th>Unreal</th><th>Dist→short</th><th>ATR</th><th>Stop@</th><th>Exp</th></tr>")
             for p in d["positions"]:
                 cls = " class='atm'" if p["at_the_money"] else ""
+                # Show the actual broker fill (reconciles with mark+unrealized). Flag when the bot's
+                # recorded credit differs (live-fill accounting off) since the STOP is set off it.
+                if p.get("broker_credit") is not None:
+                    credit_cell = ("%s <span title='bot recorded %s; stop set off that' class='neg'>&#9888;(rec %s)</span>"
+                                   % (p["broker_credit"], p["credit"], p["credit"])) if p.get("credit_mismatch") else str(p["broker_credit"])
+                else:
+                    credit_cell = str(p["credit"])
                 P.append("<tr%s><td>%s/%s%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
-                         % (cls, p["short"], p["long"], (" &#9888;ATM" if p["at_the_money"] else ""), p["qty"], p["credit"],
+                         % (cls, p["short"], p["long"], (" &#9888;ATM" if p["at_the_money"] else ""), p["qty"], credit_cell,
                             p["mark"] if p["mark"] is not None else "&mdash;", money(p["unrealized"]),
                             ("%+.2f" % p["dist_to_short_pts"]) if p["dist_to_short_pts"] is not None else "&mdash;",
                             ("%+.2f" % p["dist_to_short_atr"]) if p["dist_to_short_atr"] is not None else "&mdash;",

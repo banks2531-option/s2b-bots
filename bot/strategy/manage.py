@@ -84,6 +84,10 @@ class ExitResult:
     value: float = None     # the debit-to-close mark that triggered the exit (for P&L logging)
     close_result: object = None   # raw close_fn return (ExecutionResult when actual_fill_accounting
                                    # is on; may be a bare status string from a legacy test double)
+    mark_unavailable: bool = False  # True when the ERROR came from mark_fn failing (couldn't PRICE the
+                                     # position -> no close order was ever attempted). Lets the manager
+                                     # treat a transient quote/data gap as retry-not-halt, while a close
+                                     # order that actually failed still halts. (2026-07-24 Bot C fix.)
 
 
 def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
@@ -93,8 +97,16 @@ def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
     (a stop that didn't execute is never silent)."""
     results = []
     for p in positions:
+        # Price the position FIRST, separately: a mark (quote) failure means we could not even value the
+        # spread, so NO close order is attempted -- it is a transient data gap (flagged mark_unavailable
+        # so the manager retries rather than halting), not a stuck close. (2026-07-24 Bot C root cause.)
         try:
             value = mark_fn(p)
+        except Exception as exc:      # one position's data gap must NOT block the others' stops
+            results.append(ExitResult(position=p, action=ExitAction.ERROR,
+                                      close_status=f"error: {exc}", failed=True, mark_unavailable=True))
+            continue
+        try:
             action = decide_exit(value, p.credit, dte_fn(p), cfg)
             if action == ExitAction.HOLD:
                 continue
@@ -103,8 +115,8 @@ def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
             results.append(ExitResult(position=p, action=action, close_status=status,
                                       failed=(str(status).lower() != "filled"), value=value,
                                       close_result=close_result))
-        except Exception as exc:  # one position's error must NOT block the others' stops
+        except Exception as exc:  # a close order actually FAILED (raised) -> stuck close (may halt)
             results.append(ExitResult(position=p, action=ExitAction.ERROR,
-                                      close_status=f"error: {exc}", failed=True))
+                                      close_status=f"error: {exc}", failed=True, value=value))
             continue
     return results

@@ -4,6 +4,7 @@ import os as _os
 import json as _json
 
 from bot.app import feeds
+from bot.errors import MarketDataUnavailable
 from bot.app.orchestrator import Deps, tick
 from bot.app.state_store import save_state
 from bot.strategy.s2b import _occ
@@ -357,7 +358,10 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         bid = q.get("bid")
         ask = q.get("ask")
         if bid is None or ask is None:
-            raise ValueError(f"no market for {symbol}")
+            # A missing bid/ask is a market-data gap (transient illiquidity or a stale quote), not a
+            # trading fault. Raise the typed error so the tick loop skips the cycle and the manager
+            # does NOT mislabel it as a stuck close and halt (2026-07-24 Bot C root cause).
+            raise MarketDataUnavailable(f"no market for {symbol}")
         return OptionQuote(0.0, 0.0, float(bid), float(ask))
 
     def _leg_quotes(pos):

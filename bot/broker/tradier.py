@@ -1,9 +1,59 @@
 """Tradier REST adapter (spec §7). HTTP transport is injected for hermetic tests."""
+import time as _time
 from dataclasses import dataclass
+
+from bot.errors import MarketDataUnavailable
+
+# Transient network exceptions that a GET may be retried on. Resolved lazily so importing this module
+# never requires `requests` (kept out of the import path for hermetic unit tests); production has it.
+try:
+    import requests as _rq
+    _TRANSIENT = (_rq.exceptions.Timeout, _rq.exceptions.ConnectionError)
+except Exception:                       # pragma: no cover - requests always present in production
+    _TRANSIENT = ()
 
 
 class BrokerError(Exception):
     pass
+
+
+def _get_with_retry(request_fn, *, attempts=4, base_delay=0.5, sleep_fn=_time.sleep, transient=None):
+    """Call an IDEMPOTENT GET (request_fn() -> a response with .status_code/.raise_for_status()/.json())
+    with exponential backoff on transient failures -- connection/read timeouts and 5xx server errors --
+    then raise MarketDataUnavailable. 4xx still raises HTTPError immediately (a real client error, not a
+    blip). Used ONLY for GETs: a POST/DELETE that times out may have executed at the broker, so those
+    are NEVER retried (see http() below)."""
+    transient = _TRANSIENT if transient is None else transient
+    delay, last = base_delay, None
+    for i in range(attempts):
+        try:
+            r = request_fn()
+            if getattr(r, "status_code", 200) >= 500:
+                last = BrokerError("%s server error" % r.status_code)
+            else:
+                r.raise_for_status()
+                return r.json()
+        except transient as exc:
+            last = exc
+        if i < attempts - 1:
+            sleep_fn(delay)
+            delay *= 2
+    raise MarketDataUnavailable("tradier GET unavailable after %d attempts: %s" % (attempts, last)) from last
+
+
+def build_http(request_fn, base, sleep_fn=_time.sleep):
+    """Build an http(method, path, params, data) callable from a raw request_fn(method, url, params,
+    data) -> response. GETs get retry/backoff (idempotent market data); every other verb (order
+    submit/cancel) is issued EXACTLY ONCE and behaves as before -- a non-idempotent call must never be
+    auto-retried."""
+    def http(method, path, params=None, data=None):
+        url = base + path
+        if method != "GET":
+            r = request_fn(method, url, params, data)
+            r.raise_for_status()
+            return r.json()
+        return _get_with_retry(lambda: request_fn("GET", url, params, None), sleep_fn=sleep_fn)
+    return http
 
 
 def _to_float(v, field):
@@ -67,9 +117,8 @@ def make_http_from_env():
     session = requests.Session()
     session.headers.update({"Authorization": f"Bearer {token}", "Accept": "application/json"})
 
-    def http(method, path, params=None, data=None):
-        r = session.request(method, base + path, params=params, data=data, timeout=30)
-        r.raise_for_status()
-        return r.json()
+    def request_fn(method, url, params, data):
+        return session.request(method, url, params=params, data=data, timeout=30)
 
-    return http
+    # GET retry/backoff (market-data resilience); orders (POST/DELETE) issued exactly once.
+    return build_http(request_fn, base)

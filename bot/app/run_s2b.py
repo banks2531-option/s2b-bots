@@ -23,6 +23,7 @@ from bot.app.wiring import build_deps, runner, make_trade_logger, make_markout_l
 from bot.app.state_store import load_state
 from bot.app.orchestrator import tick
 from bot.features import S2bFeatures
+from bot.errors import MarketDataUnavailable
 
 
 def fetch_spot(http, symbol):
@@ -32,11 +33,17 @@ def fetch_spot(http, symbol):
 
 
 def fetch_atr(http, symbol, today, lookback_days=40, n=14):
-    """ATR(n) of the underlying from Tradier daily history."""
+    """ATR(n) of the underlying from Tradier daily history. An empty history response (Tradier
+    intermittently returns 200 with no bars) surfaces as MarketDataUnavailable rather than a bare
+    ValueError, so the tick loop treats it as a skip-this-cycle blip instead of a process crash
+    (2026-07-24 'compute_atr: no bars' crash-loop)."""
     start = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
     resp = http("GET", "/markets/history",
                 params={"symbol": symbol, "interval": "daily", "start": start, "end": today})
-    return feeds.compute_atr(feeds.parse_history(resp), n=n)
+    bars = feeds.parse_history(resp)
+    if not bars:
+        raise MarketDataUnavailable(f"no daily bars for {symbol} ({start}..{today})")
+    return feeds.compute_atr(bars, n=n)
 
 
 def fetch_vix_regime(lookback=120):

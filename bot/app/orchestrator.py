@@ -31,6 +31,7 @@ from bot.app.expirations import (get_candidate_expirations, select_best_candidat
                                   evaluate_expiration)
 from bot.app.entry_state import classify_entry_state, note_entry_state
 from bot.app.replay_capture import snapshot_chain, build_replay_record
+from bot.errors import MarketDataUnavailable
 from bot.strategy.fallback import should_evaluate_five_wide, evaluate_five_wide_shadow
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
@@ -403,8 +404,19 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
             nonhalting_alerts.append(Alert(Severity.WARN,
                 f"take-profit close did not fill ({r.close_status}) for {r.position.ticker} "
                 f"{r.position.short_strike}/{r.position.long_strike}: qty {r.position.qty} kept, will retry"))
+        elif r.action == ExitAction.ERROR and getattr(r, "mark_unavailable", False):
+            # ERROR from a MARK failure: monitor_positions could not even PRICE the position -- a broker
+            # quote-fetch failure (timeout / 5xx / "no market") -- so NO close order was ever attempted.
+            # That is a transient DATA gap, not a stuck must-exit, and it must NOT set the sticky
+            # "failed close" halt: doing so is exactly what stranded Bot C on 2026-07-24 (a quote blip
+            # that persisted as an operator-only halt long after it cleared). WARN and let the next cycle
+            # retry once quotes return. (A close ORDER that actually failed is a different ERROR that
+            # still halts, below -- it attempted a real exit that didn't execute.)
+            nonhalting_alerts.append(Alert(Severity.WARN,
+                f"could not mark {r.position.ticker} "
+                f"{r.position.short_strike}/{r.position.long_strike} ({r.close_status}); will retry next cycle"))
         else:
-            hard_failed.append(r)     # STOP / TIME_EXIT / ERROR that filled nothing -> alert + halt
+            hard_failed.append(r)     # STOP / TIME_EXIT / failed-close-ORDER that filled nothing -> halt
     # Only a close that filled NOTHING is a "failed close" that can halt new entries. A partial that
     # filled SOME is surfaced as a (non-halting) WARN so it is never silent but never trips the halt.
     alerts = alerts_for_cycle(hard_failed, drift_report=None) + nonhalting_alerts
@@ -1598,12 +1610,21 @@ def tick(state: BotState, deps: Deps, now) -> BotState:
         except Exception as exc:
             deps.alert_sink([Alert(Severity.INFO, f"regime unavailable: {exc}")])
             regime = None
-    state, reconcile_ok = run_reconcile_cycle(state, deps, today)
-    state, _ = run_management_cycle(state, deps, today)   # ALWAYS runs (stops must fire)
-    state, _ = run_degross_cycle(state, deps, today, regime)  # PHASE 1.5: ALWAYS runs (risk reduction)
-    state, _ = run_flow_degross_cycle(state, deps, today, regime)  # flow-flip de-gross (gated, off by default)
-    if reconcile_ok:
-        state, _ = run_entry_cycle(state, deps, now, regime)
+    try:
+        state, reconcile_ok = run_reconcile_cycle(state, deps, today)
+        state, _ = run_management_cycle(state, deps, today)   # ALWAYS runs (stops must fire)
+        state, _ = run_degross_cycle(state, deps, today, regime)  # PHASE 1.5: ALWAYS runs (risk reduction)
+        state, _ = run_flow_degross_cycle(state, deps, today, regime)  # flow-flip de-gross (gated, off by default)
+        if reconcile_ok:
+            state, _ = run_entry_cycle(state, deps, now, regime)
+    except MarketDataUnavailable as exc:
+        # Tradier market data was unavailable this cycle (read timeout / 5xx / empty quote or bars)
+        # even after the http layer's retries. SKIP the rest of this tick and try again next tick --
+        # a broker blip must never crash the live bot (2026-07-24 Bot C 21x crash-loop root cause).
+        # No new position is opened on a skipped tick, so this takes no additional risk. The next tick
+        # re-runs reconcile/management/entry once data returns.
+        deps.alert_sink([Alert(Severity.WARN, f"market data unavailable this tick, skipping: {exc}")])
+        return state
     # §13 shadow monitor: ALWAYS runs (regardless of whether an entry happened, or even whether
     # reconcile succeeded) when the feature is on -- it only reads state/logs, never gates entry.
     run_shadow_monitor_cycle(state, deps, today)

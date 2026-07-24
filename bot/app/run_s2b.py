@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 
 from bot.broker.tradier import make_http_from_env
 from bot.app import feeds
-from bot.app.wiring import build_deps, runner, make_trade_logger, make_markout_logger
+from bot.app.wiring import build_deps, runner, make_trade_logger, make_markout_logger, make_replay_capture_logger
 from bot.app.state_store import load_state
 from bot.app.orchestrator import tick
 from bot.features import S2bFeatures
@@ -106,6 +106,14 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
     markout_log = (make_markout_logger(markout_log_path) if resolved_features.markout_tracking
                   else (lambda record: None))
 
+    # Replay harness Phase A: a wholly SEPARATE research-only JSONL of decision-point inputs, gated on
+    # the replay_capture flag. Like markouts above, the real sink is wired ONLY when the flag is on --
+    # every existing bot (replay_capture off) keeps the lambda no-op and the file is never created, so
+    # the live path stays byte-identical until the flag is deliberately turned on for a bot.
+    replay_log_path = f"replay_capture_{tag}.jsonl"
+    replay_log = (make_replay_capture_logger(replay_log_path) if resolved_features.replay_capture
+                 else (lambda record: None))
+
     from bot.regime.logger import make_regime_logger
     regime_log = make_regime_logger(f"regime_{tag}")   # daily-rotated: regime_{tag}_YYYYMMDD.csv
     # build a UW http callable from env if a token is present (else None -> neutral flow).
@@ -139,6 +147,7 @@ def build_and_run(ticks, poll_seconds, entry_days=frozenset({0}), max_open=1, la
         degross_on_flow_flip=degross_on_flow_flip,  # flow-flip de-gross (opt-in; default OFF for existing bots)
         features=resolved_features,     # partner review v2 feature flags (opt-in; default OFF for existing bots)
         markout_log=markout_log,        # §14 research markouts (opt-in; default OFF for existing bots)
+        replay_log=replay_log,          # replay harness Phase A capture (opt-in; default OFF for existing bots)
     )
     def market_gated_tick(st, dp, now):
         if not feeds.is_market_hours(now):

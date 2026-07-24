@@ -100,6 +100,12 @@ class S2bFeatures:
     entry_state_tracking: bool = False   # T9 (spec §16): emit an ENTRY_STATE record on each state
                                           # TRANSITION. Observability only -- changes no order
                                           # decision. Off by default; on for Bot B.
+    replay_capture: bool = False   # Replay harness Phase A (spec 2026-07-23-replay-harness-design):
+                                    # capture the decision-point inputs (chain snapshot + candidate +
+                                    # decision) so an offline replay can reproduce the day. Pure
+                                    # observability -- runs behind a never-raise try/except in
+                                    # run_entry_cycle and changes NO order decision. OFF by default;
+                                    # turned on per-bot only after review (Bot B first).
 
     # ── Advisor nextsteps2 section 2: explicit capital gate ──────────────────────────────────
     # ENFORCED as of Task 7b (2026-07-19) in run_entry_cycle, which blocks new entries below this

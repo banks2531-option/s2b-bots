@@ -30,6 +30,7 @@ from bot.portfolio import exposure
 from bot.app.expirations import (get_candidate_expirations, select_best_candidate,
                                   evaluate_expiration)
 from bot.app.entry_state import classify_entry_state, note_entry_state
+from bot.app.replay_capture import snapshot_chain, build_replay_record
 from bot.strategy.fallback import should_evaluate_five_wide, evaluate_five_wide_shadow
 from bot.ops.ledger import reconcile, position_key
 from bot.ops.monitor import alerts_for_cycle, should_halt_new_entries, Alert, Severity
@@ -105,6 +106,13 @@ class BotState:
                                                             # not each spawn a pending markout (partner
                                                             # review v2 item 4). Only touched when
                                                             # markout_tracking is on -> stays {} for Bot C.
+    replay_chain_buckets: dict = field(default_factory=dict)  # replay harness Phase A: (date,expiry,
+                                                            # bucket15) -> True once the FULL chain has
+                                                            # been snapshotted for that 15-min window, so
+                                                            # a bot polling every few minutes captures the
+                                                            # chain once per bucket (not every poll) while
+                                                            # still logging each decision. Only touched
+                                                            # when replay_capture is on -> stays {} otherwise.
 
     def clear_halt(self):
         self.halted = False
@@ -163,6 +171,11 @@ class Deps:
                                              # §14 entry markouts (partner review v2 §14) -- never the
                                              # trade log. ONLY called when deps.features.markout_tracking
                                              # is on; best-effort, wired for real in bot.app.wiring.build_deps.
+    replay_log: callable = (lambda record: None)   # (dict) -> None; SEPARATE JSONL sink for the replay
+                                             # harness Phase A decision-input capture. ONLY called when
+                                             # deps.features.replay_capture is on; best-effort (the call
+                                             # site is wrapped so it never raises), wired for real in
+                                             # bot.app.wiring.build_deps. Never the trade or markout log.
     option_quotes: callable = None           # (list[occ_symbol]) -> {occ_symbol: mid_price}; ONE batched
                                              # Tradier /markets/quotes fetch used by run_markout_cycle's
                                              # resolve_due_batched to price all due-markout legs off the
@@ -789,6 +802,9 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
                                     # risk-sizing / credit-quality decision point.
     entry_delta = None       # §14: best-effort short-put delta at signal time, set once the chain is
                               # fetched and an order is built; feeds _record_markout below
+    captured_chain = None    # replay harness Phase A: the exact chain the bot acted on this cycle,
+                              # set once get_chain returns (below). Read by _capture_replay so the
+                              # replay record carries the inputs, not just the outcome.
     foreign_position_list = []   # Priority-0 fix item 6: quantity-aware foreign SPY spreads at the
                                   # broker; set once the aggregate_risk_budget block runs. Initialized
                                   # here (before any _log_decision -> _decision_telemetry call on an
@@ -840,6 +856,32 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         except Exception:
             pass
 
+    def _capture_replay(reason, spot=None, atr=None, expiry=None, order=None):
+        """Replay harness Phase A: capture this decision's inputs (chain snapshot + candidate +
+        decision) to deps.replay_log so an offline replay can reproduce the day. No-op unless
+        deps.features.replay_capture is on. Orthogonal to decision_logging/markout_tracking.
+
+        The FULL chain is snapshotted at most once per (date,expiry,15-min bucket) -- a bot polling
+        every few minutes would otherwise re-log an near-identical chain dozens of times; a later
+        same-bucket decision records without the chain and the replayer reuses the bucket's snapshot.
+        Best-effort: wholly wrapped so it NEVER raises out of run_entry_cycle (mirrors _record_markout)."""
+        if not deps.features.replay_capture:
+            return
+        try:
+            gate = (risk_sizing_telemetry or {}).get("limiting_gate")
+            chain_snap = None
+            if captured_chain is not None:
+                bkey = (today, expiry, bucket15_of(now))
+                if not state.replay_chain_buckets.get(bkey):
+                    chain_snap = snapshot_chain(captured_chain)
+                    state.replay_chain_buckets[bkey] = True
+            rec = build_replay_record(ts_et=now, bot=None, decision=reason, limiting_gate=gate,
+                                      spot=spot, atr=atr, expiry=expiry, order=order,
+                                      chain_snapshot=chain_snap)
+            deps.replay_log(rec)
+        except Exception:
+            pass          # observability must never break an entry cycle
+
     def _log_decision(reason, spot=None, atr=None, expiry=None, order=None):
         """§1/§12: write a DECISION record (reason + active flags + best-effort exposure telemetry)
         to the trade log. No-op unless deps.features.decision_logging is on; never raises.
@@ -849,6 +891,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         regardless of decision_logging, since the two flags are orthogonal."""
         if deps.features.markout_tracking and order is not None:
             _record_markout(reason, order, expiry, spot)
+        _capture_replay(reason, spot=spot, atr=atr, expiry=expiry, order=order)
         # T9 (spec §16): classify and record the operational state. Runs BEFORE the decision_logging
         # gate and independently of it -- knowing what the bot is doing should not depend on whether
         # verbose per-decision logging happens to be on. Emits only on a TRANSITION, so a bot parked
@@ -1017,6 +1060,7 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
         # specific, per-gate rejection reason rather than a generic "nothing fits". The
         # no_candidate_fits flag above records the §14 outcome for the report.
     chain = deps.get_chain("SPY", expiry)
+    captured_chain = chain   # replay Phase A: remember the exact inputs for _capture_replay
     order = build_spread_order(spot, atr, chain, deps.s2b_cfg)
     if order is None:
         _log_decision("no_order", spot=spot, atr=atr, expiry=expiry)

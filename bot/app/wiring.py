@@ -1,6 +1,7 @@
 """Production wiring: build Deps from Tradier and the runner (spec §6,§7,§8)."""
 import csv as _csv
 import os as _os
+import json as _json
 
 from bot.app import feeds
 from bot.app.orchestrator import Deps, tick
@@ -99,6 +100,20 @@ def make_markout_logger(path):
             if not exists:
                 w.writeheader()
             w.writerow(record)
+    return log
+
+
+def make_replay_capture_logger(path):
+    """Return a callable that appends one replay-capture record dict as a JSON line (JSONL, not CSV --
+    the record nests a variable-length chain snapshot). Best-effort: mirrors make_markout_logger in
+    creating the file lazily on first write, and swallows any write error so a capture failure can
+    never propagate into the trading loop (the orchestrator call site is also wrapped)."""
+    def log(record):
+        try:
+            with open(path, "a") as f:
+                f.write(_json.dumps(record, default=str) + "\n")
+        except Exception:
+            pass
     return log
 
 
@@ -316,7 +331,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
                regime_log=(lambda s, ts, e: None), uw_http=None,
                poll_s=2, timeout_s=30, base_risk_pct=0.10, s2b_cfg=None, trend_gate_enabled=False,
                degross_on_risk_off=False, degross_on_flow_flip=False, features=None,
-               markout_log=(lambda record: None)):
+               markout_log=(lambda record: None), replay_log=(lambda record: None)):
     """Assemble a production Deps from a Tradier http callable + injected market-data feeds.
     s2b_cfg overrides the spread geometry (default = standard $10-wing S2bConfig).
     features overrides the partner-review-v2 feature flags (default = all-off S2bFeatures)."""
@@ -814,6 +829,7 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
         alert_sink=lambda alerts: [print(f"[ALERT] {a.severity.value}: {a.message}") for a in alerts],
         shadow_data=shadow_data,
         markout_log=markout_log,
+        replay_log=replay_log,
         option_quotes=option_quotes,
         base_risk_pct=base_risk_pct, risk_cfg=risk_cfg, s2b_cfg=s2b_cfg,
         entry_days=entry_days, max_open=max_open, max_entries_per_day=max_entries_per_day,

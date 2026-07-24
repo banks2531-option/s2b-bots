@@ -122,6 +122,19 @@ def f(v, d=None):
         return d
 
 
+def spread_broker_pnl(short_mark, long_mark, qty, short_cost_basis, long_cost_basis):
+    """Real per-spread unrealized from the broker's cost bases + live leg marks (matches the broker
+    app). The short leg is held -qty, the long +qty; per-leg P&L = mark*100*signed_qty - cost_basis.
+    This avoids the synthetic (credit - mark) estimate, which is wrong when the bot's recorded credit
+    differs from the actual fill (Bot C live-fill accounting bug). Returns None if any input is
+    missing, so the caller can fall back to the synthetic estimate."""
+    if None in (short_mark, long_mark, qty, short_cost_basis, long_cost_basis):
+        return None
+    short_pnl = short_mark * 100 * (-qty) - float(short_cost_basis)
+    long_pnl = long_mark * 100 * qty - float(long_cost_basis)
+    return round(short_pnl + long_pnl, 2)
+
+
 def sha16(data):
     """SHA-256, first 16 hex chars, of raw bytes. The single hashing path for EVERY manifest file."""
     return hashlib.sha256(data).hexdigest()[:16]
@@ -386,40 +399,50 @@ def collect_bot(bot, mkt, broker):
             "entries_today": st.get("entries_today"),
             "funnel": {k: st.get(k) for k in ("entry_cycles_started", "raw_candidate_evaluations",
                                               "unique_candidate_opportunities") if k in st}}
-    # positions with live marks
+    # positions with live marks. Prefer REAL broker P&L (cost basis + leg marks, matches the broker
+    # app); fall back to the synthetic (credit - mark) estimate only when broker data is unavailable.
     positions = st.get("open_positions") or []
-    marks = {}
+    cost_basis = {L.get("symbol"): L.get("cost_basis") for L in (broker.get("legs") or [])}
     try:
         get, acct, _ = api(load_env(BASE + "/" + bot["env"]))
     except Exception:
         get = None
     unreal = 0.0
     plist = []
+    all_broker = True
     mo_idx = markout_index(bot)
     for p in positions:
         s, l, q, cr, exp = p.get("short_strike"), p.get("long_strike"), p.get("qty"), p.get("credit"), p.get("expiry")
-        mark = None
+        mark = ms = ml = None
         if get:
             try:
                 qq = get("/markets/quotes", symbols=occ(exp, s) + "," + occ(exp, l)).get("quotes", {}).get("quote", [])
                 qq = [qq] if isinstance(qq, dict) else qq
                 mm = {x["symbol"]: ((x.get("bid") or 0) + (x.get("ask") or 0)) / 2 for x in qq}
-                mark = round(mm.get(occ(exp, s), 0) - mm.get(occ(exp, l), 0), 2)
+                ms, ml = mm.get(occ(exp, s)), mm.get(occ(exp, l))
+                if ms is not None and ml is not None:
+                    mark = round(ms - ml, 2)
             except Exception:
-                mark = None
-        pnl = round((cr - mark) * 100 * q, 2) if mark is not None else None
+                mark = ms = ml = None
+        real_pnl = spread_broker_pnl(ms, ml, q, cost_basis.get(occ(exp, s)), cost_basis.get(occ(exp, l)))
+        syn_pnl = round((cr - mark) * 100 * q, 2) if mark is not None else None
+        pnl = real_pnl if real_pnl is not None else syn_pnl
+        if real_pnl is None:
+            all_broker = False
         if pnl is not None:
             unreal += pnl
         dist = round(spot - s, 2) if spot else None
         distatr = round(dist / atr, 2) if (dist is not None and atr) else None
         mo = mo_idx.get((f(s), f(l), exp)) or {}
         plist.append({"short": s, "long": l, "qty": q, "credit": cr, "mark": mark, "unrealized": pnl,
+                      "pnl_basis": "broker" if real_pnl is not None else "synthetic",
                       "dist_to_short_pts": dist, "dist_to_short_atr": distatr, "stop_at": round(cr * 3, 2),
                       "expiry": exp, "at_the_money": bool(distatr is not None and distatr <= 0.10),
                       "mfe": f(mo.get("mfe")), "mae": f(mo.get("mae")),
                       "entry_delta": f(mo.get("entry_delta")), "entry_iv": f(mo.get("entry_iv"))})
     data["positions"] = plist
     data["unrealized"] = round(unreal, 2)
+    data["unrealized_basis"] = "none" if not positions else ("broker" if all_broker else "mixed")
     # today's captured trades
     trades = read_trades(bot)
     tt = [t for t in trades if t["date"] == TODAY]

@@ -17,6 +17,16 @@ gen_report = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gen_report)
 
 
+# ---------------- broker-real unrealized (matches the broker app, not synthetic) ----------------
+def test_spread_broker_pnl_matches_the_broker():
+    # Bot C 729/724 on 2026-07-23: short 729 mark 3.76 / cost_basis -517; long 724 mark 2.77 / cb 396
+    # broker shows short +$141, long -$119 -> net +$22 (vs the synthetic -$26 the old calc produced)
+    assert gen_report.spread_broker_pnl(3.76, 2.77, 1, -517, 396) == 22.0
+    # any missing input -> None so the caller falls back to the synthetic estimate
+    assert gen_report.spread_broker_pnl(None, 2.77, 1, -517, 396) is None
+    assert gen_report.spread_broker_pnl(3.76, 2.77, 1, None, 396) is None
+
+
 # ---------------- item 4: uniform manifest byte-SHA ----------------
 def test_sha16_is_first16_of_sha256():
     assert gen_report.sha16(b"abc") == hashlib.sha256(b"abc").hexdigest()[:16]

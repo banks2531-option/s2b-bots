@@ -148,3 +148,64 @@ def test_debounce_still_required_before_any_booking():
     state, _ = run_reconcile_cycle(BotState(open_positions=[_pos()]), d, TODAY)
     assert len(state.open_positions) == 1
     assert state.realized_today == 0.0
+
+
+# ── P2: reconstruct the ACTUAL broker fill (not just an estimate) ──────────────
+
+def test_reconstructed_broker_fill_is_preferred_over_the_mark_estimate():
+    """When the actual closing fill can be reconstructed from broker history, book THAT (the real
+    number + an order-id audit trail), not the mark estimate."""
+    rows = []
+    # reconstruct_exit returns the real fill; mark would give a DIFFERENT (wrong) estimate.
+    d = _deps(trade_log=rows.append, mark_position=lambda p: 2.77,
+              reconstruct_exit=lambda p, today: {"exit_value": 2.50, "pnl": -888.0,
+                                                 "source": "tradier_history", "order_id": "ORD-42"})
+    state = _remove(BotState(open_positions=[_pos()]), d)
+    close = [r for r in rows if r.get("event") == "CLOSE"][0]
+    assert state.realized_today == -888.0          # the reconstructed P&L, not the -1104 mark estimate
+    assert close["pnl"] == -888.0 and close["exit_value"] == 2.50
+    assert close["recon_source"] == "tradier_history" and close["order_id"] == "ORD-42"
+    assert close["status"] == "reconciled_away"    # base status unchanged (back-compat)
+
+
+def test_reconstruct_works_when_the_mark_is_unavailable():
+    """The outage case: live quotes time out (mark raises), but order history still resolves the fill,
+    so the position books correctly instead of escalating 'reconcile by hand'."""
+    alerts = []
+    def _boom(p):
+        raise RuntimeError("quote feed down")
+    d = _deps(mark_position=_boom, alert_sink=alerts.extend,
+              reconstruct_exit=lambda p, today: {"exit_value": 0.10, "pnl": 1032.0,
+                                                 "source": "tradier_history", "order_id": "ORD-7"})
+    state = _remove(BotState(open_positions=[_pos()]), d)
+    assert state.realized_today == 1032.0
+    assert "UNBOOKED" not in " ".join(a.message for a in alerts).upper()   # no escalation needed
+
+
+def test_falls_back_to_mark_when_reconstruct_returns_none():
+    """No fill found -> the prior mark-estimate path stands, tagged as an estimate."""
+    rows = []
+    d = _deps(trade_log=rows.append, mark_position=lambda p: 2.77,
+              reconstruct_exit=lambda p, today: None)
+    state = _remove(BotState(open_positions=[_pos()]), d)
+    close = [r for r in rows if r.get("event") == "CLOSE"][0]
+    assert state.realized_today == -1104.0
+    assert close["recon_source"] == "mark_estimate" and close["exit_value"] == 2.77
+
+
+def test_reconstruct_exception_falls_back_safely():
+    """A broker-history lookup that raises must not break reconciliation -- fall back to the mark."""
+    d = _deps(mark_position=lambda p: 2.77,
+              reconstruct_exit=lambda p, today: (_ for _ in ()).throw(RuntimeError("history 500")))
+    state = _remove(BotState(open_positions=[_pos()]), d)
+    assert state.realized_today == -1104.0         # fell back to the mark estimate, no crash
+
+
+def test_unwired_reconstruct_is_byte_identical_to_before():
+    """Default (reconstruct_exit=None) must reproduce the exact prior behaviour."""
+    rows = []
+    d = _deps(trade_log=rows.append, mark_position=lambda p: 2.77)   # no reconstruct_exit
+    state = _remove(BotState(open_positions=[_pos()]), d)
+    close = [r for r in rows if r.get("event") == "CLOSE"][0]
+    assert state.realized_today == -1104.0 and close["exit_value"] == 2.77
+    assert close["recon_source"] == "mark_estimate"

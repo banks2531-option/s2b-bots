@@ -8,6 +8,7 @@ Imported by file path because reports/ is not a package. These lock in the Codex
 """
 import hashlib
 import importlib.util
+import json
 import os
 from datetime import datetime
 
@@ -17,8 +18,38 @@ gen_report = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gen_report)
 
 
-# ---------------- broker-real unrealized (matches the broker app, not synthetic) ----------------
-def test_spread_broker_pnl_matches_the_broker():
+# ---------------- P5: immutable per-slot snapshot archiving ----------------
+def _write_bundle(d):
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "market_context.json"), "w").write("{}")
+    open(os.path.join(d, "manifest.json"), "w").write("{}")
+
+
+def test_archive_bundle_preserves_a_real_slot(tmp_path):
+    reports = os.path.join(str(tmp_path), "latest")
+    _write_bundle(reports)
+    manifest = {"review_slot": "12:00-midday", "generated_et": "2026-07-24T12:00:02-04:00",
+                "files": {"market_context.json": "abc"}}
+    dest = gen_report.archive_bundle(reports, manifest, datetime(2026, 7, 24, 12, 0, 5))
+    assert dest is not None
+    # archived under <reports>/../archive/<date>/<slot>__<HHMMSS>/ (':' stripped for path safety)
+    assert dest.replace("\\", "/").endswith("archive/2026-07-24/1200-midday__120005")
+    assert os.path.exists(os.path.join(dest, "market_context.json"))
+    assert os.path.exists(os.path.join(dest, "manifest.json"))
+
+
+def test_archive_bundle_skips_adhoc_and_is_immutable(tmp_path):
+    reports = os.path.join(str(tmp_path), "latest")
+    _write_bundle(reports)
+    # adhoc / manual runs are not archived (keeps the archive a clean record of the 6 scheduled slots)
+    assert gen_report.archive_bundle(reports, {"review_slot": "adhoc"}, datetime(2026, 7, 24, 13, 3)) is None
+    assert gen_report.archive_bundle(reports, {"review_slot": None}, datetime(2026, 7, 24, 13, 3)) is None
+    # two real runs in the same slot but different seconds -> two distinct dirs (never overwritten)
+    m = {"review_slot": "10:00-open", "generated_et": "2026-07-24T10:00:00-04:00",
+         "files": {"market_context.json": "x"}}
+    d1 = gen_report.archive_bundle(reports, m, datetime(2026, 7, 24, 10, 0, 3))
+    d2 = gen_report.archive_bundle(reports, m, datetime(2026, 7, 24, 10, 6, 9))
+    assert d1 != d2 and os.path.exists(d1) and os.path.exists(d2)
     # Bot C 729/724 on 2026-07-23: short 729 mark 3.76 / cost_basis -517; long 724 mark 2.77 / cb 396
     # broker shows short +$141, long -$119 -> net +$22 (vs the synthetic -$26 the old calc produced)
     assert gen_report.spread_broker_pnl(3.76, 2.77, 1, -517, 396) == 22.0

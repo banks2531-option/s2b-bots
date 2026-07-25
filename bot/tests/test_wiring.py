@@ -1,5 +1,46 @@
-from bot.app.wiring import runner
+from bot.app.wiring import runner, make_reconstruct_exit
 from bot.app.orchestrator import BotState, tick
+from bot.strategy.manage import ManagedPosition
+
+
+# ── P2: reconstruct_exit parses a closing fill from Tradier order history ──────
+# NOTE: locks in the ASSUMED response shape; it is NOT proof the live Tradier shape matches (see the
+# make_reconstruct_exit docstring). Guards the parser + defensive fallbacks against regression.
+
+def _pos():
+    return ManagedPosition("SPY", 729.0, 724.0, credit=1.21, qty=1, expiry="2026-07-31")
+
+
+def _orders_http(order):
+    def http(method, path, params=None, data=None):
+        return {"orders": {"order": order}}
+    return http
+
+
+def test_reconstruct_exit_parses_a_matching_filled_close():
+    order = {"id": 555, "status": "filled", "avg_fill_price": 1.00, "leg": [
+        {"option_symbol": "SPY260731P00729000", "side": "buy_to_close"},
+        {"option_symbol": "SPY260731P00724000", "side": "sell_to_close"}]}
+    fn = make_reconstruct_exit(_orders_http(order), "ACC")
+    out = fn(_pos(), "2026-07-31")
+    assert out["exit_value"] == 1.00
+    assert out["pnl"] == round((1.21 - 1.00) * 100 * 1, 2)   # +21.0
+    assert out["order_id"] == "555" and out["source"] == "tradier_orders"
+
+
+def test_reconstruct_exit_returns_none_when_no_matching_close():
+    # an OPEN order for the same strikes is not a close; unrelated strikes don't match either
+    order = {"id": 1, "status": "filled", "avg_fill_price": 1.21, "leg": [
+        {"option_symbol": "SPY260731P00729000", "side": "sell_to_open"},
+        {"option_symbol": "SPY260731P00724000", "side": "buy_to_open"}]}
+    assert make_reconstruct_exit(_orders_http(order), "ACC")(_pos(), "2026-07-31") is None
+
+
+def test_reconstruct_exit_is_defensive_on_bad_data():
+    def boom(method, path, params=None, data=None):
+        raise RuntimeError("history 500")
+    assert make_reconstruct_exit(boom, "ACC")(_pos(), "2026-07-31") is None
+    assert make_reconstruct_exit(_orders_http([]), "ACC")(_pos(), "2026-07-31") is None
 
 
 def test_runner_calls_tick_n_times_then_stops():

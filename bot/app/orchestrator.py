@@ -172,6 +172,14 @@ class Deps:
                                              # §14 entry markouts (partner review v2 §14) -- never the
                                              # trade log. ONLY called when deps.features.markout_tracking
                                              # is on; best-effort, wired for real in bot.app.wiring.build_deps.
+    reconstruct_exit: callable = None   # (position, today) -> {"exit_value","pnl","source","order_id"}
+                                         # | None. P2 broker-flat/local-open reconciliation: when a
+                                         # position has left the broker, reconstruct its ACTUAL closing
+                                         # fill from broker order/execution history so realized P&L is
+                                         # the real number (with an audit trail), not an estimate from
+                                         # the last mark. None (default) -> byte-identical to the prior
+                                         # mark-estimate behaviour. Best-effort; run_reconcile_cycle
+                                         # falls back to the mark, then escalates, if this returns None.
     replay_log: callable = (lambda record: None)   # (dict) -> None; SEPARATE JSONL sink for the replay
                                              # harness Phase A decision-input capture. ONLY called when
                                              # deps.features.replay_capture is on; best-effort (the call
@@ -259,6 +267,38 @@ def run_reconcile_cycle(state: BotState, deps: Deps, today: str = None) -> tuple
         # position looked missing (the live drift alerts carried equity=0.0).
         if today is not None:
             for p in removed:
+                # P2 reconciliation, in priority order:
+                #   1. ACTUAL closing fill from broker order/execution history (deps.reconstruct_exit) --
+                #      the real exit price + P&L, with an order-id audit trail. Preferred because it is
+                #      the truth, not an estimate, and it works even when live QUOTES are timing out
+                #      (order history is a separate endpoint), which is exactly the outage case where
+                #      the mark path below fails.
+                #   2. Estimate from the last mark (prior behaviour) when no fill can be reconstructed.
+                #   3. Escalate "reconcile by hand" when neither is available (never fabricate a number).
+                recon = None
+                if deps.reconstruct_exit is not None:
+                    try:
+                        recon = deps.reconstruct_exit(p, today)
+                    except Exception:
+                        recon = None
+                if recon is not None:
+                    pnl = recon.get("pnl")
+                    if pnl is None:
+                        exit_value = recon.get("exit_value")
+                        pnl = round((p.credit - exit_value) * 100 * p.qty, 2) if exit_value is not None else None
+                    if pnl is not None:
+                        _accumulate_realized(state, today, pnl)
+                        deps.trade_log({
+                            "event": "CLOSE", "date": today, "ticker": p.ticker,
+                            "short": p.short_strike, "long": p.long_strike, "expiry": p.expiry,
+                            "qty": p.qty, "credit": p.credit, "action": "reconciled_away",
+                            "exit_value": recon.get("exit_value"), "pnl": pnl,
+                            "status": "reconciled_away",
+                            # provenance (new fields; base status unchanged for back-compat): this exit
+                            # was reconstructed from a REAL broker fill, with its order id for audit.
+                            "recon_source": recon.get("source") or "broker_fill",
+                            "order_id": recon.get("order_id")})
+                        continue
                 try:
                     mark = deps.mark_position(p)
                 except Exception:
@@ -267,8 +307,9 @@ def run_reconcile_cycle(state: BotState, deps: Deps, today: str = None) -> tuple
                     deps.alert_sink([Alert(Severity.CRITICAL,
                         f"P&L UNBOOKED for reconciled-away {p.ticker} "
                         f"{p.short_strike}/{p.long_strike} x{p.qty} (credit {p.credit}): position "
-                        f"left the broker but could not be marked, so its realized P&L is NOT in "
-                        f"realized_today and NOT in the daily-loss gate. Reconcile by hand.")])
+                        f"left the broker but could not be marked OR matched to a broker fill, so its "
+                        f"realized P&L is NOT in realized_today and NOT in the daily-loss gate. "
+                        f"Reconcile by hand.")])
                     continue
                 pnl = round((p.credit - mark) * 100 * p.qty, 2)
                 if deps.features.actual_fill_accounting:
@@ -280,10 +321,11 @@ def run_reconcile_cycle(state: BotState, deps: Deps, today: str = None) -> tuple
                     "event": "CLOSE", "date": today, "ticker": p.ticker,
                     "short": p.short_strike, "long": p.long_strike, "expiry": p.expiry,
                     "qty": p.qty, "credit": p.credit,
-                    # `status` (not action) carries the provenance so a reader can tell this exit
-                    # was RECONSTRUCTED from a mark, not observed from a fill the bot placed.
+                    # `action`/`status` mark this as a reconciled exit (not a close the bot placed);
+                    # recon_source records that the exit price is an ESTIMATE from the last mark, so a
+                    # reader can distinguish it from a real reconstructed broker fill above.
                     "action": "reconciled_away", "exit_value": mark,
-                    "pnl": pnl, "status": "reconciled_away"})
+                    "pnl": pnl, "status": "reconciled_away", "recon_source": "mark_estimate"})
         if state.halted and state.halt_reason in _RECONCILE_OWNED:
             state.clear_halt()                    # the phantom that caused the halt is gone
 

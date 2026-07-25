@@ -12,7 +12,7 @@ Mon-Fri). One data-collection pass produces:
 READ-ONLY. This never touches broker orders, bot state, config, or the running services. Every
 section is wrapped so a data/API hiccup degrades that section rather than crashing the run.
 """
-import os, sys, json, csv, html, hashlib, glob, math, urllib.request, urllib.parse, collections, traceback
+import os, sys, json, csv, html, hashlib, glob, math, shutil, urllib.request, urllib.parse, collections, traceback
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
@@ -534,6 +534,33 @@ def deployed_commit():
         return "unknown"
 
 
+def archive_bundle(reports_dir, manifest, now_et):
+    """P5 (immutable scheduled-report snapshots). Copy the just-written slot bundle to a per-slot,
+    timestamped archive dir that is NEVER overwritten, so a scheduled slot's exact data is preserved
+    for audit and so a reviewer can always find ITS slot -- the fix for the 2026-07-24 case where the
+    midday review had only a later slot's data (the overwrite-in-place reports/latest/ had moved on).
+
+    Dest: <reports>/archive/<date>/<slot>__<HHMMSS>/. Only REAL slots are archived (adhoc/manual runs
+    are skipped so the archive stays a clean record of the 6 scheduled reviews). Best-effort: any
+    failure returns None and never breaks report generation (the caller wraps it too). Returns the
+    archive dir on success, else None."""
+    slot = manifest.get("review_slot")
+    if not slot or slot == "adhoc":
+        return None
+    date = (manifest.get("generated_et") or "")[:10] or now_et.strftime("%Y-%m-%d")
+    stamp = now_et.strftime("%H%M%S")
+    safe_slot = slot.replace(":", "")   # ':' is illegal in Windows paths; keep the dir name portable
+    dest = os.path.join(os.path.dirname(reports_dir), "archive", date, "%s__%s" % (safe_slot, stamp))
+    os.makedirs(dest, exist_ok=True)
+    copied = 0
+    for name in list((manifest.get("files") or {}).keys()) + ["manifest.json"]:
+        src = os.path.join(reports_dir, name)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(dest, name))
+            copied += 1
+    return dest if copied else None
+
+
 # ---------------- Codex standardized files ----------------
 def write_codex_files(mkt, bots_data, brokers):
     os.makedirs(REPORTS, exist_ok=True)
@@ -581,6 +608,13 @@ def write_codex_files(mkt, bots_data, brokers):
                         "unchanged since the previous run."}
     with open(os.path.join(REPORTS, "manifest.json"), "w") as fh:
         json.dump(manifest, fh, indent=1)
+    # P5: preserve an immutable per-slot snapshot for audit + freshness (best-effort; never fatal).
+    try:
+        archived = archive_bundle(REPORTS, manifest, NOW_ET)
+        if archived:
+            print("archived slot bundle -> %s" % archived)
+    except Exception:
+        traceback.print_exc()
     return manifest
 
 

@@ -104,6 +104,52 @@ def make_markout_logger(path):
     return log
 
 
+def make_reconstruct_exit(http, account_id):
+    """P2: build a reconstruct_exit(position, today) callable that recovers a reconciled-away position's
+    ACTUAL closing fill from Tradier order history -- so realized P&L is the real number (with an
+    order-id audit trail) instead of a mark estimate, and so it resolves even during a quote outage
+    (order history is a separate endpoint from quotes, which is the case that broke Bot C 2026-07-24).
+
+    Returns {"exit_value","pnl","source","order_id"} or None if no matching closing fill is found.
+    Defensive: any error returns None, so run_reconcile_cycle simply falls back to the mark estimate.
+
+    UNVALIDATED AGAINST LIVE TRADIER -- the response-shape parsing has NOT been checked against a real
+    filled multileg-close payload, so build_deps leaves it UNWIRED (Deps.reconstruct_exit stays None)
+    and live behaviour is byte-identical. To enable after validating the shape against a real close,
+    pass `reconstruct_exit=make_reconstruct_exit(http, account_id)` into the Deps(...) in build_deps."""
+    from bot.strategy.s2b import _occ
+
+    def reconstruct_exit(position, today):
+        try:
+            short_sym = _occ(position.ticker, position.expiry, "P", position.short_strike)
+            long_sym = _occ(position.ticker, position.expiry, "P", position.long_strike)
+            resp = http("GET", "/accounts/%s/orders" % account_id, params={"includeTags": "true"})
+            orders = ((resp or {}).get("orders") or {}).get("order") or []
+            orders = [orders] if isinstance(orders, dict) else orders
+            best = None
+            for o in orders:
+                if str(o.get("status", "")).lower() != "filled":
+                    continue
+                legs = o.get("leg") or []
+                legs = [legs] if isinstance(legs, dict) else legs
+                syms = {l.get("option_symbol") for l in legs}
+                # a CLOSING order for this spread closes BOTH legs (buy_to_close / sell_to_close)
+                if short_sym in syms and long_sym in syms and any(
+                        "close" in str(l.get("side", "")).lower() for l in legs):
+                    best = o    # last filled matching order wins (the most recent close)
+            if best is None:
+                return None
+            ev = best.get("avg_fill_price")
+            ev = float(ev) if ev is not None else None
+            pnl = round((position.credit - ev) * 100 * position.qty, 2) if ev is not None else None
+            return {"exit_value": ev, "pnl": pnl, "source": "tradier_orders",
+                    "order_id": str(best.get("id")) if best.get("id") is not None else None}
+        except Exception:
+            return None
+
+    return reconstruct_exit
+
+
 def make_replay_capture_logger(path):
     """Return a callable that appends one replay-capture record dict as a JSON line (JSONL, not CSV --
     the record nests a variable-length chain snapshot). Best-effort: mirrors make_markout_logger in

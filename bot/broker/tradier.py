@@ -50,7 +50,18 @@ def build_http(request_fn, base, sleep_fn=_time.sleep):
         url = base + path
         if method != "GET":
             r = request_fn(method, url, params, data)
-            r.raise_for_status()
+            # 2026-07-27 diagnostics: on an order (POST/DELETE) rejection, surface the broker's actual
+            # error BODY -- raise_for_status() alone gives only "400 Client Error:" with no reason, which
+            # is exactly what left the 7/27 close-rejection root cause opaque. The body carries Tradier's
+            # message (e.g. an invalid-price explanation); it never contains credentials (those are
+            # headers). Truncated so a large body can't flood the log.
+            if getattr(r, "status_code", 200) >= 400:
+                body = ""
+                try:
+                    body = (r.text or "")[:500]
+                except Exception:
+                    body = "<unreadable body>"
+                raise BrokerError("%s %s -> HTTP %s: %s" % (method, path, r.status_code, body))
             return r.json()
         return _get_with_retry(lambda: request_fn("GET", url, params, None), sleep_fn=sleep_fn)
     return http

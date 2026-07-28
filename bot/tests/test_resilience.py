@@ -132,3 +132,49 @@ def test_fetch_atr_empty_history_raises_typed_error():
     http = lambda *a, **k: {"history": {"day": []}}     # Tradier 200 with no bars
     with pytest.raises(MarketDataUnavailable):
         fetch_atr(http, "SPY", "2026-06-15")
+
+
+# ── 2026-07-27: a non-positive/invalid close limit must NOT submit an order or halt ──────────────
+
+def test_close_declines_non_positive_limit_and_retries_not_halts():
+    """The 7/27 Bot C root cause: a crossed quote made short.ask - long.bid = -0.33, which was
+    submitted as a debit order and rejected HTTP 400 -> sticky halt. The fix: monitor_positions must
+    treat a close that couldn't be validly priced (MarketDataUnavailable) as a RETRY, not a halt."""
+    pos = ManagedPosition("SPY", 733.0, 728.0, credit=0.93, qty=1, expiry="2026-07-31")
+    def close_that_cant_price(p, action):
+        raise MarketDataUnavailable("close limit non-positive ... -> limit=-0.33")
+    state = BotState(open_positions=[pos])
+    # mark triggers a stop/exit so a close is attempted; the close then declines to submit
+    d = _deps(mark_position=lambda p: 5.0, dte_of=lambda p, today: 1, close_spread=close_that_cant_price)
+    state, results = run_management_cycle(state, d, today="2026-07-31")
+    assert results[0].action == ExitAction.ERROR and results[0].mark_unavailable is True
+    assert state.halted is False                        # no order submitted -> no 400 -> no halt
+
+
+def test_a_real_submitted_close_failure_still_halts():
+    """A close ORDER that actually reached the broker and failed (not a pricing gap) must still halt."""
+    pos = ManagedPosition("SPY", 733.0, 728.0, credit=0.93, qty=1, expiry="2026-07-31")
+    def close_order_rejected(p, action):
+        raise RuntimeError("400 Client Error: from broker after submit")
+    state = BotState(open_positions=[pos])
+    d = _deps(mark_position=lambda p: 5.0, dte_of=lambda p, today: 1, close_spread=close_order_rejected)
+    state, results = run_management_cycle(state, d, today="2026-07-31")
+    assert results[0].action == ExitAction.ERROR and results[0].mark_unavailable is False
+    assert state.halted is True                         # a genuine submitted-order failure still halts
+
+
+def test_http_error_body_is_surfaced_for_orders():
+    """P1 diagnostics: an order rejection must raise with the broker's actual error BODY, not a bare
+    '400 Client Error:' -- so the reason is logged. GET-path retry is unaffected."""
+    from bot.broker.tradier import build_http, BrokerError
+    class R:
+        status_code = 400
+        text = '{"errors":{"error":"price must be positive"}}'
+        def raise_for_status(self):  # not used on the >=400 path anymore
+            raise AssertionError("should not be called")
+        def json(self):
+            return {}
+    http = build_http(lambda m, u, p, d: R(), "https://x", sleep_fn=lambda s: None)
+    with pytest.raises(BrokerError) as ei:
+        http("POST", "/accounts/x/orders", data={})
+    assert "price must be positive" in str(ei.value) and "400" in str(ei.value)

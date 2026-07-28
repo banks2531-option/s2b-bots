@@ -5,6 +5,7 @@ from enum import Enum
 
 from bot.broker.order_state import result_status
 from bot.strategy.s2b import _occ
+from bot.errors import MarketDataUnavailable
 
 
 class ExitAction(str, Enum):
@@ -115,7 +116,16 @@ def monitor_positions(positions, mark_fn, dte_fn, close_fn, cfg):
             results.append(ExitResult(position=p, action=action, close_status=status,
                                       failed=(str(status).lower() != "filled"), value=value,
                                       close_result=close_result))
-        except Exception as exc:  # a close order actually FAILED (raised) -> stuck close (may halt)
+        except MarketDataUnavailable as exc:
+            # close_fn declined to submit because it could not VALIDLY price the close (invalid/crossed
+            # quotes, or a non-positive debit limit). No order reached the broker -- so this is a data
+            # gap to RETRY, not a stuck close to halt on (2026-07-27 Bot C root cause: a transient
+            # crossed quote produced a -0.33 debit which, if submitted, Tradier rejects with HTTP 400).
+            results.append(ExitResult(position=p, action=ExitAction.ERROR,
+                                      close_status=f"error: {exc}", failed=True, value=value,
+                                      mark_unavailable=True))
+            continue
+        except Exception as exc:  # a close order actually SUBMITTED and FAILED -> stuck close (may halt)
             results.append(ExitResult(position=p, action=ExitAction.ERROR,
                                       close_status=f"error: {exc}", failed=True, value=value))
             continue

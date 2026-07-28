@@ -651,6 +651,16 @@ def build_deps(http, account_id, get_spot, get_atr, get_vix_regime,
     def close_spread(pos, action):
         short, long = _leg_quotes(pos)
         limit = round(short.ask - long.bid, 2)   # marketable cost-to-close -> fills under stress
+        # 2026-07-27 Bot C fix: never SUBMIT a debit close at a non-positive (or invalid-quote) limit.
+        # A crossed/stale quote can make short.ask - long.bid <= 0; Tradier rejects a <=0 debit order
+        # with HTTP 400, which then trips the sticky "failed close" halt on a live position. A <=0 debit
+        # is never real (a genuinely worthless spread still closes at a small POSITIVE debit), so this is
+        # a data-quality gap: raise MarketDataUnavailable so monitor_positions RETRIES next cycle (no
+        # order submitted, no halt) -- when quotes recover the close submits at a valid positive debit.
+        if not quotes_valid(short.bid, short.ask, long.bid, long.ask) or limit <= 0:
+            raise MarketDataUnavailable(
+                "close limit non-positive/invalid for %s %s/%s: short.ask=%s long.bid=%s -> limit=%s"
+                % (pos.ticker, pos.short_strike, pos.long_strike, short.ask, long.bid, limit))
         # take-profit ladder (spec §7) is opt-in and TAKE_PROFIT-only: stops/time-exits/degrosses
         # must never delay for price improvement, so they always take the single marketable-natural
         # path below -- this branch is the ONLY behavior change, and only when tp_price_ladder is on.

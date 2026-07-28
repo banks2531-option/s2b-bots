@@ -163,6 +163,40 @@ def test_a_real_submitted_close_failure_still_halts():
     assert state.halted is True                         # a genuine submitted-order failure still halts
 
 
+def test_stale_failed_close_halt_self_clears_when_the_close_finally_fills():
+    """2026-07-28 Bot B: a time-exit close reported 'canceled' each retry (setting a sticky 'failed
+    close' halt), then FILLED -- but the halt never cleared. Now: once a cycle has no stuck close, the
+    stale halt auto-clears."""
+    pos = ManagedPosition("SPY", 740.0, 730.0, credit=1.71, qty=1, expiry="2026-07-29")
+    state = BotState(open_positions=[pos], halted=True, halt_reason="failed close")
+    # this cycle the close FILLS (the retry that finally works) -> closed_ok, no hard_failed
+    d = _deps(mark_position=lambda p: 5.0, dte_of=lambda p, today: 1, close_spread=lambda p, a: "filled")
+    state, results = run_management_cycle(state, d, today="2026-07-29")
+    assert state.open_positions == []          # closed
+    assert state.halted is False               # stale halt cleared
+
+
+def test_failed_close_halt_persists_while_the_close_is_still_stuck():
+    """A close that is STILL failing (canceled, nothing filled) keeps the bot halted -- self-heal must
+    not clear a halt while a must-exit genuinely can't exit."""
+    pos = ManagedPosition("SPY", 740.0, 730.0, credit=1.71, qty=1, expiry="2026-07-29")
+    state = BotState(open_positions=[pos], halted=True, halt_reason="failed close")
+    d = _deps(mark_position=lambda p: 5.0, dte_of=lambda p, today: 1,
+              close_spread=lambda p, a: "canceled")   # still not filling
+    state, results = run_management_cycle(state, d, today="2026-07-29")
+    assert state.halted is True                # stays halted while genuinely stuck
+    assert len(state.open_positions) == 1
+
+
+def test_self_heal_does_not_clear_a_non_failed_close_halt():
+    """Only the 'failed close' halt self-heals here; other sticky halts (e.g. 'unmatched legs') must
+    stay until their own path clears them."""
+    state = BotState(open_positions=[], halted=True, halt_reason="unmatched legs")
+    d = _deps()
+    state, _ = run_management_cycle(state, d, today="2026-07-29")
+    assert state.halted is True and state.halt_reason == "unmatched legs"
+
+
 def test_http_error_body_is_surfaced_for_orders():
     """P1 diagnostics: an order rejection must raise with the broker's actual error BODY, not a bare
     '400 Client Error:' -- so the reason is logged. GET-path retry is unaffected."""

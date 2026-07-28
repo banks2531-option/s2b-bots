@@ -469,6 +469,17 @@ def run_management_cycle(state: BotState, deps: Deps, today: str) -> tuple:
     if should_halt_new_entries(alerts):
         state.halted = True
         state.halt_reason = "failed close"
+    elif state.halted and state.halt_reason == "failed close" and closed_ok:
+        # Self-heal a STALE "failed close" halt: a previously-stuck close has now FILLED this cycle
+        # (closed_ok) and nothing remains stuck (no CRITICAL above). The 2026-07-28 Bot B strand:
+        # a time-exit close reported 'canceled' on each retry (setting this halt) and then FILLED,
+        # but no path cleared the halt (the position left via the fill, not the reconcile-missing path
+        # that auto-clears). Gate on `closed_ok` (an ACTUAL close resolving the stuck state), NOT on a
+        # merely-quiet cycle -- else a HOLD cycle would silently un-halt and let entry re-open the
+        # same tick (and a position that vanishes at the broker is still cleared via reconcile).
+        state.clear_halt()
+        deps.alert_sink([Alert(Severity.INFO,
+            "cleared stale 'failed close' halt: the stuck close filled")])
     return state, results
 
 

@@ -38,6 +38,11 @@ def load_reports(reports_dir, advisor_memory_path):
             if live.get("positions") is not None:
                 perf["positions"] = live["positions"]
             perf["live_as_of"] = (live.get("generated_et") or "")[11:19]   # HH:MM:SS ET
+        # Halt state: prefer the 30s live overlay (near-real-time) over the 6x/day perf JSON so the
+        # dashboard's halt alert fires promptly when a bot halts. Fall back to the perf JSON.
+        if "halted" in live:
+            perf["halted"] = live.get("halted")
+            perf["halt_reason"] = live.get("halt_reason") or perf.get("halt_reason") or ""
         out[k] = {"perf": perf,
                   "broker": _load_json(os.path.join(reports_dir, "broker_snapshot_%s.json" % k))}
     try:
@@ -169,6 +174,15 @@ border:1px solid var(--edge);}
 .b-info{background:var(--panel2);color:var(--muted);}
 .b-synth{background:rgba(255,204,102,.12);color:var(--warn);border-color:var(--warn);}
 .b-actual{background:rgba(63,208,122,.12);color:var(--pos);border-color:var(--pos);}
+.b-halt{background:var(--neg);color:#fff;border-color:var(--neg);}
+.halt-alert{display:flex;gap:12px;align-items:flex-start;background:var(--neg);color:#fff;
+  border-radius:10px;padding:14px 16px;margin:14px 0;box-shadow:0 0 0 3px rgba(255,90,90,.25);
+  animation:haltpulse 2s ease-in-out infinite;}
+.halt-alert b{color:#fff;} .halt-alert ul{margin:6px 0 0;padding-left:18px;font-size:13px;}
+.halt-icon{font-size:22px;line-height:1;}
+.card-halt{outline:2px solid var(--neg);outline-offset:0;}
+@keyframes haltpulse{0%,100%{box-shadow:0 0 0 3px rgba(255,90,90,.25);}50%{box-shadow:0 0 0 6px rgba(255,90,90,.10);}}
+@media (prefers-reduced-motion:reduce){.halt-alert{animation:none;}}
 .narr{font-size:13px;color:var(--txt);margin:8px 0;}
 .why{font-size:13px;color:var(--muted);margin:6px 0 10px;font-style:italic;}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;}
@@ -255,6 +269,8 @@ def _bot_card(key, bot):
     synth = perf.get("pnl_source") == "synthetic_mark"
     src_badge = ('<span class="badge b-synth">synthetic P&amp;L</span>' if synth
                  else '<span class="badge b-actual">actual fill</span>')
+    halt_badge = ('<span class="badge b-halt">&#9888; HALTED: %s</span>' % esc(perf.get("halt_reason") or "")
+                  if perf.get("halted") else "")
     hist = perf.get("history") or {}
     series = daily_pnl_series(perf, key)
     kpis = [
@@ -271,15 +287,16 @@ def _bot_card(key, bot):
     live_note = ('<div class="note">&#9679; live equity/marks as of %s ET (updates every 30s)</div>'
                  % esc(perf["live_as_of"])) if perf.get("live_as_of") else ""
     return (
-        '<div class="card">'
-        '<h2>%s <span class="badge %s">%s</span> %s</h2>'
+        '<div class="card%s">'
+        '<h2>%s <span class="badge %s">%s</span> %s %s</h2>'
         '<div class="narr">%s</div>'
         '<div class="why">%s</div>'
         '%s'
         '<div class="kpis">%s</div>'
         '<h3>Daily P&amp;L (cumulative, clean days)</h3>%s'
         '</div>'
-        % (esc(name), scls, esc(hv["status"]), src_badge,
+        % (" card-halt" if perf.get("halted") else "",
+           esc(name), scls, esc(hv["status"]), src_badge, halt_badge,
            esc(hv["narrative"]), esc(why_line(perf)), live_note, kh, _spark(series))
     )
 
@@ -350,6 +367,28 @@ def _recs_table(rows):
             '<th>Confidence</th><th>Implemented</th><th>Outcome</th></tr>%s</table>' % body)
 
 
+def halt_banner(data):
+    """A prominent top-of-page alert when EITHER bot is halted (owner request 2026-07-28). Names the
+    halted bot(s) and the reason; empty string when both are running normally. Bot C (live money) is
+    called out as the urgent case. Halt state comes from the 30s live overlay (see load_reports)."""
+    halted = []
+    for k in ("c", "b"):   # list the LIVE bot first
+        perf = (data.get(k) or {}).get("perf") or {}
+        if perf.get("halted"):
+            name = perf.get("bot") or ("Bot %s" % k.upper())
+            live = " (LIVE real money)" if k == "c" else " (sandbox)"
+            reason = perf.get("halt_reason") or "unknown"
+            halted.append("%s%s — halt reason: %s" % (name, live, reason))
+    if not halted:
+        return ""
+    items = "".join("<li>%s</li>" % esc(h) for h in halted)
+    return ('<div class="halt-alert" role="alert">'
+            '<span class="halt-icon">&#9888;</span>'
+            '<div><b>%s HALTED — not trading or managing positions until cleared.</b>'
+            '<ul>%s</ul></div></div>'
+            % ("BOT" if len(halted) == 1 else "BOTS", items))
+
+
 def render_html(data, generated_at):
     market = data.get("market") or {}
     daily = market.get("daily") or {}
@@ -406,6 +445,7 @@ def render_html(data, generated_at):
         "<style>%s</style></head><body><div class=\"wrap\">"
         "<h1>S2b Dashboard</h1>"
         '<p class="sub">Bot B (sandbox) &amp; Bot C (LIVE) — generated %s ET. Read-only.</p>'
+        "%s"
         '<div class="tabs">'
         '<button class="active" data-tab="overview" onclick="showTab(\'overview\',this)">Overview</button>'
         '<button data-tab="performance" onclick="showTab(\'performance\',this)">Performance</button>'
@@ -416,7 +456,7 @@ def render_html(data, generated_at):
         'un-audited; Bot B history before %s is excluded as sandbox-corrupted. '
         'Edge caveat: Monday-only is the validated schedule; all-days is diluted.</div>'
         "<script>%s</script></div></body></html>"
-        % (_CSS, esc(generated_at), overview, perf_tab, recs_tab, BOT_B_CLEAN_FROM, _JS)
+        % (_CSS, esc(generated_at), halt_banner(data), overview, perf_tab, recs_tab, BOT_B_CLEAN_FROM, _JS)
     )
 
 

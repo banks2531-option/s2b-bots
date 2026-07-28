@@ -176,6 +176,46 @@ def test_overview_card_shows_unrealized_gain_loss():
     assert "-$3" in card_c
 
 
+# ---------------- halt alert (owner request 2026-07-28) ----------------
+def test_halt_banner_absent_when_no_bot_halted():
+    data = {"b": {"perf": {"halted": False}}, "c": {"perf": {"halted": False}}}
+    assert bd.halt_banner(data) == ""
+
+
+def test_halt_banner_fires_and_names_the_live_bot_and_reason():
+    data = {"b": {"perf": {"bot": "Bot B", "halted": False}},
+            "c": {"perf": {"bot": "Bot C", "halted": True, "halt_reason": "failed close"}}}
+    banner = bd.halt_banner(data)
+    assert "HALTED" in banner
+    assert "Bot C" in banner and "LIVE real money" in banner
+    assert "failed close" in banner
+    assert 'role="alert"' in banner
+
+
+def test_halt_banner_lists_both_when_both_halted_live_first():
+    data = {"b": {"perf": {"bot": "Bot B", "halted": True, "halt_reason": "drift"}},
+            "c": {"perf": {"bot": "Bot C", "halted": True, "halt_reason": "failed close"}}}
+    banner = bd.halt_banner(data)
+    assert "BOTS HALTED" in banner
+    assert banner.index("Bot C") < banner.index("Bot B")   # live bot listed first
+
+
+def test_bot_card_shows_halt_badge_when_halted():
+    card = bd._bot_card("c", {"perf": {"bot": "Bot C", "halted": True, "halt_reason": "failed close",
+                                       "pnl_source": "synthetic_mark", "history": {}}})
+    assert "HALTED" in card and "failed close" in card and "card-halt" in card
+
+
+def test_live_overlay_halt_state_wins_over_stale_perf(tmp_path):
+    # perf JSON says not halted (stale 6x/day), but the 30s live overlay says halted -> banner fires.
+    latest, am = _write_fixture(tmp_path)
+    json.dump({"halted": True, "halt_reason": "failed close", "equity": 900},
+              open(os.path.join(latest, "live_c.json"), "w"))
+    data = bd.load_reports(latest, am)
+    assert data["c"]["perf"]["halted"] is True
+    assert "HALTED" in bd.halt_banner(data)
+
+
 # ---------------- Task 7: build() ----------------
 def test_build_writes_html_file(tmp_path):
     latest, am = _write_fixture(tmp_path)

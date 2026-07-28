@@ -64,6 +64,10 @@ def pull_bot(bot):
         st = json.load(open(BASE + "/" + bot["state"]))
     except Exception:
         st = {}
+    # Surface the halt state in the 30s overlay so the dashboard's halt alert is near-real-time (the
+    # 6x/day perf JSON would otherwise be up to ~5 min stale). Read straight from the bot's state file.
+    out["halted"] = bool(st.get("halted"))
+    out["halt_reason"] = st.get("halt_reason") or ""
     own = st.get("open_positions") or []
     # Own leg OCC symbols. Bot B runs --shared-account, so the broker returns co-occupants' legs
     # too; restrict the P&L calc to legs the bot's own book implies.

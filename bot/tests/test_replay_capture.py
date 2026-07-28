@@ -3,6 +3,7 @@ from datetime import datetime
 from bot.app.orchestrator import BotState, Deps, run_entry_cycle
 from bot.app.replay_capture import snapshot_chain, build_replay_record
 from bot.strategy.s2b import OptionQuote, S2bConfig
+from bot.strategy.manage import ManagedPosition
 from bot.features import S2bFeatures
 from bot.risk_gate import AccountState
 
@@ -100,3 +101,55 @@ def test_chain_captured_once_per_expiry_bucket_then_omitted():
     without_chain = [c for c in calls if "chain" not in c]
     assert len(with_chain) == 1, "chain snapshot should be captured once per (expiry,15-min bucket)"
     assert without_chain, "later same-bucket decisions should record without re-snapshotting the chain"
+
+
+# ---------------- multi-expiry capture (2026-07-28) ----------------
+
+def test_book_chains_captures_held_position_expiries():
+    """The open book holds a DIFFERENT expiry than the candidate -> the capture must snapshot that
+    held expiry's chain too (book_chains), fetched via get_chain, so the stateful replay can price it."""
+    fetched = []
+    def get_chain(sym, exp):
+        fetched.append(exp)
+        if exp == "2026-07-10":
+            return [OptionQuote(700.0, 0.30, 2.0, 2.1, iv=0.22)]
+        return _chain()          # candidate expiry -> a normal chain
+    calls = []
+    held = ManagedPosition("SPY", 700.0, 690.0, credit=1.0, qty=1, expiry="2026-07-10")  # != candidate 6/19
+    d = _deps(get_chain=get_chain, max_open=5, features=S2bFeatures(replay_capture=True),
+              replay_log=lambda rec: calls.append(rec))
+    run_entry_cycle(BotState(open_positions=[held]), d, datetime(2026, 6, 15, 10, 5))
+    rec = calls[-1]
+    assert "book_chains" in rec, "held-position expiry chain must be captured"
+    assert "2026-07-10" in rec["book_chains"]
+    assert rec["book_chains"]["2026-07-10"][0]["strike"] == 700.0
+    assert "2026-07-10" in fetched     # it fetched the held expiry's chain
+
+
+def test_book_chains_absent_when_book_shares_candidate_expiry():
+    """When the candidate expiry is known and a held position shares it, book_chains must NOT
+    redundantly re-capture that expiry (it's already in `chain`). max_open high so the candidate path
+    runs and the candidate expiry (6/19) is known."""
+    calls = []
+    same = ManagedPosition("SPY", 560.0, 550.0, credit=1.0, qty=1, expiry="2026-06-19")  # == candidate
+    d = _deps(max_open=5, features=S2bFeatures(replay_capture=True),
+              replay_log=lambda rec: calls.append(rec))
+    run_entry_cycle(BotState(open_positions=[same]), d, datetime(2026, 6, 15, 10, 5))
+    rec = calls[-1]
+    assert rec.get("expiry") == "2026-06-19" and rec.get("chain")   # candidate expiry captured in `chain`
+    assert "book_chains" not in rec                                 # not duplicated in book_chains
+
+
+def test_held_expiry_chain_fetch_failure_never_breaks_capture():
+    """A get_chain failure for a held expiry must be swallowed -- capture (and trading) continue."""
+    def get_chain(sym, exp):
+        if exp == "2026-07-10":
+            raise RuntimeError("chain feed down")
+        return _chain()
+    held = ManagedPosition("SPY", 700.0, 690.0, credit=1.0, qty=1, expiry="2026-07-10")
+    calls = []
+    d = _deps(get_chain=get_chain, features=S2bFeatures(replay_capture=True),
+              replay_log=lambda rec: calls.append(rec))
+    state, info = run_entry_cycle(BotState(open_positions=[held]), d, datetime(2026, 6, 15, 10, 5))
+    assert isinstance(state, BotState)          # did not raise
+    assert calls and "book_chains" not in calls[-1]   # the failed held expiry simply isn't captured

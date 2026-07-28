@@ -38,11 +38,13 @@ def snapshot_chain(chain):
 def build_replay_record(*, ts_et, bot, decision, limiting_gate=None, spot=None, atr=None,
                         expiry=None, regime=None, order=None, recorded_credit=None,
                         actual_fill_credit=None, deployed_commit=None, config_hash=None,
-                        chain_snapshot=None):
-    """Assemble one replay-capture record. ``chain_snapshot`` is the list from snapshot_chain when
-    this decision's (expiry, 15-min bucket) has not been captured yet, else None (the replayer reuses
-    the bucket's earlier snapshot -- see the design's throttling note). Only non-None fields are
-    emitted so the JSONL stays compact and self-describing."""
+                        chain_snapshot=None, book_chains=None):
+    """Assemble one replay-capture record. ``chain_snapshot`` is the candidate expiry's chain (from
+    snapshot_chain) when this (expiry, 15-min bucket) has not been captured yet, else None (the
+    replayer reuses the bucket's earlier snapshot). ``book_chains`` is {expiry: snapshot} for the OPEN
+    BOOK's other expiries captured this cycle -- so the stateful replay can price the whole gap-stress
+    book with real per-leg IV, not flat fallback IV. Only non-None fields are emitted so the JSONL
+    stays compact and self-describing."""
     rec = {"event": "REPLAY", "ts_et": _iso(ts_et), "bot": bot, "decision": decision}
     if limiting_gate is not None:
         rec["limiting_gate"] = limiting_gate
@@ -69,4 +71,6 @@ def build_replay_record(*, ts_et, bot, decision, limiting_gate=None, spot=None, 
         rec["config_hash"] = config_hash
     if chain_snapshot is not None:
         rec["chain"] = chain_snapshot
+    if book_chains:
+        rec["book_chains"] = book_chains
     return rec

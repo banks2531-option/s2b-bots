@@ -29,25 +29,35 @@ def chain_from_snapshot(snap):
     return out
 
 
-def snapshot_iv_resolver(snapshot, expiry):
-    """Build an option_greeks_iv(occ_symbols) -> {occ: iv} callable from a captured chain snapshot,
-    so the BS gap-stress reprice uses the IV the bot actually saw instead of the flat fallback. Covers
-    same-expiry legs (the snapshot is one expiry); legs at other expiries simply aren't in the map, so
-    iv_fn degrades to features.gap_fallback_iv for them -- exactly the live behavior when greeks are
-    missing. Returns None if the snapshot has no usable IV (caller then leaves greeks unwired)."""
+def multi_expiry_iv_resolver(chains_by_expiry):
+    """Build an option_greeks_iv(occ_symbols) -> {occ: iv} callable from captured chains ACROSS
+    expiries ({expiry: snapshot}), so the BS gap-stress reprice can price the WHOLE gap-stress book --
+    the candidate AND every held-position expiry -- with the real per-leg IV the bot saw. This is what
+    lets the stateful gap_2atr baseline reproduce (the single-expiry resolver left held legs on flat
+    fallback IV). Any leg not in the map degrades to features.gap_fallback_iv (live behavior when
+    greeks are missing). Returns None if no usable IV anywhere (caller then leaves greeks unwired)."""
     m = {}
-    for r in (snapshot or []):
-        iv = r.get("iv")
-        if iv is not None and r.get("strike") is not None:
-            try:
-                m[_occ("SPY", expiry, "P", r["strike"])] = float(iv)
-            except Exception:
-                continue
+    for expiry, snapshot in (chains_by_expiry or {}).items():
+        if not expiry:
+            continue
+        for r in (snapshot or []):
+            iv = r.get("iv")
+            if iv is not None and r.get("strike") is not None:
+                try:
+                    m[_occ("SPY", expiry, "P", r["strike"])] = float(iv)
+                except Exception:
+                    continue
     if not m:
         return None
     def option_greeks_iv(symbols):
         return {s: m[s] for s in symbols if s in m}
     return option_greeks_iv
+
+
+def snapshot_iv_resolver(snapshot, expiry):
+    """Single-expiry convenience wrapper over multi_expiry_iv_resolver (kept for the independent
+    single-record replay path). See that function for details."""
+    return multi_expiry_iv_resolver({expiry: snapshot})
 
 
 def build_replay_deps(*, chain, spot, atr, expiry, equity, features, base_risk_pct,

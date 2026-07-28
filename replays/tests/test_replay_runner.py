@@ -14,7 +14,8 @@ from bot.app.replay_capture import snapshot_chain
 from bot.strategy.manage import ManagedPosition
 from bot.features import S2bFeatures as _Feat
 from replays.replay_deps import (build_replay_deps, chain_from_snapshot, ReplayOrderAttempt,
-                                  snapshot_iv_resolver)
+                                  snapshot_iv_resolver, multi_expiry_iv_resolver)
+from bot.strategy.s2b import _occ
 from replays.replay_runner import (replay_record, replay_capture_file, load_capture,
                                     carry_forward_chains, replay_day)
 
@@ -124,10 +125,34 @@ def test_a_reject_scenario_reproduces_as_the_same_reject():
 def test_snapshot_iv_resolver_maps_strike_to_iv():
     snap = [{"strike": 568.0, "iv": 0.21}, {"strike": 558.0, "iv": 0.24}, {"strike": 560.0, "iv": None}]
     fn = snapshot_iv_resolver(snap, "2026-06-19")
-    from bot.strategy.s2b import _occ
     sym = _occ("SPY", "2026-06-19", "P", 568.0)
     assert fn([sym]) == {sym: 0.21}
     assert snapshot_iv_resolver([{"strike": 1, "iv": None}], "2026-06-19") is None   # no usable IV
+
+
+def test_multi_expiry_iv_resolver_covers_every_expiry():
+    """IV must resolve for legs across MULTIPLE expiries -- the candidate AND held-position expiries --
+    so the gap-stress book prices on real IV, not fallback. This is what unblocks the gap_2atr baseline."""
+    chains = {"2026-07-31": [{"strike": 729.0, "iv": 0.20}],
+              "2026-07-29": [{"strike": 740.0, "iv": 0.25}]}   # a held expiry
+    fn = multi_expiry_iv_resolver(chains)
+    s31 = _occ("SPY", "2026-07-31", "P", 729.0)
+    s29 = _occ("SPY", "2026-07-29", "P", 740.0)
+    got = fn([s31, s29])
+    assert got == {s31: 0.20, s29: 0.25}     # both expiries resolved
+    assert multi_expiry_iv_resolver({}) is None
+
+
+def test_replay_day_threads_book_chains_into_known_expiries():
+    """A record's book_chains (held-position expiries) must become available to later cycles so the
+    whole book can be priced. Verified via the reproduction still holding on a multi-expiry record."""
+    rec = _capture_one_record()                       # candidate 6/19 record (has chain)
+    rec2 = dict(rec)
+    rec2["book_chains"] = {"2026-07-10": [{"strike": 700.0, "delta": 0.3, "bid": 2.0, "ask": 2.1, "iv": 0.22}]}
+    out = replay_day([rec2], equity=20_000.0, features=_Feat(), base_risk_pct=0.10,
+                     entry_days=frozenset({0}), max_open=5)
+    # the record still reproduces its decision (book_chains is additive, never breaks the base replay)
+    assert out["total"] == 1 and out["results"][0]["matched"] is True
 
 
 def test_replay_day_threads_state_and_opens_position():

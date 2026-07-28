@@ -934,15 +934,36 @@ def run_entry_cycle(state: BotState, deps: Deps, now, regime=None) -> tuple:
             return
         try:
             gate = (risk_sizing_telemetry or {}).get("limiting_gate")
+            bucket = bucket15_of(now)
             chain_snap = None
             if captured_chain is not None:
-                bkey = (today, expiry, bucket15_of(now))
+                bkey = (today, expiry, bucket)
                 if not state.replay_chain_buckets.get(bkey):
                     chain_snap = snapshot_chain(captured_chain)
                     state.replay_chain_buckets[bkey] = True
+            # Multi-expiry capture (2026-07-28): also snapshot the chain for EACH expiry in the open
+            # book, so the stateful replay can price the WHOLE gap-stress book with real per-leg IV.
+            # The candidate-expiry chain alone left held legs on flat fallback IV, which is exactly why
+            # the gap_2atr baseline could not reproduce. Each held expiry is fetched at most once per
+            # (date,expiry,15-min bucket); best-effort per expiry so a chain-fetch failure never breaks
+            # capture or trading. Gated on replay_capture (Bot B only) so no cost lands on live Bot C.
+            book_chains = {}
+            for _p in state.open_positions:
+                pexp = getattr(_p, "expiry", None)
+                if not pexp or pexp == expiry or pexp in book_chains:
+                    continue
+                pbkey = (today, pexp, bucket)
+                if state.replay_chain_buckets.get(pbkey):
+                    continue
+                try:
+                    book_chains[pexp] = snapshot_chain(deps.get_chain("SPY", pexp))
+                    state.replay_chain_buckets[pbkey] = True
+                except Exception:
+                    pass   # a held-expiry chain fetch must never break capture/trading
             rec = build_replay_record(ts_et=now, bot=None, decision=reason, limiting_gate=gate,
                                       spot=spot, atr=atr, expiry=expiry, order=order,
-                                      chain_snapshot=chain_snap)
+                                      chain_snapshot=chain_snap,
+                                      book_chains=(book_chains or None))
             deps.replay_log(rec)
         except Exception:
             pass          # observability must never break an entry cycle

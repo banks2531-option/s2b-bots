@@ -12,7 +12,8 @@ from dataclasses import replace
 from datetime import datetime
 
 from bot.app.orchestrator import BotState, run_entry_cycle
-from replays.replay_deps import build_replay_deps, chain_from_snapshot, snapshot_iv_resolver
+from replays.replay_deps import (build_replay_deps, chain_from_snapshot, snapshot_iv_resolver,
+                                  multi_expiry_iv_resolver)
 
 
 def load_capture(path):
@@ -89,16 +90,24 @@ def replay_day(records, *, equity, features, base_risk_pct, day_open_positions=N
     same records + same seed + same config -> identical stream (no wall-clock/network/RNG)."""
     from dataclasses import replace
     from datetime import datetime
-    from bot.strategy.manage import ManagedPosition   # local import: keep module load light
 
     feats = replace(features, replay_capture=True)     # read the reproduced decision from the sink
     state = BotState(open_positions=list(day_open_positions or []))
-    pairs = carry_forward_chains(records)
+    # Accumulate the best-known chain snapshot per expiry as records stream by (candidate expiry +
+    # every open-book expiry from book_chains). This lets each cycle price the WHOLE gap-stress book
+    # with real per-leg IV -- the multi-expiry capture that unblocks the gap_2atr baseline. Snapshots
+    # carry forward across the once-per-bucket throttle (a later same-bucket record omits the chain).
+    known = {}     # expiry -> snapshot (list of leg dicts)
     results = []
-    for rec, snap in pairs:
-        chain = chain_from_snapshot(snap)
+    for rec in records:
         expiry = rec.get("expiry")
-        iv_fn = snapshot_iv_resolver(snap, expiry) if (use_snapshot_iv and expiry) else None
+        if rec.get("chain") and expiry:
+            known[expiry] = rec["chain"]
+        for bexp, bsnap in (rec.get("book_chains") or {}).items():
+            if bsnap:
+                known[bexp] = bsnap
+        chain = chain_from_snapshot(known.get(expiry))
+        iv_fn = multi_expiry_iv_resolver(known) if use_snapshot_iv else None
         sink = []
         deps = build_replay_deps(chain=chain, spot=rec.get("spot"), atr=rec.get("atr"),
                                  expiry=expiry, equity=equity, features=feats,
